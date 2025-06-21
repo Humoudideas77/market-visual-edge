@@ -1,49 +1,28 @@
 
-import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown } from 'lucide-react';
-
-interface OrderBookEntry {
-  price: string;
-  amount: string;
-  total: string;
-}
-
-interface Trade {
-  price: string;
-  amount: string;
-  time: string;
-  type: 'buy' | 'sell';
-}
+import React, { useState } from 'react';
+import { TrendingUp, TrendingDown, Clock, CheckCircle } from 'lucide-react';
+import { useTradingEngine } from '@/hooks/useTradingEngine';
+import { formatPrice, formatVolume } from '@/hooks/useCryptoPrices';
+import TradingPanel from './TradingPanel';
 
 const TradingInterface = () => {
   const [selectedPair, setSelectedPair] = useState('BTC/USDT');
-  const [orderType, setOrderType] = useState<'limit' | 'market'>('limit');
-  const [tradeTab, setTradeTab] = useState<'buy' | 'sell'>('buy');
-  
-  // Mock order book data
-  const [buyOrders] = useState<OrderBookEntry[]>([
-    { price: '43,248.50', amount: '0.25643', total: '11,087.45' },
-    { price: '43,247.20', amount: '0.18975', total: '8,205.87' },
-    { price: '43,245.80', amount: '0.35421', total: '15,312.76' },
-    { price: '43,244.10', amount: '0.12887', total: '5,571.23' },
-    { price: '43,242.90', amount: '0.28764', total: '12,436.89' },
-  ]);
+  const { tradingPair, buyOrders, sellOrders, recentTrades, userTrades } = useTradingEngine(selectedPair);
+  const [activeTab, setActiveTab] = useState<'market' | 'orders'>('market');
 
-  const [sellOrders] = useState<OrderBookEntry[]>([
-    { price: '43,251.20', amount: '0.19876', total: '8,596.34' },
-    { price: '43,252.80', amount: '0.31245', total: '13,515.67' },
-    { price: '43,254.10', amount: '0.22183', total: '9,592.45' },
-    { price: '43,255.60', amount: '0.15924', total: '6,887.23' },
-    { price: '43,257.30', amount: '0.27645', total: '11,956.78' },
-  ]);
+  if (!tradingPair) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 p-6">
+        <div className="lg:col-span-8">
+          <div className="exchange-panel p-8 text-center">
+            <div className="text-exchange-text-secondary">Loading trading data...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const [recentTrades] = useState<Trade[]>([
-    { price: '43,249.80', amount: '0.12543', time: '14:23:45', type: 'buy' },
-    { price: '43,248.20', amount: '0.08976', time: '14:23:42', type: 'sell' },
-    { price: '43,250.10', amount: '0.21087', time: '14:23:38', type: 'buy' },
-    { price: '43,247.90', amount: '0.15432', time: '14:23:35', type: 'sell' },
-    { price: '43,251.50', amount: '0.09876', time: '14:23:32', type: 'buy' },
-  ]);
+  const isPositive = tradingPair.change24h >= 0;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 p-6">
@@ -54,10 +33,12 @@ const TradingInterface = () => {
             <div className="flex items-center space-x-4">
               <h2 className="text-xl font-bold text-exchange-text-primary">{selectedPair}</h2>
               <div className="flex items-center space-x-2">
-                <span className="text-2xl font-mono text-exchange-green">$43,249.80</span>
-                <div className="flex items-center text-exchange-green text-sm">
-                  <TrendingUp className="w-4 h-4 mr-1" />
-                  +1,250.00 (+2.98%)
+                <span className="text-2xl font-mono text-exchange-text-primary">
+                  ${formatPrice(tradingPair.currentPrice)}
+                </span>
+                <div className={`flex items-center text-sm ${isPositive ? 'text-exchange-green' : 'text-exchange-red'}`}>
+                  {isPositive ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
+                  {isPositive ? '+' : ''}${Math.abs(tradingPair.change24h).toFixed(2)} ({((tradingPair.change24h / (tradingPair.currentPrice - tradingPair.change24h)) * 100).toFixed(2)}%)
                 </div>
               </div>
             </div>
@@ -70,15 +51,65 @@ const TradingInterface = () => {
               <button className="px-3 py-1 text-xs bg-exchange-accent text-exchange-text-secondary rounded">1D</button>
             </div>
           </div>
+
+          {/* Market Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div className="bg-exchange-accent/30 p-3 rounded-lg">
+              <div className="text-xs text-exchange-text-secondary">24h Volume</div>
+              <div className="text-sm font-mono text-exchange-text-primary">${formatVolume(tradingPair.volume24h)}</div>
+            </div>
+            <div className="bg-exchange-accent/30 p-3 rounded-lg">
+              <div className="text-xs text-exchange-text-secondary">24h High</div>
+              <div className="text-sm font-mono text-exchange-text-primary">${formatPrice(tradingPair.high24h)}</div>
+            </div>
+            <div className="bg-exchange-accent/30 p-3 rounded-lg">
+              <div className="text-xs text-exchange-text-secondary">24h Low</div>
+              <div className="text-sm font-mono text-exchange-text-primary">${formatPrice(tradingPair.low24h)}</div>
+            </div>
+            <div className="bg-exchange-accent/30 p-3 rounded-lg">
+              <div className="text-xs text-exchange-text-secondary">Price Change</div>
+              <div className={`text-sm font-mono ${isPositive ? 'text-exchange-green' : 'text-exchange-red'}`}>
+                {isPositive ? '+' : ''}${Math.abs(tradingPair.change24h).toFixed(2)}
+              </div>
+            </div>
+          </div>
           
           {/* Mock Trading Chart */}
           <div className="h-96 bg-exchange-bg rounded-lg flex items-center justify-center">
             <div className="text-center">
               <div className="text-6xl mb-4">📈</div>
-              <p className="text-exchange-text-secondary">TradingView Chart Integration</p>
-              <p className="text-sm text-exchange-text-muted mt-1">Real-time candlestick chart would be integrated here</p>
+              <p className="text-exchange-text-secondary">Live Trading Chart</p>
+              <p className="text-sm text-exchange-text-muted mt-1">Real-time price: ${formatPrice(tradingPair.currentPrice)}</p>
             </div>
           </div>
+
+          {/* User Trade History */}
+          {userTrades.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-sm font-semibold text-exchange-text-primary mb-3">Your Recent Trades</h3>
+              <div className="space-y-2">
+                {userTrades.slice(0, 5).map((trade) => (
+                  <div key={trade.id} className="flex items-center justify-between p-2 bg-exchange-accent/20 rounded">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-2 h-2 rounded-full ${trade.side === 'buy' ? 'bg-exchange-green' : 'bg-exchange-red'}`} />
+                      <span className="text-xs font-mono text-exchange-text-primary">
+                        {trade.side.toUpperCase()} {trade.amount.toFixed(8)} {trade.pair.split('/')[0]}
+                      </span>
+                      <span className="text-xs text-exchange-text-secondary">
+                        @ ${trade.price.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <CheckCircle className="w-3 h-3 text-exchange-green" />
+                      <span className="text-xs text-exchange-text-secondary">
+                        {trade.timestamp.toLocaleTimeString()}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -92,137 +123,93 @@ const TradingInterface = () => {
           <div className="space-y-1 mb-4">
             <div className="grid grid-cols-3 text-xs text-exchange-text-secondary mb-2">
               <span>Price (USDT)</span>
-              <span className="text-right">Amount (BTC)</span>
+              <span className="text-right">Amount ({tradingPair.baseAsset})</span>
               <span className="text-right">Total</span>
             </div>
-            {sellOrders.map((order, index) => (
+            {sellOrders.slice(0, 5).map((order, index) => (
               <div key={index} className="grid grid-cols-3 text-xs font-mono hover:bg-exchange-accent/30 px-1 py-0.5 rounded">
-                <span className="text-exchange-red">{order.price}</span>
-                <span className="text-right text-exchange-text-primary">{order.amount}</span>
-                <span className="text-right text-exchange-text-secondary">{order.total}</span>
+                <span className="text-exchange-red">${order.price.toFixed(2)}</span>
+                <span className="text-right text-exchange-text-primary">{order.amount.toFixed(8)}</span>
+                <span className="text-right text-exchange-text-secondary">${order.total.toFixed(2)}</span>
               </div>
             ))}
           </div>
 
           {/* Current Price */}
           <div className="text-center py-2 bg-exchange-green/10 rounded mb-4">
-            <span className="text-exchange-green font-mono font-bold">43,249.80</span>
-            <span className="text-exchange-text-secondary text-xs ml-2">≈ $43,249.80</span>
+            <span className="text-exchange-green font-mono font-bold">${formatPrice(tradingPair.currentPrice)}</span>
+            <span className="text-exchange-text-secondary text-xs ml-2">≈ ${formatPrice(tradingPair.currentPrice)}</span>
           </div>
 
           {/* Buy Orders */}
           <div className="space-y-1">
-            {buyOrders.map((order, index) => (
+            {buyOrders.slice(0, 5).map((order, index) => (
               <div key={index} className="grid grid-cols-3 text-xs font-mono hover:bg-exchange-accent/30 px-1 py-0.5 rounded">
-                <span className="text-exchange-green">{order.price}</span>
-                <span className="text-right text-exchange-text-primary">{order.amount}</span>
-                <span className="text-right text-exchange-text-secondary">{order.total}</span>
+                <span className="text-exchange-green">${order.price.toFixed(2)}</span>
+                <span className="text-right text-exchange-text-primary">{order.amount.toFixed(8)}</span>
+                <span className="text-right text-exchange-text-secondary">${order.total.toFixed(2)}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Trading Panel */}
-        <div className="exchange-panel p-4">
-          <div className="flex mb-4">
-            <button 
-              onClick={() => setTradeTab('buy')}
-              className={`flex-1 py-2 text-sm font-medium ${tradeTab === 'buy' ? 'bg-exchange-green text-white' : 'bg-exchange-accent text-exchange-text-secondary'}`}
-            >
-              Buy BTC
-            </button>
-            <button 
-              onClick={() => setTradeTab('sell')}
-              className={`flex-1 py-2 text-sm font-medium ${tradeTab === 'sell' ? 'bg-exchange-red text-white' : 'bg-exchange-accent text-exchange-text-secondary'}`}
-            >
-              Sell BTC
-            </button>
-          </div>
+        <TradingPanel selectedPair={selectedPair} />
 
-          <div className="space-y-4">
-            {/* Order Type */}
-            <div className="flex space-x-2">
+        {/* Market Trades */}
+        <div className="exchange-panel p-4">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-sm font-semibold text-exchange-text-primary">Market Trades</h3>
+            <div className="flex space-x-1">
               <button 
-                onClick={() => setOrderType('limit')}
-                className={`px-3 py-1 text-xs rounded ${orderType === 'limit' ? 'bg-exchange-blue text-white' : 'bg-exchange-accent text-exchange-text-secondary'}`}
-              >
-                Limit
-              </button>
-              <button 
-                onClick={() => setOrderType('market')}
-                className={`px-3 py-1 text-xs rounded ${orderType === 'market' ? 'bg-exchange-blue text-white' : 'bg-exchange-accent text-exchange-text-secondary'}`}
+                onClick={() => setActiveTab('market')}
+                className={`px-2 py-1 text-xs rounded ${activeTab === 'market' ? 'bg-exchange-blue text-white' : 'bg-exchange-accent text-exchange-text-secondary'}`}
               >
                 Market
               </button>
+              <button 
+                onClick={() => setActiveTab('orders')}
+                className={`px-2 py-1 text-xs rounded ${activeTab === 'orders' ? 'bg-exchange-blue text-white' : 'bg-exchange-accent text-exchange-text-secondary'}`}
+              >
+                My Orders
+              </button>
             </div>
-
-            {/* Price Input */}
-            {orderType === 'limit' && (
-              <div>
-                <label className="block text-xs text-exchange-text-secondary mb-1">Price</label>
-                <input 
-                  type="text" 
-                  className="exchange-input w-full" 
-                  placeholder="43,249.80"
-                />
-              </div>
-            )}
-
-            {/* Amount Input */}
-            <div>
-              <label className="block text-xs text-exchange-text-secondary mb-1">Amount</label>
-              <input 
-                type="text" 
-                className="exchange-input w-full" 
-                placeholder="0.00000000"
-              />
-            </div>
-
-            {/* Percentage Buttons */}
-            <div className="flex space-x-2">
-              {['25%', '50%', '75%', '100%'].map((percent) => (
-                <button key={percent} className="flex-1 py-1 text-xs bg-exchange-accent text-exchange-text-secondary rounded hover:bg-exchange-accent/80">
-                  {percent}
-                </button>
-              ))}
-            </div>
-
-            {/* Total */}
-            <div>
-              <label className="block text-xs text-exchange-text-secondary mb-1">Total</label>
-              <input 
-                type="text" 
-                className="exchange-input w-full" 
-                placeholder="0.00 USDT"
-                readOnly
-              />
-            </div>
-
-            {/* Submit Button */}
-            <button className={`w-full py-3 rounded-md font-medium ${tradeTab === 'buy' ? 'buy-button' : 'sell-button'}`}>
-              {tradeTab === 'buy' ? 'Buy BTC' : 'Sell BTC'}
-            </button>
           </div>
-        </div>
 
-        {/* Recent Trades */}
-        <div className="exchange-panel p-4">
-          <h3 className="text-sm font-semibold text-exchange-text-primary mb-3">Recent Trades</h3>
           <div className="space-y-1">
             <div className="grid grid-cols-3 text-xs text-exchange-text-secondary mb-2">
               <span>Price</span>
               <span className="text-right">Amount</span>
               <span className="text-right">Time</span>
             </div>
-            {recentTrades.map((trade, index) => (
-              <div key={index} className="grid grid-cols-3 text-xs font-mono">
-                <span className={trade.type === 'buy' ? 'text-exchange-green' : 'text-exchange-red'}>
-                  {trade.price}
-                </span>
-                <span className="text-right text-exchange-text-primary">{trade.amount}</span>
-                <span className="text-right text-exchange-text-secondary">{trade.time}</span>
+            
+            {activeTab === 'market' ? (
+              recentTrades.slice(0, 10).map((trade, index) => (
+                <div key={index} className="grid grid-cols-3 text-xs font-mono">
+                  <span className={trade.side === 'buy' ? 'text-exchange-green' : 'text-exchange-red'}>
+                    ${trade.price.toFixed(2)}
+                  </span>
+                  <span className="text-right text-exchange-text-primary">{trade.amount.toFixed(8)}</span>
+                  <span className="text-right text-exchange-text-secondary">{trade.timestamp.toLocaleTimeString()}</span>
+                </div>
+              ))
+            ) : (
+              userTrades.slice(0, 10).map((trade, index) => (
+                <div key={index} className="grid grid-cols-3 text-xs font-mono">
+                  <span className={trade.side === 'buy' ? 'text-exchange-green' : 'text-exchange-red'}>
+                    ${trade.price.toFixed(2)}
+                  </span>
+                  <span className="text-right text-exchange-text-primary">{trade.amount.toFixed(8)}</span>
+                  <span className="text-right text-exchange-text-secondary">{trade.timestamp.toLocaleTimeString()}</span>
+                </div>
+              ))
+            )}
+            
+            {activeTab === 'orders' && userTrades.length === 0 && (
+              <div className="text-center py-4 text-exchange-text-secondary text-xs">
+                No trade history yet
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>

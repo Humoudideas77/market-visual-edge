@@ -1,125 +1,73 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { WalletProvider } from "@/hooks/useWallet";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import PublicRoute from "@/components/PublicRoute";
 import Index from "./pages/Index";
-import TradingPage from "./pages/TradingPage";
 import AuthPage from "./pages/AuthPage";
 import DashboardPage from "./pages/DashboardPage";
 import ExchangePage from "./pages/ExchangePage";
-import ContractsPage from "./pages/ContractsPage";
-import GoldMiningPage from "./pages/GoldMiningPage";
+import TradingPage from "./pages/TradingPage";
 import MyAssetsPage from "./pages/MyAssetsPage";
 import LaunchpadPage from "./pages/LaunchpadPage";
+import ContractsPage from "./pages/ContractsPage";
+import GoldMiningPage from "./pages/GoldMiningPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Public Routes - Always accessible */}
-            <Route 
-              path="/" 
-              element={
+    <TooltipProvider>
+      <AuthProvider>
+        <WalletProvider>
+          <Toaster />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={
                 <PublicRoute>
-                  <Index />
-                </PublicRoute>
-              } 
-            />
-            <Route 
-              path="/auth" 
-              element={
-                <PublicRoute redirectIfAuthenticated={true}>
                   <AuthPage />
                 </PublicRoute>
-              } 
-            />
-            
-            {/* Semi-public routes - Viewable but limited functionality */}
-            <Route 
-              path="/exchange" 
-              element={
-                <PublicRoute>
-                  <ExchangePage />
-                </PublicRoute>
-              } 
-            />
-            
-            {/* Protected Routes - Require authentication */}
-            <Route 
-              path="/dashboard" 
-              element={
+              } />
+              <Route path="/dashboard" element={
                 <ProtectedRoute>
                   <DashboardPage />
                 </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/trading" 
-              element={
+              } />
+              <Route path="/exchange" element={<ExchangePage />} />
+              <Route path="/trading/:pair?" element={
                 <ProtectedRoute>
                   <TradingPage />
                 </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/trading/:pair" 
-              element={
-                <ProtectedRoute>
-                  <TradingPage />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/contracts" 
-              element={
-                <ProtectedRoute>
-                  <ContractsPage />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/gold-mining" 
-              element={
-                <ProtectedRoute>
-                  <GoldMiningPage />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/my-assets" 
-              element={
+              } />
+              <Route path="/assets" element={
                 <ProtectedRoute>
                   <MyAssetsPage />
                 </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/launchpad" 
-              element={
+              } />
+              <Route path="/launchpad" element={
                 <ProtectedRoute>
                   <LaunchpadPage />
                 </ProtectedRoute>
-              } 
-            />
-            
-            {/* Catch-all route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
+              } />
+              <Route path="/contracts" element={<ContractsPage />} />
+              <Route path="/gold-mining" element={
+                <ProtectedRoute>
+                  <GoldMiningPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/404" element={<NotFound />} />
+              <Route path="*" element={<Navigate to="/404" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </WalletProvider>
+      </AuthProvider>
+    </TooltipProvider>
   </QueryClientProvider>
 );
 

@@ -1,347 +1,305 @@
 
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState } from 'react';
+import Header from '../components/Header';
+import { useAuth } from '@/hooks/useAuth';
+import { useWallet } from '@/hooks/useWallet';
+import { useCryptoPrices, formatPrice, formatVolume } from '@/hooks/useCryptoPrices';
+import DepositModal from '@/components/DepositModal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { 
-  User, 
-  Shield, 
   Wallet, 
   TrendingUp, 
-  Settings, 
-  LogOut,
+  TrendingDown, 
+  Plus, 
+  Minus, 
+  ArrowUpRight, 
+  ArrowDownLeft,
   Eye,
   EyeOff,
-  CreditCard,
-  History,
-  Bell
+  DollarSign
 } from 'lucide-react';
-import { toast } from 'sonner';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
-
-interface Profile {
-  id: string;
-  email: string | null;
-  first_name: string | null;
-  last_name: string | null;
-  avatar_url: string | null;
-  kyc_status: string;
-  created_at: string;
-  updated_at: string;
-}
 
 const DashboardPage = () => {
-  const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showBalances, setShowBalances] = useState(false);
-  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { balances, transactions } = useWallet();
+  const { prices } = useCryptoPrices();
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [hideBalances, setHideBalances] = useState(false);
 
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate('/auth');
-        return;
-      }
-      
-      setUser(user);
-      
-      // Fetch user profile
-      const { data: profileData, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      
-      if (error) {
-        console.error('Error fetching profile:', error);
-      } else {
-        setProfile(profileData);
-      }
-      
-      setLoading(false);
-    };
-
-    getUser();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        navigate('/auth');
-      } else {
-        setUser(session.user);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  const handleSignOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        toast.error('Error signing out');
-      } else {
-        toast.success('Signed out successfully');
-        navigate('/');
-      }
-    } catch (err) {
-      toast.error('An error occurred while signing out');
+  // Calculate total portfolio value in USD
+  const totalPortfolioValue = balances.reduce((total, balance) => {
+    if (balance.currency === 'USDT') {
+      return total + balance.total;
     }
-  };
+    const cryptoPrice = prices.find(p => p.symbol.toUpperCase() === balance.currency);
+    return total + (balance.total * (cryptoPrice?.current_price || 0));
+  }, 0);
 
-  const getKycStatusColor = (status: string) => {
-    switch (status) {
-      case 'verified':
-        return 'bg-green-500';
-      case 'rejected':
-        return 'bg-red-500';
-      default:
-        return 'bg-yellow-500';
-    }
-  };
-
-  const getKycStatusText = (status: string) => {
-    switch (status) {
-      case 'verified':
-        return 'Verified';
-      case 'rejected':
-        return 'Rejected';
-      default:
-        return 'Pending';
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-exchange-bg flex items-center justify-center">
-        <div className="text-exchange-text-secondary">Loading dashboard...</div>
-      </div>
-    );
-  }
+  // Get recent transactions
+  const recentTransactions = transactions.slice(0, 10);
 
   return (
     <div className="min-h-screen bg-exchange-bg">
-      {/* Header */}
-      <header className="bg-exchange-panel border-b border-exchange-border px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-exchange-blue to-exchange-green rounded"></div>
-              <h1 className="text-xl font-bold text-exchange-text-primary">MEXC Pro</h1>
-            </div>
-            <Separator orientation="vertical" className="h-6" />
-            <h2 className="text-lg text-exchange-text-secondary">Dashboard</h2>
-          </div>
-          
-          <div className="flex items-center space-x-3">
-            <Button variant="ghost" size="icon">
-              <Bell className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Settings className="w-4 h-4" />
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={handleSignOut}
-              className="text-red-500 hover:text-red-400"
-            >
-              <LogOut className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <div className="p-6 max-w-7xl mx-auto">
+      <Header />
+      
+      <div className="container mx-auto px-6 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-exchange-text-primary mb-2">
-            Welcome back, {profile?.first_name || 'Trader'}!
+            Welcome back, {user?.email?.split('@')[0]}!
           </h1>
           <p className="text-exchange-text-secondary">
-            Manage your account and start trading with advanced tools.
+            Monitor your portfolio and manage your trades
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Account Info */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Profile Card */}
-            <Card className="bg-exchange-panel border-exchange-border">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-exchange-text-primary">
-                  <User className="w-5 h-5" />
-                  <span>Profile Information</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <p className="text-sm text-exchange-text-secondary">Name</p>
-                  <p className="text-exchange-text-primary font-medium">
-                    {profile?.first_name && profile?.last_name 
-                      ? `${profile.first_name} ${profile.last_name}`
-                      : 'Not provided'
-                    }
-                  </p>
-                </div>
-                
-                <div>
-                  <p className="text-sm text-exchange-text-secondary">Email</p>
-                  <p className="text-exchange-text-primary font-medium">
-                    {profile?.email || user?.email}
-                  </p>
-                </div>
-                
-                <div>
-                  <p className="text-sm text-exchange-text-secondary">Member Since</p>
-                  <p className="text-exchange-text-primary font-medium">
-                    {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'Unknown'}
-                  </p>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-exchange-text-secondary">KYC Status</span>
-                  <Badge className={`${getKycStatusColor(profile?.kyc_status || 'pending')} text-white`}>
-                    {getKycStatusText(profile?.kyc_status || 'pending')}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Security Card */}
-            <Card className="bg-exchange-panel border-exchange-border">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-exchange-text-primary">
-                  <Shield className="w-5 h-5" />
-                  <span>Security</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Two-Factor Authentication</span>
-                  <Badge variant="outline">Not Set</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Email Verification</span>
-                  <Badge className="bg-green-500 text-white">Verified</Badge>
-                </div>
-                <Button className="w-full" variant="outline">
-                  Security Settings
+        {/* Portfolio Overview */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="lg:col-span-2">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-exchange-text-primary">Total Portfolio Value</CardTitle>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setHideBalances(!hideBalances)}
+                >
+                  {hideBalances ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </Button>
-              </CardContent>
-            </Card>
-          </div>
+                <Button
+                  size="sm"
+                  onClick={() => setShowDepositModal(true)}
+                  className="bg-exchange-green hover:bg-exchange-green/90"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Deposit
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-exchange-text-primary mb-2">
+                {hideBalances ? '••••••' : `$${totalPortfolioValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              </div>
+              <div className="flex items-center text-exchange-green text-sm">
+                <TrendingUp className="w-4 h-4 mr-1" />
+                <span>Portfolio tracking active</span>
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* Right Column - Trading & Balances */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Portfolio Overview */}
-            <Card className="bg-exchange-panel border-exchange-border">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between text-exchange-text-primary">
-                  <div className="flex items-center space-x-2">
-                    <Wallet className="w-5 h-5" />
-                    <span>Portfolio Overview</span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowBalances(!showBalances)}
-                  >
-                    {showBalances ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="text-center p-4 bg-exchange-bg rounded-lg">
-                    <p className="text-sm text-exchange-text-secondary mb-1">Total Balance</p>
-                    <p className="text-2xl font-bold text-exchange-text-primary">
-                      {showBalances ? '$0.00' : '****'}
-                    </p>
-                    <p className="text-xs text-exchange-green">+0.00%</p>
-                  </div>
-                  
-                  <div className="text-center p-4 bg-exchange-bg rounded-lg">
-                    <p className="text-sm text-exchange-text-secondary mb-1">Available</p>
-                    <p className="text-2xl font-bold text-exchange-text-primary">
-                      {showBalances ? '$0.00' : '****'}
-                    </p>
-                  </div>
-                  
-                  <div className="text-center p-4 bg-exchange-bg rounded-lg">
-                    <p className="text-sm text-exchange-text-secondary mb-1">In Orders</p>
-                    <p className="text-2xl font-bold text-exchange-text-primary">
-                      {showBalances ? '$0.00' : '****'}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="mt-6 flex space-x-3">
-                  <Button className="flex-1 bg-exchange-green hover:bg-exchange-green/90">
-                    <CreditCard className="w-4 h-4 mr-2" />
-                    Deposit
-                  </Button>
-                  <Button variant="outline" className="flex-1">
-                    Withdraw
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-exchange-text-primary flex items-center">
+                <ArrowDownLeft className="w-4 h-4 mr-2 text-exchange-green" />
+                Total Deposits
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-exchange-text-primary mb-1">
+                {hideBalances ? '••••••' : `$${transactions.filter(t => t.type === 'deposit' && t.status === 'completed').reduce((sum, t) => sum + t.amount, 0).toLocaleString()}`}
+              </div>
+              <div className="text-xs text-exchange-text-secondary">
+                {transactions.filter(t => t.type === 'deposit').length} deposits
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Quick Actions */}
-            <Card className="bg-exchange-panel border-exchange-border">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-exchange-text-primary">
-                  <TrendingUp className="w-5 h-5" />
-                  <span>Quick Actions</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Button 
-                    className="h-20 flex flex-col space-y-2 bg-exchange-blue hover:bg-exchange-blue/90"
-                    onClick={() => navigate('/trading')}
-                  >
-                    <TrendingUp className="w-6 h-6" />
-                    <span>Start Trading</span>
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    className="h-20 flex flex-col space-y-2"
-                    onClick={() => navigate('/')}
-                  >
-                    <History className="w-6 h-6" />
-                    <span>View Markets</span>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Recent Activity */}
-            <Card className="bg-exchange-panel border-exchange-border">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-exchange-text-primary">
-                  <History className="w-5 h-5" />
-                  <span>Recent Activity</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-exchange-text-secondary">
-                  <History className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>No recent activity</p>
-                  <p className="text-sm">Your trading history will appear here</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-exchange-text-primary flex items-center">
+                <DollarSign className="w-4 h-4 mr-2 text-exchange-blue" />
+                Active Trades
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-exchange-text-primary mb-1">
+                {transactions.filter(t => t.type.includes('trade')).length}
+              </div>
+              <div className="text-xs text-exchange-text-secondary">
+                Total trades executed
+              </div>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Wallet Balances */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-exchange-text-primary flex items-center">
+                <Wallet className="w-5 h-5 mr-2" />
+                Wallet Balances
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {balances.filter(balance => balance.total > 0).map((balance) => {
+                  const cryptoPrice = prices.find(p => p.symbol.toUpperCase() === balance.currency);
+                  const usdValue = balance.currency === 'USDT' 
+                    ? balance.total 
+                    : balance.total * (cryptoPrice?.current_price || 0);
+
+                  return (
+                    <div key={balance.currency} className="flex items-center justify-between p-3 bg-exchange-accent/20 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-exchange-blue/20 rounded-full flex items-center justify-center">
+                          <span className="text-xs font-bold text-exchange-blue">
+                            {balance.currency.slice(0, 2)}
+                          </span>
+                        </div>
+                        <div>
+                          <div className="font-medium text-exchange-text-primary">
+                            {balance.currency}
+                          </div>
+                          <div className="text-xs text-exchange-text-secondary">
+                            Available: {hideBalances ? '••••••' : balance.available.toFixed(8)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-mono text-exchange-text-primary">
+                          {hideBalances ? '••••••' : balance.total.toFixed(8)}
+                        </div>
+                        <div className="text-xs text-exchange-text-secondary">
+                          {hideBalances ? '••••••' : `≈ $${usdValue.toFixed(2)}`}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                {balances.filter(balance => balance.total > 0).length === 0 && (
+                  <div className="text-center py-8 text-exchange-text-secondary">
+                    <Wallet className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No balances yet</p>
+                    <Button 
+                      onClick={() => setShowDepositModal(true)}
+                      className="mt-4 bg-exchange-green hover:bg-exchange-green/90"
+                      size="sm"
+                    >
+                      Make your first deposit
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Recent Transactions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-exchange-text-primary">Recent Activity</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {recentTransactions.map((transaction) => (
+                  <div key={transaction.id} className="flex items-center justify-between p-3 bg-exchange-accent/20 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        transaction.type === 'deposit' ? 'bg-exchange-green/20' :
+                        transaction.type === 'trade_buy' ? 'bg-exchange-blue/20' :
+                        transaction.type === 'trade_sell' ? 'bg-exchange-red/20' :
+                        'bg-exchange-accent'
+                      }`}>
+                        {transaction.type === 'deposit' ? (
+                          <ArrowDownLeft className="w-4 h-4 text-exchange-green" />
+                        ) : transaction.type === 'trade_buy' ? (
+                          <TrendingUp className="w-4 h-4 text-exchange-blue" />
+                        ) : transaction.type === 'trade_sell' ? (
+                          <TrendingDown className="w-4 h-4 text-exchange-red" />
+                        ) : (
+                          <ArrowUpRight className="w-4 h-4 text-exchange-text-secondary" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-medium text-exchange-text-primary capitalize">
+                          {transaction.type.replace('_', ' ')}
+                        </div>
+                        <div className="text-xs text-exchange-text-secondary">
+                          {transaction.timestamp.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className={`font-mono ${
+                        transaction.type === 'deposit' || transaction.type === 'trade_buy' 
+                          ? 'text-exchange-green' 
+                          : 'text-exchange-red'
+                      }`}>
+                        {transaction.type === 'deposit' || transaction.type === 'trade_buy' ? '+' : '-'}
+                        {transaction.amount.toFixed(8)} {transaction.currency}
+                      </div>
+                      <div className={`text-xs px-2 py-1 rounded ${
+                        transaction.status === 'completed' ? 'bg-exchange-green/20 text-exchange-green' :
+                        transaction.status === 'pending' ? 'bg-exchange-yellow/20 text-exchange-yellow' :
+                        'bg-exchange-red/20 text-exchange-red'
+                      }`}>
+                        {transaction.status}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                {recentTransactions.length === 0 && (
+                  <div className="text-center py-8 text-exchange-text-secondary">
+                    <ArrowUpRight className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No recent activity</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-exchange-text-primary">Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Button 
+                onClick={() => setShowDepositModal(true)}
+                className="h-20 flex flex-col items-center justify-center bg-exchange-green hover:bg-exchange-green/90"
+              >
+                <Plus className="w-6 h-6 mb-2" />
+                Deposit Funds
+              </Button>
+              <Button 
+                variant="outline"
+                className="h-20 flex flex-col items-center justify-center"
+                onClick={() => window.location.href = '/exchange'}
+              >
+                <TrendingUp className="w-6 h-6 mb-2" />
+                View Markets
+              </Button>
+              <Button 
+                variant="outline"
+                className="h-20 flex flex-col items-center justify-center"
+                onClick={() => window.location.href = '/trading'}
+              >
+                <DollarSign className="w-6 h-6 mb-2" />
+                Start Trading
+              </Button>
+              <Button 
+                variant="outline"
+                className="h-20 flex flex-col items-center justify-center"
+                onClick={() => window.location.href = '/assets'}
+              >
+                <Wallet className="w-6 h-6 mb-2" />
+                My Assets
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Deposit Modal */}
+      <DepositModal 
+        isOpen={showDepositModal} 
+        onClose={() => setShowDepositModal(false)} 
+      />
     </div>
   );
 };
