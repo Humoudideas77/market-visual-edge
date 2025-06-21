@@ -99,25 +99,7 @@ const SuperAdminPage = () => {
   // Redirect if user is not a superadmin
   if (!userProfile || userProfile.role !== 'superadmin') {
     console.log('SuperAdminPage - User is not superadmin, role:', userProfile?.role);
-    console.log('SuperAdminPage - Should redirect to dashboard, but staying on current page for debugging');
-    
-    // For debugging - show access denied instead of redirect
-    return (
-      <div className="min-h-screen bg-exchange-bg flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="text-red-500 text-xl">Access Denied</div>
-          <div className="text-exchange-text-secondary">
-            You don't have superadmin access. Your role: {userProfile?.role || 'unknown'}
-          </div>
-          <div className="text-sm text-exchange-text-secondary">
-            User: {user?.email}
-          </div>
-          <div className="text-sm text-exchange-text-secondary">
-            Current path: {window.location.pathname}
-          </div>
-        </div>
-      </div>
-    );
+    return <Navigate to="/dashboard" replace />;
   }
 
   console.log('SuperAdminPage - Rendering SuperAdmin dashboard for:', userProfile.email);

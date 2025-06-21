@@ -23,6 +23,7 @@ const Header = () => {
         .eq('id', user.id)
         .single();
       
+      console.log('Header - User profile:', data);
       return data;
     },
     enabled: !!user,
@@ -44,7 +45,7 @@ const Header = () => {
   const handleProfileClick = () => {
     // Redirect based on user role
     if (userProfile?.role === 'superadmin') {
-      console.log('Navigating to superadmin dashboard');
+      console.log('Header - Navigating to superadmin dashboard');
       navigate('/superadmin-dashboard');
     } else {
       navigate('/dashboard');
@@ -53,7 +54,7 @@ const Header = () => {
 
   const handleSuperAdminClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    console.log('Super Admin link clicked, navigating to /superadmin-dashboard');
+    console.log('Header - Super Admin link clicked, navigating to /superadmin-dashboard');
     navigate('/superadmin-dashboard');
   };
 
@@ -79,7 +80,7 @@ const Header = () => {
               <Link to="/launchpad" className="text-exchange-text-secondary hover:text-exchange-blue transition-colors">Launchpad</Link>
               <Link to="/dashboard" className="text-exchange-text-secondary hover:text-exchange-blue transition-colors">Assets</Link>
               
-              {/* Super Admin Dashboard Link - Fixed */}
+              {/* Super Admin Dashboard Link */}
               {userProfile?.role === 'superadmin' && (
                 <button 
                   onClick={handleSuperAdminClick}

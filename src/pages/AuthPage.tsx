@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -106,6 +107,7 @@ const AuthPage = () => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
+        console.log('AuthPage - User already authenticated:', session.user.email);
         // Check if user is superadmin
         const { data: profile } = await supabase
           .from('profiles')
@@ -113,7 +115,10 @@ const AuthPage = () => {
           .eq('id', session.user.id)
           .single();
         
+        console.log('AuthPage - User profile:', profile);
+        
         if (profile?.role === 'superadmin') {
+          console.log('AuthPage - Redirecting to superadmin dashboard');
           navigate('/superadmin-dashboard');
         } else {
           navigate('/dashboard');
@@ -124,7 +129,7 @@ const AuthPage = () => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth event:', event, 'Session:', session);
+      console.log('AuthPage - Auth event:', event, 'Session:', session);
       if (session) {
         // Check user role and redirect accordingly
         const { data: profile } = await supabase
@@ -133,10 +138,10 @@ const AuthPage = () => {
           .eq('id', session.user.id)
           .single();
         
-        console.log('User profile:', profile);
+        console.log('AuthPage - User profile after auth change:', profile);
         
         if (profile?.role === 'superadmin') {
-          console.log('Redirecting to superadmin dashboard');
+          console.log('AuthPage - Redirecting to superadmin dashboard');
           navigate('/superadmin-dashboard');
         } else {
           navigate('/dashboard');
@@ -153,7 +158,7 @@ const AuthPage = () => {
     setError('');
 
     try {
-      console.log('Attempting sign up with:', email);
+      console.log('AuthPage - Attempting sign up with:', email);
       const redirectUrl = `${window.location.origin}/dashboard`;
       
       const { data, error } = await supabase.auth.signUp({
@@ -168,17 +173,38 @@ const AuthPage = () => {
         }
       });
 
-      console.log('Sign up response:', { data, error });
+      console.log('AuthPage - Sign up response:', { data, error });
 
       if (error) {
-        console.error('Sign up error:', error);
+        console.error('AuthPage - Sign up error:', error);
         if (error.message.includes('User already registered')) {
           setError('This email is already registered. Please sign in instead.');
         } else {
           setError(error.message);
         }
       } else {
-        console.log('Sign up successful:', data);
+        console.log('AuthPage - Sign up successful:', data);
+        
+        // Special handling for creating superadmin
+        if (email === 'admin@mexc.com' && data.user && data.session) {
+          console.log('AuthPage - Creating superadmin profile');
+          
+          // Update profile to superadmin role
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update({ role: 'superadmin' })
+            .eq('id', data.user.id);
+          
+          if (profileError) {
+            console.error('AuthPage - Error updating to superadmin:', profileError);
+          } else {
+            console.log('AuthPage - Successfully updated to superadmin');
+            toast.success('Superadmin account created successfully!');
+            navigate('/superadmin-dashboard');
+            return;
+          }
+        }
+        
         if (data.user && !data.session) {
           toast.success('Account created! Please check your email for verification, or try signing in if email confirmation is disabled.');
         } else {
@@ -186,7 +212,7 @@ const AuthPage = () => {
         }
       }
     } catch (err) {
-      console.error('Unexpected sign up error:', err);
+      console.error('AuthPage - Unexpected sign up error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -199,16 +225,16 @@ const AuthPage = () => {
     setError('');
 
     try {
-      console.log('Attempting sign in with:', email);
+      console.log('AuthPage - Attempting sign in with:', email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
-      console.log('Sign in response:', { data, error });
+      console.log('AuthPage - Sign in response:', { data, error });
 
       if (error) {
-        console.error('Sign in error:', error);
+        console.error('AuthPage - Sign in error:', error);
         if (error.message.includes('Invalid login credentials')) {
           setError('Invalid email or password. Please check your credentials or try signing up first.');
         } else if (error.message.includes('Email not confirmed')) {
@@ -217,11 +243,11 @@ const AuthPage = () => {
           setError(error.message);
         }
       } else {
-        console.log('Sign in successful:', data);
+        console.log('AuthPage - Sign in successful:', data);
         toast.success('Signed in successfully!');
       }
     } catch (err) {
-      console.error('Unexpected sign in error:', err);
+      console.error('AuthPage - Unexpected sign in error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -264,6 +290,20 @@ const AuthPage = () => {
               <h3 className="font-semibold text-exchange-text-primary mb-2">Global Community</h3>
               <p className="text-sm text-exchange-text-secondary">Join millions of traders worldwide</p>
             </div>
+          </div>
+
+          {/* Superadmin Instructions */}
+          <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4 text-center">
+            <div className="flex items-center justify-center space-x-2 mb-2">
+              <Shield className="w-5 h-5 text-red-400" />
+              <span className="text-red-400 font-semibold">Create Superadmin Account</span>
+            </div>
+            <p className="text-sm text-red-300">
+              To create a superadmin account, sign up with:<br />
+              <span className="font-mono bg-red-900/40 px-2 py-1 rounded">admin@mexc.com</span>
+              <br />
+              Use any password (minimum 6 characters)
+            </p>
           </div>
         </div>
 
