@@ -61,13 +61,13 @@ export const MiningProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       const { data, error } = await supabase
-        .from('mining_investments')
+        .from('mining_investments' as any)
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setInvestments(data || []);
+      setInvestments((data as MiningInvestment[]) || []);
     } catch (error) {
       console.error('Error fetching investments:', error);
     }
@@ -78,7 +78,7 @@ export const MiningProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       const { data, error } = await supabase
-        .from('mining_payouts')
+        .from('mining_payouts' as any)
         .select(`
           *,
           mining_investments!inner(user_id)
@@ -87,7 +87,7 @@ export const MiningProvider = ({ children }: { children: React.ReactNode }) => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPayouts(data || []);
+      setPayouts((data as MiningPayout[]) || []);
     } catch (error) {
       console.error('Error fetching payouts:', error);
     }
@@ -123,7 +123,7 @@ export const MiningProvider = ({ children }: { children: React.ReactNode }) => {
       nextPayout.setDate(nextPayout.getDate() + 1);
 
       const { error } = await supabase
-        .from('mining_investments')
+        .from('mining_investments' as any)
         .insert({
           user_id: user.id,
           plan_name: planName,
@@ -160,7 +160,7 @@ export const MiningProvider = ({ children }: { children: React.ReactNode }) => {
         
         // Create payout record
         const { error: payoutError } = await supabase
-          .from('mining_payouts')
+          .from('mining_payouts' as any)
           .insert({
             investment_id: investment.id,
             amount: payoutAmount,
@@ -196,7 +196,7 @@ export const MiningProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         const { error: updateError } = await supabase
-          .from('mining_investments')
+          .from('mining_investments' as any)
           .update(updateData)
           .eq('id', investment.id);
 

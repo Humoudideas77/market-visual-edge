@@ -1,11 +1,12 @@
-
 import React, { useState } from 'react';
 import Header from '../components/Header';
 import { useAuth } from '@/hooks/useAuth';
 import { useWallet } from '@/hooks/useWallet';
+import { useMiningInvestments } from '@/hooks/useMiningInvestments';
 import { useCryptoPrices, formatPrice, formatVolume } from '@/hooks/useCryptoPrices';
 import EnhancedDepositModal from '@/components/EnhancedDepositModal';
 import WithdrawModal from '@/components/WithdrawModal';
+import CountdownTimer from '@/components/CountdownTimer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
@@ -25,6 +26,7 @@ import {
 const DashboardPage = () => {
   const { user } = useAuth();
   const { balances, transactions } = useWallet();
+  const { investments, getTotalEarnings } = useMiningInvestments();
   const { prices } = useCryptoPrices();
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
@@ -42,15 +44,19 @@ const DashboardPage = () => {
   // Get recent transactions
   const recentTransactions = transactions.slice(0, 8);
 
-  // Mock active mining plan data
-  const activeMiningPlan = {
-    name: 'Central Mining',
-    investment: 500,
-    dailyReturn: 2.5,
-    daysActive: 15,
-    totalEarned: 187.50,
-    nextPayout: '04:23:17'
-  };
+  // Get active mining data
+  const activeInvestments = investments.filter(inv => inv.status === 'active');
+  const totalMiningEarnings = getTotalEarnings();
+  const dailyMiningReturn = activeInvestments.reduce((sum, inv) => 
+    sum + (inv.investment_amount * inv.daily_return_rate / 100), 0
+  );
+
+  // Get next payout time for the earliest investment
+  const nextActivePayout = activeInvestments.length > 0 
+    ? activeInvestments.reduce((earliest, current) => 
+        new Date(current.next_payout_date) < new Date(earliest.next_payout_date) ? current : earliest
+      )
+    : null;
 
   return (
     <div className="min-h-screen bg-white">
@@ -136,50 +142,61 @@ const DashboardPage = () => {
             </CardHeader>
             <CardContent>
               <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
-                {hideBalances ? '••••••' : `$${activeMiningPlan.totalEarned.toFixed(2)}`}
+                {hideBalances ? '••••••' : `$${totalMiningEarnings.toFixed(2)}`}
               </div>
               <div className="text-xs text-gray-500">
-                Daily: ${activeMiningPlan.dailyReturn}/day
+                Daily: ${dailyMiningReturn.toFixed(2)}/day
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Active Mining Plan */}
-        <Card className="mb-6 sm:mb-8 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200">
-          <CardHeader>
-            <CardTitle className="text-gray-900 flex items-center">
-              <Pickaxe className="w-5 h-5 mr-2 text-red-600" />
-              Active Mining Plan
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-              <div>
-                <div className="text-sm text-gray-600 mb-1">Plan Type</div>
-                <div className="text-lg font-semibold text-gray-900">{activeMiningPlan.name}</div>
+        {activeInvestments.length > 0 && nextActivePayout && (
+          <Card className="mb-6 sm:mb-8 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200">
+            <CardHeader>
+              <CardTitle className="text-gray-900 flex items-center">
+                <Pickaxe className="w-5 h-5 mr-2 text-red-600" />
+                Next Mining Payout
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">Plan Type</div>
+                  <div className="text-lg font-semibold text-gray-900">{nextActivePayout.plan_name}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">Investment Amount</div>
+                  <div className="text-lg font-semibold text-gray-900">${nextActivePayout.investment_amount.toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">Daily Return</div>
+                  <div className="text-lg font-semibold text-green-600">
+                    +${((nextActivePayout.investment_amount * nextActivePayout.daily_return_rate) / 100).toFixed(2)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">Next Payout</div>
+                  <CountdownTimer
+                    targetDate={new Date(nextActivePayout.next_payout_date)}
+                    className="text-lg font-semibold"
+                  />
+                </div>
               </div>
-              <div>
-                <div className="text-sm text-gray-600 mb-1">Investment Amount</div>
-                <div className="text-lg font-semibold text-gray-900">${activeMiningPlan.investment}</div>
+              <div className="mt-4 pt-4 border-t border-red-200">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">
+                    Days Active: {Math.floor((new Date().getTime() - new Date(nextActivePayout.start_date).getTime()) / (1000 * 60 * 60 * 24))}
+                  </span>
+                  <span className="text-sm font-semibold text-green-600">
+                    Total Earned: ${nextActivePayout.total_earned.toFixed(2)}
+                  </span>
+                </div>
               </div>
-              <div>
-                <div className="text-sm text-gray-600 mb-1">Daily Return</div>
-                <div className="text-lg font-semibold text-green-600">+${activeMiningPlan.dailyReturn}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-600 mb-1">Next Payout</div>
-                <div className="text-lg font-semibold text-red-600">{activeMiningPlan.nextPayout}</div>
-              </div>
-            </div>
-            <div className="mt-4 pt-4 border-t border-red-200">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Days Active: {activeMiningPlan.daysActive}</span>
-                <span className="text-sm font-semibold text-green-600">Total Earned: ${activeMiningPlan.totalEarned}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Wallet and Transactions */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">

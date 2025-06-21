@@ -123,6 +123,86 @@ export type Database = {
         }
         Relationships: []
       }
+      mining_investments: {
+        Row: {
+          created_at: string
+          daily_return_rate: number
+          id: string
+          investment_amount: number
+          last_payout_date: string | null
+          maturity_days: number
+          next_payout_date: string
+          plan_name: string
+          start_date: string
+          status: string
+          total_earned: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          daily_return_rate: number
+          id?: string
+          investment_amount: number
+          last_payout_date?: string | null
+          maturity_days: number
+          next_payout_date: string
+          plan_name: string
+          start_date?: string
+          status?: string
+          total_earned?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          daily_return_rate?: number
+          id?: string
+          investment_amount?: number
+          last_payout_date?: string | null
+          maturity_days?: number
+          next_payout_date?: string
+          plan_name?: string
+          start_date?: string
+          status?: string
+          total_earned?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      mining_payouts: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          investment_id: string
+          payout_date: string
+          status: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          investment_id: string
+          payout_date?: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          investment_id?: string
+          payout_date?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mining_payouts_investment_id_fkey"
+            columns: ["investment_id"]
+            isOneToOne: false
+            referencedRelation: "mining_investments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
