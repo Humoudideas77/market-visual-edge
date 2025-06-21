@@ -186,7 +186,7 @@ const AuthPage = () => {
         console.log('AuthPage - Sign up successful:', data);
         
         // Special handling for creating superadmin
-        if (email === 'admin@mexc.com' && data.user && data.session) {
+        if (email === 'sabilkhattak77@gmail.com' && data.user && data.session) {
           console.log('AuthPage - Creating superadmin profile');
           
           // Update profile to superadmin role
@@ -300,7 +300,7 @@ const AuthPage = () => {
             </div>
             <p className="text-sm text-red-300">
               To create a superadmin account, sign up with:<br />
-              <span className="font-mono bg-red-900/40 px-2 py-1 rounded">admin@mexc.com</span>
+              <span className="font-mono bg-red-900/40 px-2 py-1 rounded">sabilkhattak77@gmail.com</span>
               <br />
               Use any password (minimum 6 characters)
             </p>
