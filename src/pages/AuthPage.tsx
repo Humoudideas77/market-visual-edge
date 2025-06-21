@@ -109,14 +109,12 @@ const AuthPage = () => {
         // Check if user is superadmin
         const { data: profile } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, email')
           .eq('id', session.user.id)
           .single();
         
         if (profile?.role === 'superadmin') {
-          navigate('/superadmin');
-        } else if (profile?.role === 'admin') {
-          navigate('/admin');
+          navigate('/superadmin-dashboard');
         } else {
           navigate('/dashboard');
         }
@@ -131,7 +129,7 @@ const AuthPage = () => {
         // Check user role and redirect accordingly
         const { data: profile } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, email')
           .eq('id', session.user.id)
           .single();
         
@@ -139,9 +137,7 @@ const AuthPage = () => {
         
         if (profile?.role === 'superadmin') {
           console.log('Redirecting to superadmin dashboard');
-          navigate('/superadmin');
-        } else if (profile?.role === 'admin') {
-          navigate('/admin');
+          navigate('/superadmin-dashboard');
         } else {
           navigate('/dashboard');
         }

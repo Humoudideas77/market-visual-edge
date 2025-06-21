@@ -11,7 +11,6 @@ import PublicRoute from "@/components/PublicRoute";
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import DashboardPage from "./pages/DashboardPage";
-import AdminDashboardPage from "./pages/AdminDashboardPage";
 import SuperAdminPage from "./pages/SuperAdminPage";
 import ExchangePage from "./pages/ExchangePage";
 import TradingPage from "./pages/TradingPage";
@@ -43,12 +42,7 @@ const App = () => (
                     <DashboardPage />
                   </ProtectedRoute>
                 } />
-                <Route path="/admin" element={
-                  <ProtectedRoute>
-                    <AdminDashboardPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/superadmin" element={
+                <Route path="/superadmin-dashboard" element={
                   <ProtectedRoute>
                     <SuperAdminPage />
                   </ProtectedRoute>
