@@ -1,14 +1,32 @@
 
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, Settings, User, ChevronDown, Globe, LogOut } from 'lucide-react';
+import { Bell, Settings, User, ChevronDown, Globe, LogOut, Shield } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 const Header = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  // Check if current user is superadmin
+  const { data: userProfile } = useQuery({
+    queryKey: ['user-profile', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      
+      const { data } = await supabase
+        .from('profiles')
+        .select('role, email')
+        .eq('id', user.id)
+        .single();
+      
+      return data;
+    },
+    enabled: !!user,
+  });
 
   const handleSignOut = async () => {
     try {
@@ -24,7 +42,12 @@ const Header = () => {
   };
 
   const handleProfileClick = () => {
-    navigate('/dashboard');
+    // Redirect based on user role
+    if (userProfile?.role === 'superadmin') {
+      navigate('/superadmin-dashboard');
+    } else {
+      navigate('/dashboard');
+    }
   };
 
   return (
@@ -48,6 +71,14 @@ const Header = () => {
               <Link to="/gold-mining" className="text-exchange-text-secondary hover:text-exchange-blue transition-colors">Gold Mining</Link>
               <Link to="/launchpad" className="text-exchange-text-secondary hover:text-exchange-blue transition-colors">Launchpad</Link>
               <Link to="/dashboard" className="text-exchange-text-secondary hover:text-exchange-blue transition-colors">Assets</Link>
+              
+              {/* Super Admin Dashboard Link */}
+              {userProfile?.role === 'superadmin' && (
+                <Link to="/superadmin-dashboard" className="text-red-400 hover:text-red-300 transition-colors flex items-center space-x-1">
+                  <Shield className="w-4 h-4" />
+                  <span>Super Admin</span>
+                </Link>
+              )}
             </>
           ) : (
             <>
@@ -80,13 +111,19 @@ const Header = () => {
             {/* Settings */}
             <Settings className="w-5 h-5 text-exchange-text-secondary hover:text-exchange-text-primary cursor-pointer" />
 
-            {/* User Profile - Fixed to redirect to dashboard */}
+            {/* User Profile - Updated to handle role-based navigation */}
             <button 
               onClick={handleProfileClick}
               className="flex items-center space-x-2 bg-exchange-accent px-3 py-2 rounded-lg cursor-pointer hover:bg-exchange-accent/80"
             >
-              <User className="w-4 h-4 text-exchange-text-primary" />
-              <span className="text-sm text-exchange-text-primary">Profile</span>
+              {userProfile?.role === 'superadmin' ? (
+                <Shield className="w-4 h-4 text-red-400" />
+              ) : (
+                <User className="w-4 h-4 text-exchange-text-primary" />
+              )}
+              <span className="text-sm text-exchange-text-primary">
+                {userProfile?.role === 'superadmin' ? 'Super Admin' : 'Profile'}
+              </span>
               <ChevronDown className="w-3 h-3 text-exchange-text-secondary" />
             </button>
 

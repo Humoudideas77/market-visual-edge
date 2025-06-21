@@ -17,38 +17,82 @@ import SuperAdminActivityLogs from '@/components/admin/SuperAdminActivityLogs';
 import SuperAdminPlatformSettings from '@/components/admin/SuperAdminPlatformSettings';
 
 const SuperAdminPage = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
 
   // Check if user is specifically a superadmin
-  const { data: isSuperAdmin, isLoading } = useQuery({
+  const { data: userProfile, isLoading: profileLoading, error } = useQuery({
     queryKey: ['superadmin-check', user?.id],
     queryFn: async () => {
-      if (!user) return false;
+      if (!user) return null;
       
-      const { data } = await supabase
+      console.log('Checking superadmin status for user:', user.id, user.email);
+      
+      const { data, error } = await supabase
         .from('profiles')
         .select('role, email')
         .eq('id', user.id)
         .single();
       
-      console.log('Super Admin Check:', data);
-      return data?.role === 'superadmin';
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        throw error;
+      }
+      
+      console.log('User profile data:', data);
+      return data;
     },
-    enabled: !!user,
+    enabled: !!user && !authLoading,
+    retry: 3,
+    retryDelay: 1000,
   });
 
-  if (isLoading) {
+  console.log('SuperAdminPage render:', {
+    user: user?.email,
+    authLoading,
+    profileLoading,
+    userProfile,
+    error
+  });
+
+  // Show loading while checking authentication or profile
+  if (authLoading || profileLoading) {
     return (
       <div className="min-h-screen bg-exchange-bg flex items-center justify-center">
-        <div className="text-exchange-text-secondary">Verifying Super Admin Access...</div>
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-exchange-blue mx-auto"></div>
+          <div className="text-exchange-text-secondary">Verifying Super Admin Access...</div>
+        </div>
       </div>
     );
   }
 
-  if (!user || !isSuperAdmin) {
-    return <Navigate to="/" replace />;
+  // Show error if profile fetch failed
+  if (error) {
+    return (
+      <div className="min-h-screen bg-exchange-bg flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="text-red-500 text-xl">Error Loading Profile</div>
+          <div className="text-exchange-text-secondary">
+            Failed to verify admin access. Please try refreshing the page.
+          </div>
+        </div>
+      </div>
+    );
   }
+
+  // Redirect if user is not authenticated or not a superadmin
+  if (!user) {
+    console.log('No user found, redirecting to auth');
+    return <Navigate to="/auth" replace />;
+  }
+
+  if (!userProfile || userProfile.role !== 'superadmin') {
+    console.log('User is not superadmin, redirecting to dashboard. Role:', userProfile?.role);
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  console.log('Rendering SuperAdmin dashboard for:', userProfile.email);
 
   return (
     <div className="min-h-screen bg-exchange-bg">
@@ -60,7 +104,7 @@ const SuperAdminPage = () => {
             </div>
             <div>
               <h1 className="text-4xl font-bold text-exchange-text-primary">
-                Super Admin
+                Super Admin Dashboard
               </h1>
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant="destructive" className="bg-red-600">
@@ -68,7 +112,7 @@ const SuperAdminPage = () => {
                   Superadmin Access
                 </Badge>
                 <span className="text-exchange-text-secondary text-sm">
-                  Full Platform Control
+                  Welcome, {userProfile.email}
                 </span>
               </div>
             </div>
