@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { WalletProvider } from "@/hooks/useWallet";
+import { MiningProvider } from "@/hooks/useMiningInvestments";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import PublicRoute from "@/components/PublicRoute";
 import Index from "./pages/Index";
@@ -25,46 +26,48 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <WalletProvider>
-          <Toaster />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/auth" element={
-                <PublicRoute>
-                  <AuthPage />
-                </PublicRoute>
-              } />
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <DashboardPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/exchange" element={<ExchangePage />} />
-              <Route path="/trading/:pair?" element={
-                <ProtectedRoute>
-                  <TradingPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/assets" element={
-                <ProtectedRoute>
-                  <MyAssetsPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/launchpad" element={
-                <ProtectedRoute>
-                  <LaunchpadPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/contracts" element={<ContractsPage />} />
-              <Route path="/gold-mining" element={
-                <ProtectedRoute>
-                  <GoldMiningPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/404" element={<NotFound />} />
-              <Route path="*" element={<Navigate to="/404" replace />} />
-            </Routes>
-          </BrowserRouter>
+          <MiningProvider>
+            <Toaster />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/auth" element={
+                  <PublicRoute>
+                    <AuthPage />
+                  </PublicRoute>
+                } />
+                <Route path="/dashboard" element={
+                  <ProtectedRoute>
+                    <DashboardPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/exchange" element={<ExchangePage />} />
+                <Route path="/trading/:pair?" element={
+                  <ProtectedRoute>
+                    <TradingPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/assets" element={
+                  <ProtectedRoute>
+                    <MyAssetsPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/launchpad" element={
+                  <ProtectedRoute>
+                    <LaunchpadPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/contracts" element={<ContractsPage />} />
+                <Route path="/gold-mining" element={
+                  <ProtectedRoute>
+                    <GoldMiningPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/404" element={<NotFound />} />
+                <Route path="*" element={<Navigate to="/404" replace />} />
+              </Routes>
+            </BrowserRouter>
+          </MiningProvider>
         </WalletProvider>
       </AuthProvider>
     </TooltipProvider>

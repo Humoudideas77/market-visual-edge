@@ -2,11 +2,13 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useWallet } from '@/hooks/useWallet';
+import { useMiningInvestments } from '@/hooks/useMiningInvestments';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
+import MiningDashboard from '../components/MiningDashboard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Pickaxe, TrendingUp, Users, DollarSign, Calendar, Award, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
+import { Pickaxe, TrendingUp, Users, DollarSign, AlertCircle } from 'lucide-react';
 
 interface MiningPlan {
   id: string;
@@ -22,7 +24,8 @@ interface MiningPlan {
 
 const GoldMiningPage = () => {
   const { user } = useAuth();
-  const { balances, depositFunds } = useWallet();
+  const { balances } = useWallet();
+  const { createInvestment } = useMiningInvestments();
   const navigate = useNavigate();
   const [selectedPlan, setSelectedPlan] = useState<MiningPlan | null>(null);
   const [investmentAmount, setInvestmentAmount] = useState<string>('');
@@ -76,17 +79,6 @@ const GoldMiningPage = () => {
     }
   ];
 
-  // Mock active investment
-  const activeInvestment = {
-    planName: 'Central Mining',
-    investmentAmount: 2500,
-    dailyReturn: 50,
-    daysActive: 12,
-    totalEarned: 600,
-    nextPayout: '06:45:23',
-    roi: 24
-  };
-
   const handlePlanSelect = (plan: MiningPlan) => {
     if (!user) {
       navigate('/auth');
@@ -114,27 +106,28 @@ const GoldMiningPage = () => {
 
     setIsInvesting(true);
     
-    // Simulate investment processing
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      alert(`Successfully invested $${amount} in ${selectedPlan.name}!`);
-      setShowInvestForm(false);
-      setSelectedPlan(null);
-      setInvestmentAmount('');
+      const success = await createInvestment(
+        selectedPlan.name,
+        amount,
+        selectedPlan.dailyReturn,
+        selectedPlan.maturityDays
+      );
+
+      if (success) {
+        alert(`Successfully invested $${amount} in ${selectedPlan.name}!`);
+        setShowInvestForm(false);
+        setSelectedPlan(null);
+        setInvestmentAmount('');
+      } else {
+        alert('Investment failed. Please try again.');
+      }
     } catch (error) {
       alert('Investment failed. Please try again.');
     } finally {
       setIsInvesting(false);
     }
   };
-
-  const dailyReturns = [
-    { date: '2024-01-20', amount: 50.00, plan: 'Central Mining', status: 'paid' },
-    { date: '2024-01-19', amount: 50.00, plan: 'Central Mining', status: 'paid' },
-    { date: '2024-01-18', amount: 50.00, plan: 'Central Mining', status: 'paid' },
-    { date: '2024-01-17', amount: 50.00, plan: 'Central Mining', status: 'paid' },
-    { date: '2024-01-16', amount: 50.00, plan: 'Central Mining', status: 'paid' },
-  ];
 
   return (
     <div className="min-h-screen bg-white">
@@ -184,45 +177,11 @@ const GoldMiningPage = () => {
           </CardContent>
         </Card>
 
-        {/* Active Investment Dashboard */}
+        {/* Mining Dashboard */}
         {user && (
-          <Card className="mb-8 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200">
-            <CardHeader>
-              <CardTitle className="text-gray-900 flex items-center">
-                <Award className="w-5 h-5 mr-2 text-red-600" />
-                Active Mining Investment
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                <div className="text-center p-4 bg-white rounded-lg border border-red-200">
-                  <div className="text-2xl font-bold text-red-600 mb-1">{activeInvestment.planName}</div>
-                  <div className="text-sm text-gray-600">Active Plan</div>
-                </div>
-                <div className="text-center p-4 bg-white rounded-lg border border-red-200">
-                  <div className="text-2xl font-bold text-gray-900 mb-1">${activeInvestment.investmentAmount.toLocaleString()}</div>
-                  <div className="text-sm text-gray-600">Investment Amount</div>
-                </div>
-                <div className="text-center p-4 bg-white rounded-lg border border-red-200">
-                  <div className="text-2xl font-bold text-green-600 mb-1">${activeInvestment.dailyReturn}</div>
-                  <div className="text-sm text-gray-600">Daily Return</div>
-                </div>
-                <div className="text-center p-4 bg-white rounded-lg border border-red-200">
-                  <div className="text-2xl font-bold text-red-600 mb-1">{activeInvestment.nextPayout}</div>
-                  <div className="text-sm text-gray-600">Next Payout</div>
-                </div>
-              </div>
-              <div className="mt-6 p-4 bg-white rounded-lg border border-red-200">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
-                  <div className="flex space-x-6">
-                    <span className="text-sm text-gray-600">Days Active: <span className="font-semibold text-gray-900">{activeInvestment.daysActive}</span></span>
-                    <span className="text-sm text-gray-600">ROI: <span className="font-semibold text-green-600">{activeInvestment.roi}%</span></span>
-                  </div>
-                  <span className="text-lg font-bold text-green-600">Total Earned: ${activeInvestment.totalEarned}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="mb-8 sm:mb-12">
+            <MiningDashboard />
+          </div>
         )}
 
         {/* Mining Plans */}
@@ -362,57 +321,6 @@ const GoldMiningPage = () => {
               </CardContent>
             </Card>
           </div>
-        )}
-
-        {/* Daily Returns History */}
-        {user && (
-          <Card className="bg-white border border-gray-200 shadow-sm">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-gray-900">Daily Returns History</CardTitle>
-                <Button variant="outline" className="flex items-center space-x-2 border-gray-300 text-gray-700 hover:bg-gray-50">
-                  <RefreshCw className="w-4 h-4" />
-                  <span>Refresh</span>
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="text-left p-3 text-gray-700 font-medium text-sm">Date</th>
-                      <th className="text-left p-3 text-gray-700 font-medium text-sm">Plan</th>
-                      <th className="text-right p-3 text-gray-700 font-medium text-sm">Amount</th>
-                      <th className="text-center p-3 text-gray-700 font-medium text-sm">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dailyReturns.map((return_, index) => (
-                      <tr key={index} className="border-b border-gray-100">
-                        <td className="p-3">
-                          <div className="flex items-center space-x-2">
-                            <Calendar className="w-4 h-4 text-gray-500" />
-                            <span className="text-gray-900 text-sm">{return_.date}</span>
-                          </div>
-                        </td>
-                        <td className="p-3 text-gray-900 text-sm">{return_.plan}</td>
-                        <td className="p-3 text-right">
-                          <span className="text-green-600 font-semibold">${return_.amount.toFixed(2)}</span>
-                        </td>
-                        <td className="p-3 text-center">
-                          <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-600 rounded-full text-xs font-semibold">
-                            <CheckCircle className="w-3 h-3 mr-1" />
-                            Paid
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
         )}
       </div>
     </div>
