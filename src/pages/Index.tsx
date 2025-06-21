@@ -1,5 +1,7 @@
 
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import Header from '../components/Header';
 import MarketTicker from '../components/MarketTicker';
 import TradingInterface from '../components/TradingInterface';
@@ -12,6 +14,31 @@ const Index = () => {
     <div className="min-h-screen bg-exchange-bg">
       <Header />
       <MarketTicker />
+      
+      {/* Hero Section */}
+      <div className="bg-gradient-to-r from-exchange-blue/10 to-exchange-green/10 border-b border-exchange-border">
+        <div className="px-6 py-12 text-center">
+          <h1 className="text-4xl font-bold text-exchange-text-primary mb-4">
+            Professional Cryptocurrency Trading Platform
+          </h1>
+          <p className="text-xl text-exchange-text-secondary mb-8 max-w-2xl mx-auto">
+            Trade Bitcoin, Ethereum and 1000+ cryptocurrencies with advanced tools, 
+            real-time market data, and bank-level security.
+          </p>
+          <div className="flex items-center justify-center space-x-4">
+            <Link to="/auth">
+              <Button className="bg-exchange-blue hover:bg-exchange-blue/90 px-8 py-3 text-lg">
+                Get Started
+              </Button>
+            </Link>
+            <Link to="/trading">
+              <Button variant="outline" className="px-8 py-3 text-lg border-exchange-border">
+                Start Trading
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
       
       {/* Navigation Tabs */}
       <div className="border-b border-exchange-border">
@@ -64,7 +91,7 @@ const Index = () => {
             <div>
               <h3 className="text-exchange-text-primary font-semibold mb-3">Products</h3>
               <ul className="space-y-2 text-sm text-exchange-text-secondary">
-                <li><a href="#" className="hover:text-exchange-blue">Spot Trading</a></li>
+                <li><Link to="/trading" className="hover:text-exchange-blue">Spot Trading</Link></li>
                 <li><a href="#" className="hover:text-exchange-blue">Futures Trading</a></li>
                 <li><a href="#" className="hover:text-exchange-blue">Copy Trading</a></li>
                 <li><a href="#" className="hover:text-exchange-blue">Launchpad</a></li>
@@ -90,12 +117,12 @@ const Index = () => {
             </div>
             
             <div>
-              <h3 className="text-exchange-text-primary font-semibold mb-3">Support</h3>
+              <h3 className="text-exchange-text-primary font-semibold mb-3">Account</h3>
               <ul className="space-y-2 text-sm text-exchange-text-secondary">
+                <li><Link to="/auth" className="hover:text-exchange-blue">Sign In</Link></li>
+                <li><Link to="/auth" className="hover:text-exchange-blue">Create Account</Link></li>
                 <li><a href="#" className="hover:text-exchange-blue">Help Center</a></li>
-                <li><a href="#" className="hover:text-exchange-blue">API Documentation</a></li>
                 <li><a href="#" className="hover:text-exchange-blue">Contact Support</a></li>
-                <li><a href="#" className="hover:text-exchange-blue">Bug Bounty</a></li>
               </ul>
             </div>
           </div>
