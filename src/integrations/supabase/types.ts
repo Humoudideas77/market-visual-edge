@@ -9,6 +9,54 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      admin_activities: {
+        Row: {
+          action_details: Json | null
+          action_type: string
+          admin_id: string
+          created_at: string
+          id: string
+          target_record_id: string | null
+          target_table: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          action_details?: Json | null
+          action_type: string
+          admin_id: string
+          created_at?: string
+          id?: string
+          target_record_id?: string | null
+          target_table?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          action_details?: Json | null
+          action_type?: string
+          admin_id?: string
+          created_at?: string
+          id?: string
+          target_record_id?: string | null
+          target_table?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_activities_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_activities_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bank_cards: {
         Row: {
           bank_address: string
@@ -123,6 +171,78 @@ export type Database = {
         }
         Relationships: []
       }
+      kyc_submissions: {
+        Row: {
+          address: string
+          admin_notes: string | null
+          created_at: string
+          date_of_birth: string
+          full_name: string
+          id: string
+          id_card_url: string | null
+          nationality: string
+          passport_url: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          selfie_with_id_url: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          utility_bill_url: string | null
+        }
+        Insert: {
+          address: string
+          admin_notes?: string | null
+          created_at?: string
+          date_of_birth: string
+          full_name: string
+          id?: string
+          id_card_url?: string | null
+          nationality: string
+          passport_url?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          selfie_with_id_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          utility_bill_url?: string | null
+        }
+        Update: {
+          address?: string
+          admin_notes?: string | null
+          created_at?: string
+          date_of_birth?: string
+          full_name?: string
+          id?: string
+          id_card_url?: string | null
+          nationality?: string
+          passport_url?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          selfie_with_id_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          utility_bill_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kyc_submissions_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kyc_submissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mining_investments: {
         Row: {
           created_at: string
@@ -211,7 +331,9 @@ export type Database = {
           first_name: string | null
           id: string
           kyc_status: string | null
+          kyc_submission_id: string | null
           last_name: string | null
+          role: Database["public"]["Enums"]["user_role"] | null
           updated_at: string
         }
         Insert: {
@@ -221,7 +343,9 @@ export type Database = {
           first_name?: string | null
           id: string
           kyc_status?: string | null
+          kyc_submission_id?: string | null
           last_name?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
           updated_at?: string
         }
         Update: {
@@ -231,10 +355,58 @@ export type Database = {
           first_name?: string | null
           id?: string
           kyc_status?: string | null
+          kyc_submission_id?: string | null
           last_name?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_kyc_submission_id_fkey"
+            columns: ["kyc_submission_id"]
+            isOneToOne: false
+            referencedRelation: "kyc_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_activities: {
+        Row: {
+          activity_type: string
+          created_at: string
+          device_info: Json | null
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          device_info?: Json | null
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          device_info?: Json | null
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_activities_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       withdrawal_requests: {
         Row: {
@@ -288,10 +460,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: {
+        Args: { user_id: string }
+        Returns: boolean
+      }
+      is_superadmin: {
+        Args: { user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      user_role: "user" | "admin" | "superadmin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -406,6 +585,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_role: ["user", "admin", "superadmin"],
+    },
   },
 } as const
