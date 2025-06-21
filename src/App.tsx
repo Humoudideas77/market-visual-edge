@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -11,6 +12,7 @@ import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import DashboardPage from "./pages/DashboardPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
+import SuperAdminPage from "./pages/SuperAdminPage";
 import ExchangePage from "./pages/ExchangePage";
 import TradingPage from "./pages/TradingPage";
 import MyAssetsPage from "./pages/MyAssetsPage";
@@ -44,6 +46,11 @@ const App = () => (
                 <Route path="/admin" element={
                   <ProtectedRoute>
                     <AdminDashboardPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/superadmin" element={
+                  <ProtectedRoute>
+                    <SuperAdminPage />
                   </ProtectedRoute>
                 } />
                 <Route path="/exchange" element={<ExchangePage />} />
