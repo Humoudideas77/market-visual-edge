@@ -114,6 +114,7 @@ const AuthPage = () => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth event:', event, 'Session:', session);
       if (session) {
         navigate('/dashboard');
       }
@@ -128,9 +129,10 @@ const AuthPage = () => {
     setError('');
 
     try {
+      console.log('Attempting sign up with:', email);
       const redirectUrl = `${window.location.origin}/dashboard`;
       
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -142,16 +144,25 @@ const AuthPage = () => {
         }
       });
 
+      console.log('Sign up response:', { data, error });
+
       if (error) {
+        console.error('Sign up error:', error);
         if (error.message.includes('User already registered')) {
           setError('This email is already registered. Please sign in instead.');
         } else {
           setError(error.message);
         }
       } else {
-        toast.success('Account created successfully! Please check your email for verification.');
+        console.log('Sign up successful:', data);
+        if (data.user && !data.session) {
+          toast.success('Account created! Please check your email for verification, or try signing in if email confirmation is disabled.');
+        } else {
+          toast.success('Account created successfully!');
+        }
       }
     } catch (err) {
+      console.error('Unexpected sign up error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -164,21 +175,29 @@ const AuthPage = () => {
     setError('');
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log('Attempting sign in with:', email);
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
+      console.log('Sign in response:', { data, error });
+
       if (error) {
+        console.error('Sign in error:', error);
         if (error.message.includes('Invalid login credentials')) {
-          setError('Invalid email or password. Please try again.');
+          setError('Invalid email or password. Please check your credentials or try signing up first.');
+        } else if (error.message.includes('Email not confirmed')) {
+          setError('Please check your email and click the confirmation link, or contact support if email confirmation is disabled.');
         } else {
           setError(error.message);
         }
       } else {
+        console.log('Sign in successful:', data);
         toast.success('Signed in successfully!');
       }
     } catch (err) {
+      console.error('Unexpected sign in error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
