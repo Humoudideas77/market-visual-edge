@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 import Header from '../components/Header';
 import MarketTicker from '../components/MarketTicker';
 import { Button } from '@/components/ui/button';
-import { Search, TrendingUp, TrendingDown, Star } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, Star, Lock } from 'lucide-react';
 
 interface MarketData {
   symbol: string;
@@ -19,6 +20,7 @@ interface MarketData {
 
 const ExchangePage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'favorites' | 'gainers' | 'losers'>('all');
 
@@ -48,7 +50,11 @@ const ExchangePage = () => {
   });
 
   const handleTradeClick = (symbol: string) => {
-    navigate(`/trading/${symbol.replace('/', '-')}`);
+    if (user) {
+      navigate(`/trading/${symbol.replace('/', '-')}`);
+    } else {
+      navigate('/auth');
+    }
   };
 
   return (
@@ -65,6 +71,14 @@ const ExchangePage = () => {
           <p className="text-exchange-text-secondary">
             Real-time cryptocurrency prices and market data
           </p>
+          {!user && (
+            <div className="mt-4 p-4 bg-exchange-accent/30 border border-exchange-border rounded-lg">
+              <p className="text-exchange-text-secondary text-sm">
+                <Lock className="w-4 h-4 inline-block mr-2" />
+                You're viewing in read-only mode. <span className="text-exchange-blue cursor-pointer hover:underline" onClick={() => navigate('/auth')}>Sign in</span> to start trading.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Controls */}
@@ -125,9 +139,11 @@ const ExchangePage = () => {
                   <tr key={index} className="border-b border-exchange-border/30 hover:bg-exchange-accent/30 transition-colors">
                     <td className="p-4">
                       <div className="flex items-center space-x-3">
-                        <button className="text-exchange-text-secondary hover:text-yellow-500 transition-colors">
-                          <Star className="w-4 h-4" />
-                        </button>
+                        {user && (
+                          <button className="text-exchange-text-secondary hover:text-yellow-500 transition-colors">
+                            <Star className="w-4 h-4" />
+                          </button>
+                        )}
                         <div>
                           <div className="font-semibold text-exchange-text-primary">{market.symbol}</div>
                           <div className="text-sm text-exchange-text-secondary">{market.name}</div>
@@ -157,9 +173,13 @@ const ExchangePage = () => {
                     <td className="p-4 text-center">
                       <Button
                         onClick={() => handleTradeClick(market.symbol)}
-                        className="bg-exchange-blue hover:bg-exchange-blue/90 text-white px-4 py-2"
+                        className={`px-4 py-2 ${
+                          user 
+                            ? 'bg-exchange-blue hover:bg-exchange-blue/90 text-white' 
+                            : 'bg-exchange-accent text-exchange-text-secondary border border-exchange-border hover:bg-exchange-blue hover:text-white'
+                        }`}
                       >
-                        Trade
+                        {user ? 'Trade' : 'Sign In to Trade'}
                       </Button>
                     </td>
                   </tr>

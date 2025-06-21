@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
 import Header from '../components/Header';
 import MarketTicker from '../components/MarketTicker';
 import LandingHero from '../components/LandingHero';
@@ -13,6 +14,7 @@ import MarketsOverview from '../components/MarketsOverview';
 
 const Index = () => {
   const [activeView, setActiveView] = useState<'markets' | 'trading'>('markets');
+  const { user } = useAuth();
 
   return (
     <div className="min-h-screen bg-exchange-bg">
@@ -31,7 +33,7 @@ const Index = () => {
       {/* Gold Mining Section */}
       <GoldMiningSection />
       
-      {/* Navigation Tabs */}
+      {/* Navigation Tabs - Only show trading interface if authenticated */}
       <div className="border-b border-exchange-border">
         <div className="px-6">
           <nav className="flex space-x-8">
@@ -45,16 +47,18 @@ const Index = () => {
             >
               Markets Overview
             </button>
-            <button
-              onClick={() => setActiveView('trading')}
-              className={`py-4 px-2 border-b-2 font-medium text-sm ${
-                activeView === 'trading'
-                  ? 'border-exchange-blue text-exchange-blue'
-                  : 'border-transparent text-exchange-text-secondary hover:text-exchange-text-primary'
-              }`}
-            >
-              Spot Trading
-            </button>
+            {user && (
+              <button
+                onClick={() => setActiveView('trading')}
+                className={`py-4 px-2 border-b-2 font-medium text-sm ${
+                  activeView === 'trading'
+                    ? 'border-exchange-blue text-exchange-blue'
+                    : 'border-transparent text-exchange-text-secondary hover:text-exchange-text-primary'
+                }`}
+              >
+                Spot Trading
+              </button>
+            )}
           </nav>
         </div>
       </div>
@@ -62,7 +66,24 @@ const Index = () => {
       {/* Content */}
       <div className="animate-fade-in">
         {activeView === 'markets' && <MarketsOverview />}
-        {activeView === 'trading' && <TradingInterface />}
+        {activeView === 'trading' && user && <TradingInterface />}
+        {activeView === 'trading' && !user && (
+          <div className="container mx-auto px-6 py-12 text-center">
+            <div className="bg-exchange-panel rounded-xl border border-exchange-border p-12">
+              <h3 className="text-2xl font-bold text-exchange-text-primary mb-4">
+                Authentication Required
+              </h3>
+              <p className="text-exchange-text-secondary mb-6">
+                Please sign in to access the trading interface and start trading.
+              </p>
+              <Link to="/auth">
+                <Button className="bg-exchange-blue hover:bg-exchange-blue/90">
+                  Sign In to Trade
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Footer */}
@@ -83,9 +104,19 @@ const Index = () => {
               <h3 className="text-exchange-text-primary font-semibold mb-3">Products</h3>
               <ul className="space-y-2 text-sm text-exchange-text-secondary">
                 <li><Link to="/exchange" className="hover:text-exchange-blue">Exchange</Link></li>
-                <li><Link to="/contracts" className="hover:text-exchange-blue">Contracts Trading</Link></li>
-                <li><Link to="/gold-mining" className="hover:text-exchange-blue">Gold Mining</Link></li>
-                <li><Link to="/launchpad" className="hover:text-exchange-blue">Launchpad</Link></li>
+                {user ? (
+                  <>
+                    <li><Link to="/contracts" className="hover:text-exchange-blue">Contracts Trading</Link></li>
+                    <li><Link to="/gold-mining" className="hover:text-exchange-blue">Gold Mining</Link></li>
+                    <li><Link to="/launchpad" className="hover:text-exchange-blue">Launchpad</Link></li>
+                  </>
+                ) : (
+                  <>
+                    <li><span className="text-exchange-text-secondary/50">Contracts Trading</span></li>
+                    <li><span className="text-exchange-text-secondary/50">Gold Mining</span></li>
+                    <li><span className="text-exchange-text-secondary/50">Launchpad</span></li>
+                  </>
+                )}
               </ul>
             </div>
             
@@ -110,9 +141,17 @@ const Index = () => {
             <div>
               <h3 className="text-exchange-text-primary font-semibold mb-3">Account</h3>
               <ul className="space-y-2 text-sm text-exchange-text-secondary">
-                <li><Link to="/auth" className="hover:text-exchange-blue">Sign In</Link></li>
-                <li><Link to="/auth" className="hover:text-exchange-blue">Create Account</Link></li>
-                <li><Link to="/my-assets" className="hover:text-exchange-blue">My Assets</Link></li>
+                {user ? (
+                  <>
+                    <li><Link to="/dashboard" className="hover:text-exchange-blue">Dashboard</Link></li>
+                    <li><Link to="/my-assets" className="hover:text-exchange-blue">My Assets</Link></li>
+                  </>
+                ) : (
+                  <>
+                    <li><Link to="/auth" className="hover:text-exchange-blue">Sign In</Link></li>
+                    <li><Link to="/auth" className="hover:text-exchange-blue">Create Account</Link></li>
+                  </>
+                )}
                 <li><a href="#" className="hover:text-exchange-blue">Contact Support</a></li>
               </ul>
             </div>
