@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,22 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Crypto Exchange Theme Colors
+				exchange: {
+					bg: '#0a0b0d',
+					panel: '#1a1b23',
+					accent: '#2d3748',
+					border: '#2a2d3d',
+					green: '#00d4aa',
+					red: '#ff4757',
+					blue: '#0066ff',
+					yellow: '#feca57',
+					text: {
+						primary: '#ffffff',
+						secondary: '#a0a0a0',
+						muted: '#6b7280'
+					}
 				}
 			},
 			borderRadius: {
@@ -84,11 +101,34 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'pulse-green': {
+					'0%, 100%': {
+						boxShadow: '0 0 0 0 rgba(0, 212, 170, 0.7)'
+					},
+					'70%': {
+						boxShadow: '0 0 0 10px rgba(0, 212, 170, 0)'
+					}
+				},
+				'fade-in': {
+					'0%': {
+						opacity: '0',
+						transform: 'translateY(10px)'
+					},
+					'100%': {
+						opacity: '1',
+						transform: 'translateY(0)'
+					}
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'pulse-green': 'pulse-green 2s infinite',
+				'fade-in': 'fade-in 0.3s ease-out'
+			},
+			fontFamily: {
+				mono: ['JetBrains Mono', 'Fira Code', 'Monaco', 'monospace']
 			}
 		}
 	},
