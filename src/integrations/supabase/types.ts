@@ -9,6 +9,120 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      bank_cards: {
+        Row: {
+          bank_address: string
+          bank_name: string
+          bank_number: string
+          created_at: string
+          id: string
+          is_default: boolean | null
+          payee_address: string
+          payee_name: string
+          swift_code: string
+          updated_at: string
+          user_id: string
+          zip_code: string
+        }
+        Insert: {
+          bank_address: string
+          bank_name: string
+          bank_number: string
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          payee_address: string
+          payee_name: string
+          swift_code: string
+          updated_at?: string
+          user_id: string
+          zip_code: string
+        }
+        Update: {
+          bank_address?: string
+          bank_name?: string
+          bank_number?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          payee_address?: string
+          payee_name?: string
+          swift_code?: string
+          updated_at?: string
+          user_id?: string
+          zip_code?: string
+        }
+        Relationships: []
+      }
+      crypto_addresses: {
+        Row: {
+          created_at: string
+          currency: string
+          id: string
+          is_active: boolean | null
+          network: string
+          qr_code_url: string | null
+          wallet_address: string
+        }
+        Insert: {
+          created_at?: string
+          currency: string
+          id?: string
+          is_active?: boolean | null
+          network: string
+          qr_code_url?: string | null
+          wallet_address: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          id?: string
+          is_active?: boolean | null
+          network?: string
+          qr_code_url?: string | null
+          wallet_address?: string
+        }
+        Relationships: []
+      }
+      deposit_requests: {
+        Row: {
+          admin_notes: string | null
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          network: string
+          status: string
+          transaction_screenshot_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          amount: number
+          created_at?: string
+          currency: string
+          id?: string
+          network: string
+          status?: string
+          transaction_screenshot_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          network?: string
+          status?: string
+          transaction_screenshot_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -41,6 +155,53 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      withdrawal_requests: {
+        Row: {
+          admin_notes: string | null
+          amount: number
+          bank_card_id: string
+          created_at: string
+          currency: string
+          id: string
+          network: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          amount: number
+          bank_card_id: string
+          created_at?: string
+          currency: string
+          id?: string
+          network: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          amount?: number
+          bank_card_id?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          network?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "withdrawal_requests_bank_card_id_fkey"
+            columns: ["bank_card_id"]
+            isOneToOne: false
+            referencedRelation: "bank_cards"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

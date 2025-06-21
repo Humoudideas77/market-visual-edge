@@ -4,7 +4,8 @@ import Header from '../components/Header';
 import { useAuth } from '@/hooks/useAuth';
 import { useWallet } from '@/hooks/useWallet';
 import { useCryptoPrices, formatPrice, formatVolume } from '@/hooks/useCryptoPrices';
-import DepositModal from '@/components/DepositModal';
+import EnhancedDepositModal from '@/components/EnhancedDepositModal';
+import WithdrawModal from '@/components/WithdrawModal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
@@ -25,6 +26,7 @@ const DashboardPage = () => {
   const { balances, transactions } = useWallet();
   const { prices } = useCryptoPrices();
   const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [hideBalances, setHideBalances] = useState(false);
 
   // Calculate total portfolio value in USD
@@ -74,6 +76,14 @@ const DashboardPage = () => {
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Deposit
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setShowWithdrawModal(true)}
+                  className="bg-exchange-red hover:bg-exchange-red/90"
+                >
+                  <Minus className="w-4 h-4 mr-2" />
+                  Withdraw
                 </Button>
               </div>
             </CardHeader>
@@ -267,6 +277,13 @@ const DashboardPage = () => {
                 Deposit Funds
               </Button>
               <Button 
+                onClick={() => setShowWithdrawModal(true)}
+                className="h-20 flex flex-col items-center justify-center bg-exchange-red hover:bg-exchange-red/90"
+              >
+                <Minus className="w-6 h-6 mb-2" />
+                Withdraw Funds
+              </Button>
+              <Button 
                 variant="outline"
                 className="h-20 flex flex-col items-center justify-center"
                 onClick={() => window.location.href = '/exchange'}
@@ -282,23 +299,21 @@ const DashboardPage = () => {
                 <DollarSign className="w-6 h-6 mb-2" />
                 Start Trading
               </Button>
-              <Button 
-                variant="outline"
-                className="h-20 flex flex-col items-center justify-center"
-                onClick={() => window.location.href = '/assets'}
-              >
-                <Wallet className="w-6 h-6 mb-2" />
-                My Assets
-              </Button>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Deposit Modal */}
-      <DepositModal 
+      {/* Enhanced Deposit Modal */}
+      <EnhancedDepositModal 
         isOpen={showDepositModal} 
         onClose={() => setShowDepositModal(false)} 
+      />
+
+      {/* Withdraw Modal */}
+      <WithdrawModal 
+        isOpen={showWithdrawModal} 
+        onClose={() => setShowWithdrawModal(false)} 
       />
     </div>
   );
