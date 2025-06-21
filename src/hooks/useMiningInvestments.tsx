@@ -3,30 +3,10 @@ import { useState, useEffect, createContext, useContext } from 'react';
 import { useAuth } from './useAuth';
 import { useWallet } from './useWallet';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 
-interface MiningInvestment {
-  id: string;
-  user_id: string;
-  plan_name: string;
-  investment_amount: number;
-  daily_return_rate: number;
-  maturity_days: number;
-  start_date: string;
-  status: 'active' | 'completed' | 'cancelled';
-  total_earned: number;
-  last_payout_date: string | null;
-  next_payout_date: string;
-  created_at: string;
-}
-
-interface MiningPayout {
-  id: string;
-  investment_id: string;
-  amount: number;
-  payout_date: string;
-  status: 'completed' | 'pending';
-  created_at: string;
-}
+type MiningInvestment = Database['public']['Tables']['mining_investments']['Row'];
+type MiningPayout = Database['public']['Tables']['mining_payouts']['Row'];
 
 interface MiningContextType {
   investments: MiningInvestment[];
@@ -61,13 +41,13 @@ export const MiningProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       const { data, error } = await supabase
-        .from('mining_investments' as any)
+        .from('mining_investments')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setInvestments((data as MiningInvestment[]) || []);
+      setInvestments(data || []);
     } catch (error) {
       console.error('Error fetching investments:', error);
     }
@@ -78,7 +58,7 @@ export const MiningProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       const { data, error } = await supabase
-        .from('mining_payouts' as any)
+        .from('mining_payouts')
         .select(`
           *,
           mining_investments!inner(user_id)
@@ -87,7 +67,7 @@ export const MiningProvider = ({ children }: { children: React.ReactNode }) => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPayouts((data as MiningPayout[]) || []);
+      setPayouts(data || []);
     } catch (error) {
       console.error('Error fetching payouts:', error);
     }
@@ -123,7 +103,7 @@ export const MiningProvider = ({ children }: { children: React.ReactNode }) => {
       nextPayout.setDate(nextPayout.getDate() + 1);
 
       const { error } = await supabase
-        .from('mining_investments' as any)
+        .from('mining_investments')
         .insert({
           user_id: user.id,
           plan_name: planName,
@@ -160,7 +140,7 @@ export const MiningProvider = ({ children }: { children: React.ReactNode }) => {
         
         // Create payout record
         const { error: payoutError } = await supabase
-          .from('mining_payouts' as any)
+          .from('mining_payouts')
           .insert({
             investment_id: investment.id,
             amount: payoutAmount,
@@ -196,7 +176,7 @@ export const MiningProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         const { error: updateError } = await supabase
-          .from('mining_investments' as any)
+          .from('mining_investments')
           .update(updateData)
           .eq('id', investment.id);
 
