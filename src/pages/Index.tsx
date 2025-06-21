@@ -4,6 +4,10 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import Header from '../components/Header';
 import MarketTicker from '../components/MarketTicker';
+import LandingHero from '../components/LandingHero';
+import TradingFeatures from '../components/TradingFeatures';
+import SecuritySection from '../components/SecuritySection';
+import GoldMiningSection from '../components/GoldMiningSection';
 import TradingInterface from '../components/TradingInterface';
 import MarketsOverview from '../components/MarketsOverview';
 
@@ -15,30 +19,17 @@ const Index = () => {
       <Header />
       <MarketTicker />
       
-      {/* Hero Section */}
-      <div className="bg-gradient-to-r from-exchange-blue/10 to-exchange-green/10 border-b border-exchange-border">
-        <div className="px-6 py-12 text-center">
-          <h1 className="text-4xl font-bold text-exchange-text-primary mb-4">
-            Professional Cryptocurrency Trading Platform
-          </h1>
-          <p className="text-xl text-exchange-text-secondary mb-8 max-w-2xl mx-auto">
-            Trade Bitcoin, Ethereum and 1000+ cryptocurrencies with advanced tools, 
-            real-time market data, and bank-level security.
-          </p>
-          <div className="flex items-center justify-center space-x-4">
-            <Link to="/auth">
-              <Button className="bg-exchange-blue hover:bg-exchange-blue/90 px-8 py-3 text-lg">
-                Get Started
-              </Button>
-            </Link>
-            <Link to="/trading">
-              <Button variant="outline" className="px-8 py-3 text-lg border-exchange-border">
-                Start Trading
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
+      {/* Landing Hero Section */}
+      <LandingHero />
+      
+      {/* Trading Features Section */}
+      <TradingFeatures />
+      
+      {/* Security Section */}
+      <SecuritySection />
+      
+      {/* Gold Mining Section */}
+      <GoldMiningSection />
       
       {/* Navigation Tabs */}
       <div className="border-b border-exchange-border">
@@ -91,10 +82,10 @@ const Index = () => {
             <div>
               <h3 className="text-exchange-text-primary font-semibold mb-3">Products</h3>
               <ul className="space-y-2 text-sm text-exchange-text-secondary">
-                <li><Link to="/trading" className="hover:text-exchange-blue">Spot Trading</Link></li>
-                <li><a href="#" className="hover:text-exchange-blue">Futures Trading</a></li>
-                <li><a href="#" className="hover:text-exchange-blue">Copy Trading</a></li>
-                <li><a href="#" className="hover:text-exchange-blue">Launchpad</a></li>
+                <li><Link to="/exchange" className="hover:text-exchange-blue">Exchange</Link></li>
+                <li><Link to="/contracts" className="hover:text-exchange-blue">Contracts Trading</Link></li>
+                <li><Link to="/gold-mining" className="hover:text-exchange-blue">Gold Mining</Link></li>
+                <li><Link to="/launchpad" className="hover:text-exchange-blue">Launchpad</Link></li>
               </ul>
             </div>
             
@@ -121,7 +112,7 @@ const Index = () => {
               <ul className="space-y-2 text-sm text-exchange-text-secondary">
                 <li><Link to="/auth" className="hover:text-exchange-blue">Sign In</Link></li>
                 <li><Link to="/auth" className="hover:text-exchange-blue">Create Account</Link></li>
-                <li><a href="#" className="hover:text-exchange-blue">Help Center</a></li>
+                <li><Link to="/my-assets" className="hover:text-exchange-blue">My Assets</Link></li>
                 <li><a href="#" className="hover:text-exchange-blue">Contact Support</a></li>
               </ul>
             </div>
