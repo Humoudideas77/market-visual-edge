@@ -6,7 +6,7 @@ import { Label } from './ui/label';
 import { useTradingEngine } from '@/hooks/useTradingEngine';
 import { useWallet } from '@/hooks/useWallet';
 import { toast } from 'sonner';
-import { Loader2, Calculator } from 'lucide-react';
+import { Loader2, Calculator, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface TradingPanelProps {
   selectedPair: string;
@@ -62,6 +62,26 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
       return;
     }
 
+    if (tradeAmount <= 0) {
+      toast.error('Amount must be greater than 0');
+      return;
+    }
+
+    // Validate sufficient balance
+    if (tradeTab === 'buy') {
+      const availableQuote = quoteBalance?.available || 0;
+      if (availableQuote < totalCost) {
+        toast.error(`Insufficient ${quoteAsset} balance. Available: ${availableQuote.toFixed(2)}`);
+        return;
+      }
+    } else {
+      const availableBase = baseBalance?.available || 0;
+      if (availableBase < tradeAmount) {
+        toast.error(`Insufficient ${baseAsset} balance. Available: ${availableBase.toFixed(8)}`);
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -73,7 +93,11 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
       );
 
       if (result.success) {
-        toast.success(result.message);
+        toast.success(
+          `${tradeTab.toUpperCase()} order executed successfully! ${tradeAmount.toFixed(8)} ${baseAsset} at $${tradePrice.toFixed(2)}`
+        );
+        
+        // Reset form
         setAmount('');
         if (orderType === 'limit') {
           setPrice(currentPrice.toString());
@@ -82,7 +106,8 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
         toast.error(result.message);
       }
     } catch (error) {
-      toast.error('Trade execution failed');
+      console.error('Trade execution error:', error);
+      toast.error('Trade execution failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -99,28 +124,47 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
     }
   };
 
+  const getInsufficientBalanceMessage = () => {
+    if (!amount || tradeAmount <= 0) return null;
+    
+    if (tradeTab === 'buy') {
+      const availableQuote = quoteBalance?.available || 0;
+      if (availableQuote < totalCost) {
+        return `Insufficient ${quoteAsset} balance (Available: ${availableQuote.toFixed(2)})`;
+      }
+    } else {
+      const availableBase = baseBalance?.available || 0;
+      if (availableBase < tradeAmount) {
+        return `Insufficient ${baseAsset} balance (Available: ${availableBase.toFixed(8)})`;
+      }
+    }
+    return null;
+  };
+
   return (
     <div className="exchange-panel p-4">
       {/* Trade Type Tabs */}
       <div className="flex mb-4">
         <button 
           onClick={() => setTradeTab('buy')}
-          className={`flex-1 py-2 text-sm font-medium rounded-l-md ${
+          className={`flex-1 py-2 text-sm font-medium rounded-l-md transition-all duration-200 ${
             tradeTab === 'buy' 
-              ? 'bg-exchange-green text-white' 
-              : 'bg-exchange-accent text-exchange-text-secondary hover:text-exchange-text-primary'
+              ? 'bg-exchange-green text-white shadow-sm' 
+              : 'bg-exchange-accent text-exchange-text-secondary hover:text-exchange-text-primary hover:bg-exchange-accent/80'
           }`}
         >
+          <TrendingUp className="w-4 h-4 inline mr-1" />
           Buy {baseAsset}
         </button>
         <button 
           onClick={() => setTradeTab('sell')}
-          className={`flex-1 py-2 text-sm font-medium rounded-r-md ${
+          className={`flex-1 py-2 text-sm font-medium rounded-r-md transition-all duration-200 ${
             tradeTab === 'sell' 
-              ? 'bg-exchange-red text-white' 
-              : 'bg-exchange-accent text-exchange-text-secondary hover:text-exchange-text-primary'
+              ? 'bg-exchange-red text-white shadow-sm' 
+              : 'bg-exchange-accent text-exchange-text-secondary hover:text-exchange-text-primary hover:bg-exchange-accent/80'
           }`}
         >
+          <TrendingDown className="w-4 h-4 inline mr-1" />
           Sell {baseAsset}
         </button>
       </div>
@@ -130,28 +174,28 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
         <div className="flex space-x-2">
           <button 
             onClick={() => setOrderType('limit')}
-            className={`px-3 py-1 text-xs rounded ${
+            className={`px-3 py-1 text-xs rounded transition-all duration-200 ${
               orderType === 'limit' 
-                ? 'bg-exchange-blue text-white' 
-                : 'bg-exchange-accent text-exchange-text-secondary'
+                ? 'bg-exchange-blue text-white shadow-sm' 
+                : 'bg-exchange-accent text-exchange-text-secondary hover:bg-exchange-accent/80'
             }`}
           >
-            Limit
+            Limit Order
           </button>
           <button 
             onClick={() => setOrderType('market')}
-            className={`px-3 py-1 text-xs rounded ${
+            className={`px-3 py-1 text-xs rounded transition-all duration-200 ${
               orderType === 'market' 
-                ? 'bg-exchange-blue text-white' 
-                : 'bg-exchange-accent text-exchange-text-secondary'
+                ? 'bg-exchange-blue text-white shadow-sm' 
+                : 'bg-exchange-accent text-exchange-text-secondary hover:bg-exchange-accent/80'
             }`}
           >
-            Market
+            Market Order
           </button>
         </div>
 
         {/* Available Balance */}
-        <div className="text-xs text-exchange-text-secondary">
+        <div className="text-xs text-exchange-text-secondary bg-exchange-accent/30 rounded p-2">
           Available: {tradeTab === 'buy' 
             ? `${(quoteBalance?.available || 0).toFixed(2)} ${quoteAsset}`
             : `${(baseBalance?.available || 0).toFixed(8)} ${baseAsset}`
@@ -161,7 +205,7 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
         {/* Price Input (for limit orders) */}
         {orderType === 'limit' && (
           <div>
-            <Label className="block text-xs text-exchange-text-secondary mb-1">Price</Label>
+            <Label className="block text-xs text-exchange-text-secondary mb-1">Price ({quoteAsset})</Label>
             <Input 
               type="number" 
               className="exchange-input w-full font-mono" 
@@ -175,7 +219,7 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
 
         {/* Amount Input */}
         <div>
-          <Label className="block text-xs text-exchange-text-secondary mb-1">Amount</Label>
+          <Label className="block text-xs text-exchange-text-secondary mb-1">Amount ({baseAsset})</Label>
           <Input 
             type="number" 
             className="exchange-input w-full font-mono" 
@@ -192,7 +236,7 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
             <button 
               key={percent}
               onClick={() => handlePercentageClick(percent)}
-              className="flex-1 py-1 text-xs bg-exchange-accent text-exchange-text-secondary rounded hover:bg-exchange-accent/80"
+              className="flex-1 py-1 text-xs bg-exchange-accent text-exchange-text-secondary rounded hover:bg-exchange-accent/80 transition-colors"
             >
               {percent}%
             </button>
@@ -201,18 +245,18 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
 
         {/* Total */}
         <div>
-          <Label className="block text-xs text-exchange-text-secondary mb-1">Total</Label>
-          <div className="exchange-input w-full bg-exchange-accent/30 border border-exchange-border rounded p-2 font-mono text-sm">
+          <Label className="block text-xs text-exchange-text-secondary mb-1">Total ({quoteAsset})</Label>
+          <div className="exchange-input w-full bg-exchange-accent/30 border border-exchange-border rounded p-2 font-mono text-sm text-exchange-text-primary">
             {totalCost.toFixed(2)} {quoteAsset}
           </div>
         </div>
 
         {/* Trade Summary */}
         {amount && tradeAmount > 0 && (
-          <div className="bg-exchange-accent/20 rounded-lg p-3 space-y-1">
+          <div className="bg-exchange-accent/20 rounded-lg p-3 space-y-1 border border-exchange-border">
             <div className="flex justify-between text-xs">
               <span className="text-exchange-text-secondary">Order Type:</span>
-              <span className="text-exchange-text-primary capitalize">{orderType}</span>
+              <span className="text-exchange-text-primary capitalize font-medium">{orderType}</span>
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-exchange-text-secondary">Price:</span>
@@ -229,30 +273,44 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
           </div>
         )}
 
+        {/* Insufficient Balance Warning */}
+        {getInsufficientBalanceMessage() && (
+          <div className="text-xs text-exchange-red text-center bg-red-50 border border-red-200 rounded p-2">
+            {getInsufficientBalanceMessage()}
+          </div>
+        )}
+
         {/* Submit Button */}
         <Button 
           onClick={handleTrade}
           disabled={loading || !isValidTrade()}
-          className={`w-full py-3 rounded-md font-medium ${
+          className={`w-full py-3 rounded-md font-medium transition-all duration-200 ${
             tradeTab === 'buy' 
-              ? 'bg-exchange-green hover:bg-exchange-green/90 text-white' 
-              : 'bg-exchange-red hover:bg-exchange-red/90 text-white'
+              ? 'bg-exchange-green hover:bg-exchange-green/90 text-white disabled:bg-gray-400' 
+              : 'bg-exchange-red hover:bg-exchange-red/90 text-white disabled:bg-gray-400'
           }`}
         >
           {loading ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Processing...
+            </>
           ) : (
-            <Calculator className="w-4 h-4 mr-2" />
+            <>
+              <Calculator className="w-4 h-4 mr-2" />
+              {tradeTab === 'buy' ? `Buy ${baseAsset}` : `Sell ${baseAsset}`}
+            </>
           )}
-          {tradeTab === 'buy' ? `Buy ${baseAsset}` : `Sell ${baseAsset}`}
         </Button>
 
-        {/* Insufficient Balance Warning */}
-        {amount && !isValidTrade() && (
-          <div className="text-xs text-exchange-red text-center">
-            Insufficient {tradeTab === 'buy' ? quoteAsset : baseAsset} balance
-          </div>
-        )}
+        {/* Order Type Information */}
+        <div className="text-xs text-exchange-text-secondary bg-blue-50 border border-blue-200 rounded p-2">
+          <strong>{orderType === 'market' ? 'Market Order:' : 'Limit Order:'}</strong>{' '}
+          {orderType === 'market' 
+            ? 'Executes immediately at current market price' 
+            : 'Executes only when price reaches your specified level'
+          }
+        </div>
       </div>
     </div>
   );

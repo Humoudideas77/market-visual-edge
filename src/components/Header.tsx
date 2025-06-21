@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Settings, User, ChevronDown, Globe, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 
 const Header = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     try {
@@ -20,6 +21,10 @@ const Header = () => {
     } catch (err) {
       toast.error('An error occurred while signing out');
     }
+  };
+
+  const handleProfileClick = () => {
+    navigate('/dashboard');
   };
 
   return (
@@ -42,7 +47,7 @@ const Header = () => {
               <Link to="/contracts" className="text-exchange-text-secondary hover:text-exchange-blue transition-colors">Contracts</Link>
               <Link to="/gold-mining" className="text-exchange-text-secondary hover:text-exchange-blue transition-colors">Gold Mining</Link>
               <Link to="/launchpad" className="text-exchange-text-secondary hover:text-exchange-blue transition-colors">Launchpad</Link>
-              <Link to="/my-assets" className="text-exchange-text-secondary hover:text-exchange-blue transition-colors">Assets</Link>
+              <Link to="/dashboard" className="text-exchange-text-secondary hover:text-exchange-blue transition-colors">Assets</Link>
             </>
           ) : (
             <>
@@ -75,12 +80,15 @@ const Header = () => {
             {/* Settings */}
             <Settings className="w-5 h-5 text-exchange-text-secondary hover:text-exchange-text-primary cursor-pointer" />
 
-            {/* User Profile */}
-            <Link to="/my-assets" className="flex items-center space-x-2 bg-exchange-accent px-3 py-2 rounded-lg cursor-pointer hover:bg-exchange-accent/80">
+            {/* User Profile - Fixed to redirect to dashboard */}
+            <button 
+              onClick={handleProfileClick}
+              className="flex items-center space-x-2 bg-exchange-accent px-3 py-2 rounded-lg cursor-pointer hover:bg-exchange-accent/80"
+            >
               <User className="w-4 h-4 text-exchange-text-primary" />
               <span className="text-sm text-exchange-text-primary">Profile</span>
               <ChevronDown className="w-3 h-3 text-exchange-text-secondary" />
-            </Link>
+            </button>
 
             {/* Sign Out Button */}
             <button
