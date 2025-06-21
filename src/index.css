@@ -3,7 +3,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Crypto Exchange Design System */
+/* Modern Dashboard Design System - White & Red Theme */
 
 @layer base {
   :root {
@@ -16,8 +16,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 0 84% 60%;
+    --primary-foreground: 0 0% 98%;
 
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -33,7 +33,7 @@
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --ring: 0 84% 60%;
 
     --radius: 0.5rem;
 
@@ -57,7 +57,7 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
+    --primary: 0 72% 51%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
     --secondary: 217.2 32.6% 17.5%;
@@ -74,7 +74,7 @@
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --ring: 0 72% 51%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -92,88 +92,125 @@
   }
 
   body {
-    @apply bg-exchange-bg text-exchange-text-primary font-sans;
+    @apply bg-white text-gray-900 font-sans;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
-  /* Custom scrollbar for exchange theme */
+  /* Custom scrollbar for modern design */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
 
   ::-webkit-scrollbar-track {
-    background: #1a1b23;
+    background: #f1f5f9;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #2a2d3d;
-    border-radius: 3px;
+    background: #cbd5e1;
+    border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #3a3d4d;
+    background: #94a3b8;
   }
 }
 
 @layer components {
-  .exchange-panel {
-    @apply bg-exchange-panel border border-exchange-border rounded-lg backdrop-blur-sm;
+  .dashboard-card {
+    @apply bg-white border border-gray-200 rounded-lg shadow-sm backdrop-blur-sm;
   }
 
-  .price-up {
-    @apply text-exchange-green;
+  .text-primary-red {
+    @apply text-red-600;
   }
 
-  .price-down {
-    @apply text-exchange-red;
+  .bg-primary-red {
+    @apply bg-red-600;
   }
 
-  .trading-button {
-    @apply px-4 py-2 rounded-md font-medium transition-all duration-200 hover:opacity-80 active:scale-95;
+  .border-primary-red {
+    @apply border-red-600;
   }
 
-  .buy-button {
-    @apply trading-button bg-exchange-green text-white hover:bg-exchange-green/90;
+  .hover-primary-red {
+    @apply hover:bg-red-50 hover:border-red-300;
   }
 
-  .sell-button {
-    @apply trading-button bg-exchange-red text-white hover:bg-exchange-red/90;
+  .modern-button {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:opacity-90 active:scale-95;
   }
 
-  .exchange-input {
-    @apply bg-exchange-accent border border-exchange-border rounded-md px-3 py-2 text-exchange-text-primary placeholder:text-exchange-text-muted focus:outline-none focus:ring-1 focus:ring-exchange-blue;
+  .red-button {
+    @apply modern-button bg-red-600 text-white hover:bg-red-700;
   }
 
-  .market-row:hover {
-    @apply bg-exchange-accent/50 cursor-pointer;
+  .gray-button {
+    @apply modern-button bg-gray-600 text-white hover:bg-gray-700;
   }
 
-  /* Custom table styling for trading data */
-  .trading-table {
+  .outline-button {
+    @apply modern-button border border-gray-300 text-gray-700 hover:bg-gray-50;
+  }
+
+  .modern-input {
+    @apply bg-white border border-gray-300 rounded-lg px-3 py-2 text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500;
+  }
+
+  .status-badge {
+    @apply px-2 py-1 rounded-full text-xs font-semibold;
+  }
+
+  .status-success {
+    @apply status-badge bg-green-100 text-green-600;
+  }
+
+  .status-pending {
+    @apply status-badge bg-yellow-100 text-yellow-600;
+  }
+
+  .status-failed {
+    @apply status-badge bg-red-100 text-red-600;
+  }
+
+  /* Modern table styling */
+  .modern-table {
     @apply w-full text-sm;
   }
 
-  .trading-table th {
-    @apply text-exchange-text-secondary font-medium p-2 text-left border-b border-exchange-border;
+  .modern-table th {
+    @apply text-gray-700 font-medium p-3 text-left border-b border-gray-200 bg-gray-50;
   }
 
-  .trading-table td {
-    @apply p-2 border-b border-exchange-border/30 font-mono;
+  .modern-table td {
+    @apply p-3 border-b border-gray-100;
+  }
+
+  /* Responsive utilities */
+  .responsive-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6;
+  }
+
+  .responsive-padding {
+    @apply px-4 sm:px-6 py-6 sm:py-8;
   }
 }
 
-/* Glowing effects for active elements */
+/* Enhanced effects for modern design */
 @layer utilities {
-  .glow-green {
-    box-shadow: 0 0 20px rgba(0, 212, 170, 0.3);
+  .shadow-modern {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
-  .glow-red {
-    box-shadow: 0 0 20px rgba(255, 71, 87, 0.3);
+  .shadow-modern-lg {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   }
 
-  .glow-blue {
-    box-shadow: 0 0 20px rgba(0, 102, 255, 0.3);
+  .gradient-red {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  }
+
+  .gradient-red-light {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
   }
 }

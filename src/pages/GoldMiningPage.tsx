@@ -1,338 +1,418 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useWallet } from '@/hooks/useWallet';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { Button } from '@/components/ui/button';
-import { Pickaxe, TrendingUp, Users, DollarSign, Calendar, Award, RefreshCw } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Pickaxe, TrendingUp, Users, DollarSign, Calendar, Award, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface MiningPlan {
   id: string;
   name: string;
   minInvestment: number;
   maxInvestment: number;
-  dailyReturn: string;
+  dailyReturn: number;
   maturityDays: number;
-  totalReturn: string;
-  referralBonus: string;
-}
-
-interface MiningStats {
-  totalInvested: string;
-  dailyEarnings: string;
-  totalEarnings: string;
-  referralEarnings: string;
-  activeReferrals: number;
+  totalReturn: number;
+  referralBonus: number;
+  popular?: boolean;
 }
 
 const GoldMiningPage = () => {
   const { user } = useAuth();
+  const { balances, depositFunds } = useWallet();
   const navigate = useNavigate();
   const [selectedPlan, setSelectedPlan] = useState<MiningPlan | null>(null);
   const [investmentAmount, setInvestmentAmount] = useState<string>('');
+  const [showInvestForm, setShowInvestForm] = useState(false);
+  const [isInvesting, setIsInvesting] = useState(false);
+
+  // Get USDT balance for investment checking
+  const usdtBalance = balances.find(b => b.currency === 'USDT')?.available || 0;
 
   const miningPlans: MiningPlan[] = [
     {
       id: 'basic',
       name: 'Basic Mining',
-      minInvestment: 100,
+      minInvestment: 200,
       maxInvestment: 999,
-      dailyReturn: '0.8%',
+      dailyReturn: 1.2,
       maturityDays: 30,
-      totalReturn: '24%',
-      referralBonus: '5%'
+      totalReturn: 36,
+      referralBonus: 5
     },
     {
-      id: 'standard',
-      name: 'Standard Mining',
+      id: 'central',
+      name: 'Central Mining',
       minInvestment: 1000,
       maxInvestment: 4999,
-      dailyReturn: '1.2%',
+      dailyReturn: 2.0,
       maturityDays: 45,
-      totalReturn: '54%',
-      referralBonus: '7%'
+      totalReturn: 90,
+      referralBonus: 8,
+      popular: true
+    },
+    {
+      id: 'advanced',
+      name: 'Advanced Mining',
+      minInvestment: 5000,
+      maxInvestment: 19999,
+      dailyReturn: 2.8,
+      maturityDays: 60,
+      totalReturn: 168,
+      referralBonus: 12
     },
     {
       id: 'premium',
       name: 'Premium Mining',
-      minInvestment: 5000,
-      maxInvestment: 19999,
-      dailyReturn: '1.6%',
-      maturityDays: 60,
-      totalReturn: '96%',
-      referralBonus: '10%'
-    },
-    {
-      id: 'vip',
-      name: 'VIP Mining',
       minInvestment: 20000,
       maxInvestment: 100000,
-      dailyReturn: '2.0%',
+      dailyReturn: 3.5,
       maturityDays: 90,
-      totalReturn: '180%',
-      referralBonus: '15%'
+      totalReturn: 315,
+      referralBonus: 15
     }
   ];
 
-  const userStats: MiningStats = {
-    totalInvested: '$2,500.00',
-    dailyEarnings: '$30.00',
-    totalEarnings: '$450.00',
-    referralEarnings: '$125.00',
-    activeReferrals: 8
+  // Mock active investment
+  const activeInvestment = {
+    planName: 'Central Mining',
+    investmentAmount: 2500,
+    dailyReturn: 50,
+    daysActive: 12,
+    totalEarned: 600,
+    nextPayout: '06:45:23',
+    roi: 24
   };
 
-  const dailyReturns = [
-    { date: '2024-01-15', amount: '$30.00', plan: 'Standard Mining', status: 'paid' },
-    { date: '2024-01-14', amount: '$30.00', plan: 'Standard Mining', status: 'paid' },
-    { date: '2024-01-13', amount: '$30.00', plan: 'Standard Mining', status: 'paid' },
-    { date: '2024-01-12', amount: '$30.00', plan: 'Standard Mining', status: 'paid' },
-    { date: '2024-01-11', amount: '$30.00', plan: 'Standard Mining', status: 'paid' },
-  ];
-
-  const handleInvest = () => {
+  const handlePlanSelect = (plan: MiningPlan) => {
     if (!user) {
       navigate('/auth');
       return;
     }
-    
-    if (!selectedPlan || !investmentAmount) {
-      alert('Please select a plan and enter an investment amount');
-      return;
-    }
-
-    const amount = parseFloat(investmentAmount);
-    if (amount < selectedPlan.minInvestment || amount > selectedPlan.maxInvestment) {
-      alert(`Investment amount must be between $${selectedPlan.minInvestment} and $${selectedPlan.maxInvestment}`);
-      return;
-    }
-
-    // Simulate investment process
-    alert(`Investment of $${amount} in ${selectedPlan.name} submitted successfully!`);
-    setInvestmentAmount('');
-    setSelectedPlan(null);
+    setSelectedPlan(plan);
+    setShowInvestForm(true);
+    setInvestmentAmount(plan.minInvestment.toString());
   };
 
+  const handleInvestment = async () => {
+    if (!selectedPlan || !investmentAmount || !user) return;
+
+    const amount = parseFloat(investmentAmount);
+    
+    if (amount < selectedPlan.minInvestment || amount > selectedPlan.maxInvestment) {
+      alert(`Investment amount must be between $${selectedPlan.minInvestment} and $${selectedPlan.maxInvestment.toLocaleString()}`);
+      return;
+    }
+
+    if (amount > usdtBalance) {
+      alert('Insufficient USDT balance. Please deposit funds first.');
+      return;
+    }
+
+    setIsInvesting(true);
+    
+    // Simulate investment processing
+    try {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      alert(`Successfully invested $${amount} in ${selectedPlan.name}!`);
+      setShowInvestForm(false);
+      setSelectedPlan(null);
+      setInvestmentAmount('');
+    } catch (error) {
+      alert('Investment failed. Please try again.');
+    } finally {
+      setIsInvesting(false);
+    }
+  };
+
+  const dailyReturns = [
+    { date: '2024-01-20', amount: 50.00, plan: 'Central Mining', status: 'paid' },
+    { date: '2024-01-19', amount: 50.00, plan: 'Central Mining', status: 'paid' },
+    { date: '2024-01-18', amount: 50.00, plan: 'Central Mining', status: 'paid' },
+    { date: '2024-01-17', amount: 50.00, plan: 'Central Mining', status: 'paid' },
+    { date: '2024-01-16', amount: 50.00, plan: 'Central Mining', status: 'paid' },
+  ];
+
   return (
-    <div className="min-h-screen bg-exchange-bg">
+    <div className="min-h-screen bg-white">
       <Header />
       
-      <div className="container mx-auto px-6 py-8">
+      <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Page Header */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8 sm:mb-12">
           <div className="flex items-center justify-center space-x-3 mb-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl flex items-center justify-center">
-              <Pickaxe className="w-8 h-8 text-white" />
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-red-500 to-orange-500 rounded-2xl flex items-center justify-center">
+              <Pickaxe className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             </div>
-            <h1 className="text-4xl font-bold text-exchange-text-primary">
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">
               Gold Mining Investment
             </h1>
           </div>
-          <p className="text-xl text-exchange-text-secondary max-w-3xl mx-auto">
-            Invest in our gold mining operations and earn guaranteed daily returns with our MLM referral system. 
-            Start with as little as $100 and build your passive income stream.
+          <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto">
+            Invest in our gold mining operations and earn guaranteed daily returns. 
+            Start with as little as $200 and build your passive income stream.
           </p>
         </div>
 
+        {/* Current Balance Alert */}
+        <Card className="mb-6 sm:mb-8 bg-blue-50 border border-blue-200">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <DollarSign className="w-5 h-5 text-blue-600" />
+                <div>
+                  <div className="font-semibold text-gray-900">Available Balance</div>
+                  <div className="text-sm text-gray-600">USDT balance for mining investments</div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-gray-900">${usdtBalance.toLocaleString()}</div>
+                <div className="text-sm text-gray-600">USDT</div>
+              </div>
+            </div>
+            {usdtBalance < 200 && (
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-center space-x-2 text-yellow-800">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="text-sm">Minimum $200 USDT required for mining investment. Please deposit funds first.</span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Active Investment Dashboard */}
         {user && (
-          /* User Stats Dashboard */
-          <div className="grid md:grid-cols-4 gap-6 mb-12">
-            <div className="bg-exchange-panel rounded-xl border border-exchange-border p-6">
-              <div className="flex items-center space-x-3 mb-2">
-                <DollarSign className="w-8 h-8 text-exchange-blue" />
-                <div>
-                  <div className="text-2xl font-bold text-exchange-text-primary">{userStats.totalInvested}</div>
-                  <div className="text-sm text-exchange-text-secondary">Total Invested</div>
+          <Card className="mb-8 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200">
+            <CardHeader>
+              <CardTitle className="text-gray-900 flex items-center">
+                <Award className="w-5 h-5 mr-2 text-red-600" />
+                Active Mining Investment
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                <div className="text-center p-4 bg-white rounded-lg border border-red-200">
+                  <div className="text-2xl font-bold text-red-600 mb-1">{activeInvestment.planName}</div>
+                  <div className="text-sm text-gray-600">Active Plan</div>
+                </div>
+                <div className="text-center p-4 bg-white rounded-lg border border-red-200">
+                  <div className="text-2xl font-bold text-gray-900 mb-1">${activeInvestment.investmentAmount.toLocaleString()}</div>
+                  <div className="text-sm text-gray-600">Investment Amount</div>
+                </div>
+                <div className="text-center p-4 bg-white rounded-lg border border-red-200">
+                  <div className="text-2xl font-bold text-green-600 mb-1">${activeInvestment.dailyReturn}</div>
+                  <div className="text-sm text-gray-600">Daily Return</div>
+                </div>
+                <div className="text-center p-4 bg-white rounded-lg border border-red-200">
+                  <div className="text-2xl font-bold text-red-600 mb-1">{activeInvestment.nextPayout}</div>
+                  <div className="text-sm text-gray-600">Next Payout</div>
                 </div>
               </div>
-            </div>
-
-            <div className="bg-exchange-panel rounded-xl border border-exchange-border p-6">
-              <div className="flex items-center space-x-3 mb-2">
-                <TrendingUp className="w-8 h-8 text-exchange-green" />
-                <div>
-                  <div className="text-2xl font-bold text-exchange-text-primary">{userStats.dailyEarnings}</div>
-                  <div className="text-sm text-exchange-text-secondary">Daily Earnings</div>
+              <div className="mt-6 p-4 bg-white rounded-lg border border-red-200">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
+                  <div className="flex space-x-6">
+                    <span className="text-sm text-gray-600">Days Active: <span className="font-semibold text-gray-900">{activeInvestment.daysActive}</span></span>
+                    <span className="text-sm text-gray-600">ROI: <span className="font-semibold text-green-600">{activeInvestment.roi}%</span></span>
+                  </div>
+                  <span className="text-lg font-bold text-green-600">Total Earned: ${activeInvestment.totalEarned}</span>
                 </div>
               </div>
-            </div>
-
-            <div className="bg-exchange-panel rounded-xl border border-exchange-border p-6">
-              <div className="flex items-center space-x-3 mb-2">
-                <Award className="w-8 h-8 text-yellow-500" />
-                <div>
-                  <div className="text-2xl font-bold text-exchange-text-primary">{userStats.totalEarnings}</div>
-                  <div className="text-sm text-exchange-text-secondary">Total Earnings</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-exchange-panel rounded-xl border border-exchange-border p-6">
-              <div className="flex items-center space-x-3 mb-2">
-                <Users className="w-8 h-8 text-purple-500" />
-                <div>
-                  <div className="text-2xl font-bold text-exchange-text-primary">{userStats.activeReferrals}</div>
-                  <div className="text-sm text-exchange-text-secondary">Active Referrals</div>
-                </div>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Mining Plans */}
-        <div className="mb-12">
-          <h2 className="text-3xl font-bold text-exchange-text-primary mb-8 text-center">
+        <div className="mb-8 sm:mb-12">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 sm:mb-8 text-center">
             Choose Your Mining Plan
           </h2>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {miningPlans.map((plan) => (
-              <div 
+              <Card 
                 key={plan.id}
-                className={`bg-exchange-panel rounded-xl border p-6 cursor-pointer transition-all duration-300 hover:shadow-lg ${
-                  selectedPlan?.id === plan.id 
-                    ? 'border-yellow-500 bg-yellow-500/5' 
-                    : 'border-exchange-border hover:border-yellow-500/50'
+                className={`relative cursor-pointer transition-all duration-300 hover:shadow-lg border-2 ${
+                  plan.popular 
+                    ? 'border-red-500 bg-red-50' 
+                    : 'border-gray-200 hover:border-red-300 bg-white'
                 }`}
-                onClick={() => setSelectedPlan(plan)}
+                onClick={() => handlePlanSelect(plan)}
               >
-                <div className="text-center mb-6">
-                  <h3 className="text-xl font-bold text-exchange-text-primary mb-2">{plan.name}</h3>
-                  <div className="text-3xl font-bold text-yellow-500 mb-1">{plan.dailyReturn}</div>
-                  <div className="text-sm text-exchange-text-secondary">Daily Return</div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-exchange-text-secondary">Min Investment:</span>
-                    <span className="text-exchange-text-primary font-semibold">${plan.minInvestment.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-exchange-text-secondary">Max Investment:</span>
-                    <span className="text-exchange-text-primary font-semibold">${plan.maxInvestment.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-exchange-text-secondary">Maturity:</span>
-                    <span className="text-exchange-text-primary font-semibold">{plan.maturityDays} days</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-exchange-text-secondary">Total Return:</span>
-                    <span className="text-exchange-green font-semibold">{plan.totalReturn}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-exchange-text-secondary">Referral Bonus:</span>
-                    <span className="text-exchange-blue font-semibold">{plan.referralBonus}</span>
-                  </div>
-                </div>
-
-                {selectedPlan?.id === plan.id && (
-                  <div className="mt-4 p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
-                    <div className="text-center text-yellow-600 font-semibold">Selected Plan</div>
+                {plan.popular && (
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                    <span className="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                      Most Popular
+                    </span>
                   </div>
                 )}
-              </div>
+                
+                <CardHeader className="text-center pb-4">
+                  <CardTitle className="text-xl font-bold text-gray-900 mb-2">{plan.name}</CardTitle>
+                  <div className="text-3xl font-bold text-red-600 mb-1">{plan.dailyReturn}%</div>
+                  <div className="text-sm text-gray-600">Daily Return</div>
+                </CardHeader>
+
+                <CardContent className="space-y-3">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Min Investment:</span>
+                      <span className="font-semibold text-gray-900">${plan.minInvestment.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Max Investment:</span>
+                      <span className="font-semibold text-gray-900">${plan.maxInvestment.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Duration:</span>
+                      <span className="font-semibold text-gray-900">{plan.maturityDays} days</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Total ROI:</span>
+                      <span className="font-semibold text-green-600">{plan.totalReturn}%</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Referral Bonus:</span>
+                      <span className="font-semibold text-blue-600">{plan.referralBonus}%</span>
+                    </div>
+                  </div>
+
+                  <Button 
+                    className={`w-full mt-4 ${
+                      plan.popular 
+                        ? 'bg-red-600 hover:bg-red-700 text-white' 
+                        : 'bg-gray-900 hover:bg-gray-800 text-white'
+                    }`}
+                    disabled={usdtBalance < plan.minInvestment}
+                  >
+                    {usdtBalance < plan.minInvestment ? 'Insufficient Balance' : 'Select Plan'}
+                  </Button>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
 
-        {/* Investment Form */}
-        {selectedPlan && (
-          <div className="bg-exchange-panel rounded-xl border border-exchange-border p-8 mb-12">
-            <h3 className="text-2xl font-bold text-exchange-text-primary mb-6 text-center">
-              Invest in {selectedPlan.name}
-            </h3>
-            
-            <div className="max-w-md mx-auto">
-              <div className="mb-6">
-                <label className="block text-exchange-text-secondary mb-2">Investment Amount (USD)</label>
-                <input
-                  type="number"
-                  min={selectedPlan.minInvestment}
-                  max={selectedPlan.maxInvestment}
-                  value={investmentAmount}
-                  onChange={(e) => setInvestmentAmount(e.target.value)}
-                  placeholder={`Min: $${selectedPlan.minInvestment} - Max: $${selectedPlan.maxInvestment.toLocaleString()}`}
-                  className="w-full px-4 py-3 bg-exchange-accent border border-exchange-border rounded-lg text-exchange-text-primary placeholder:text-exchange-text-secondary focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                />
-              </div>
+        {/* Investment Form Modal */}
+        {showInvestForm && selectedPlan && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <Card className="w-full max-w-md bg-white">
+              <CardHeader>
+                <CardTitle className="text-gray-900 text-center">
+                  Invest in {selectedPlan.name}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="block text-gray-700 mb-2 font-medium">Investment Amount (USD)</label>
+                  <input
+                    type="number"
+                    min={selectedPlan.minInvestment}
+                    max={Math.min(selectedPlan.maxInvestment, usdtBalance)}
+                    value={investmentAmount}
+                    onChange={(e) => setInvestmentAmount(e.target.value)}
+                    placeholder={`Min: $${selectedPlan.minInvestment} - Max: $${selectedPlan.maxInvestment.toLocaleString()}`}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  />
+                </div>
 
-              {investmentAmount && (
-                <div className="bg-exchange-accent rounded-lg p-4 mb-6">
-                  <div className="text-sm text-exchange-text-secondary mb-2">Investment Summary:</div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between">
-                      <span>Daily Return:</span>
-                      <span className="text-exchange-green font-semibold">
-                        ${(parseFloat(investmentAmount) * parseFloat(selectedPlan.dailyReturn.replace('%', '')) / 100).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Total Return:</span>
-                      <span className="text-exchange-green font-semibold">
-                        ${(parseFloat(investmentAmount) * parseFloat(selectedPlan.totalReturn.replace('%', '')) / 100).toFixed(2)}
-                      </span>
+                {investmentAmount && parseFloat(investmentAmount) >= selectedPlan.minInvestment && (
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div className="text-sm text-gray-700 mb-2 font-medium">Investment Summary:</div>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span>Daily Return:</span>
+                        <span className="text-green-600 font-semibold">
+                          ${(parseFloat(investmentAmount) * selectedPlan.dailyReturn / 100).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Total Return ({selectedPlan.maturityDays} days):</span>
+                        <span className="text-green-600 font-semibold">
+                          ${(parseFloat(investmentAmount) * selectedPlan.totalReturn / 100).toFixed(2)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              <Button
-                onClick={handleInvest}
-                className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white py-3 text-lg font-semibold"
-              >
-                {!user ? 'Login to Invest' : 'Start Mining'}
-              </Button>
-            </div>
+                <div className="flex space-x-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowInvestForm(false);
+                      setSelectedPlan(null);
+                    }}
+                    className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+                    disabled={isInvesting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleInvestment}
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                    disabled={isInvesting || !investmentAmount || parseFloat(investmentAmount) < selectedPlan.minInvestment}
+                  >
+                    {isInvesting ? 'Processing...' : 'Invest Now'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
 
+        {/* Daily Returns History */}
         {user && (
-          /* Daily Returns Table */
-          <div className="bg-exchange-panel rounded-xl border border-exchange-border overflow-hidden">
-            <div className="p-6 border-b border-exchange-border">
+          <Card className="bg-white border border-gray-200 shadow-sm">
+            <CardHeader>
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-semibold text-exchange-text-primary">Daily Returns History</h3>
-                <Button variant="outline" className="flex items-center space-x-2">
+                <CardTitle className="text-gray-900">Daily Returns History</CardTitle>
+                <Button variant="outline" className="flex items-center space-x-2 border-gray-300 text-gray-700 hover:bg-gray-50">
                   <RefreshCw className="w-4 h-4" />
                   <span>Refresh</span>
                 </Button>
               </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-exchange-accent border-b border-exchange-border">
-                  <tr>
-                    <th className="text-left p-4 text-exchange-text-secondary font-medium">Date</th>
-                    <th className="text-left p-4 text-exchange-text-secondary font-medium">Plan</th>
-                    <th className="text-right p-4 text-exchange-text-secondary font-medium">Amount</th>
-                    <th className="text-center p-4 text-exchange-text-secondary font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dailyReturns.map((return_, index) => (
-                    <tr key={index} className="border-b border-exchange-border/30">
-                      <td className="p-4">
-                        <div className="flex items-center space-x-3">
-                          <Calendar className="w-4 h-4 text-exchange-text-secondary" />
-                          <span className="text-exchange-text-primary">{return_.date}</span>
-                        </div>
-                      </td>
-                      <td className="p-4 text-exchange-text-primary">{return_.plan}</td>
-                      <td className="p-4 text-right">
-                        <span className="text-exchange-green font-semibold">{return_.amount}</span>
-                      </td>
-                      <td className="p-4 text-center">
-                        <span className="px-3 py-1 bg-exchange-green/20 text-exchange-green rounded-full text-sm font-semibold">
-                          Paid
-                        </span>
-                      </td>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="text-left p-3 text-gray-700 font-medium text-sm">Date</th>
+                      <th className="text-left p-3 text-gray-700 font-medium text-sm">Plan</th>
+                      <th className="text-right p-3 text-gray-700 font-medium text-sm">Amount</th>
+                      <th className="text-center p-3 text-gray-700 font-medium text-sm">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                  </thead>
+                  <tbody>
+                    {dailyReturns.map((return_, index) => (
+                      <tr key={index} className="border-b border-gray-100">
+                        <td className="p-3">
+                          <div className="flex items-center space-x-2">
+                            <Calendar className="w-4 h-4 text-gray-500" />
+                            <span className="text-gray-900 text-sm">{return_.date}</span>
+                          </div>
+                        </td>
+                        <td className="p-3 text-gray-900 text-sm">{return_.plan}</td>
+                        <td className="p-3 text-right">
+                          <span className="text-green-600 font-semibold">${return_.amount.toFixed(2)}</span>
+                        </td>
+                        <td className="p-3 text-center">
+                          <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-600 rounded-full text-xs font-semibold">
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            Paid
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>
