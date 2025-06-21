@@ -1,40 +1,42 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useCryptoPrices, formatPrice, formatVolume } from '@/hooks/useCryptoPrices';
 import Header from '../components/Header';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, TrendingDown, Calendar, DollarSign, BarChart3 } from 'lucide-react';
-
-interface Contract {
-  id: string;
-  symbol: string;
-  type: 'spot' | 'futures';
-  leverage: string;
-  price: string;
-  change: string;
-  changePercent: string;
-  volume: string;
-  openInterest?: string;
-  fundingRate?: string;
-  isPositive: boolean;
-}
+import { TrendingUp, TrendingDown, Calendar, DollarSign, BarChart3, Wifi, WifiOff } from 'lucide-react';
 
 const ContractsPage = () => {
   const { user } = useAuth();
+  const { prices, loading, error, lastUpdated } = useCryptoPrices(7000);
   const [activeTab, setActiveTab] = useState<'spot' | 'futures'>('spot');
-  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+  const [selectedContract, setSelectedContract] = useState<any>(null);
 
-  const contracts: Contract[] = [
-    { id: '1', symbol: 'BTC/USDT', type: 'spot', leverage: '1x', price: '43,250.00', change: '+1,250.00', changePercent: '+2.98%', volume: '1.2B', isPositive: true },
-    { id: '2', symbol: 'ETH/USDT', type: 'spot', leverage: '1x', price: '2,650.50', change: '+85.20', changePercent: '+3.32%', volume: '890M', isPositive: true },
-    { id: '3', symbol: 'BTC/USDT', type: 'futures', leverage: '100x', price: '43,245.50', change: '+1,245.50', changePercent: '+2.96%', volume: '2.8B', openInterest: '1.5B', fundingRate: '0.0045%', isPositive: true },
-    { id: '4', symbol: 'ETH/USDT', type: 'futures', leverage: '75x', price: '2,648.75', change: '+83.25', changePercent: '+3.25%', volume: '1.9B', openInterest: '890M', fundingRate: '0.0032%', isPositive: true },
-    { id: '5', symbol: 'BNB/USDT', type: 'futures', leverage: '50x', price: '315.25', change: '-5.75', changePercent: '-1.79%', volume: '540M', openInterest: '234M', fundingRate: '-0.0021%', isPositive: false },
-  ];
+  // Transform crypto prices into contract format
+  const transformToContracts = (cryptoData: any[], type: 'spot' | 'futures') => {
+    return cryptoData.map(crypto => ({
+      id: `${crypto.id}-${type}`,
+      symbol: `${crypto.symbol.toUpperCase()}/USDT`,
+      name: crypto.name,
+      type,
+      leverage: type === 'futures' ? '100x' : '1x',
+      price: formatPrice(crypto.current_price),
+      change: `${crypto.price_change_24h >= 0 ? '+' : ''}${crypto.price_change_24h.toFixed(2)}`,
+      changePercent: `${crypto.price_change_percentage_24h >= 0 ? '+' : ''}${crypto.price_change_percentage_24h.toFixed(2)}%`,
+      volume: formatVolume(crypto.total_volume),
+      openInterest: type === 'futures' ? formatVolume(crypto.total_volume * 0.6) : undefined,
+      fundingRate: type === 'futures' ? `${(Math.random() * 0.01 - 0.005).toFixed(4)}%` : undefined,
+      isPositive: crypto.price_change_percentage_24h >= 0,
+      rawPrice: crypto.current_price,
+      high24h: formatPrice(crypto.high_24h),
+      low24h: formatPrice(crypto.low_24h)
+    }));
+  };
 
+  const contracts = prices.length > 0 ? transformToContracts(prices, activeTab) : [];
   const filteredContracts = contracts.filter(contract => contract.type === activeTab);
 
-  const handleTradeClick = (contract: Contract) => {
+  const handleTradeClick = (contract: any) => {
     if (!user) {
       alert('Please login to start trading');
       return;
@@ -49,12 +51,33 @@ const ContractsPage = () => {
       <div className="container mx-auto px-6 py-8">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-exchange-text-primary mb-2">
-            Trading Contracts
-          </h1>
-          <p className="text-exchange-text-secondary">
-            Advanced spot and futures trading with leverage up to 100x
-          </p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-exchange-text-primary mb-2">
+                Trading Contracts
+              </h1>
+              <p className="text-exchange-text-secondary">
+                Advanced spot and futures trading with leverage up to 100x
+              </p>
+            </div>
+            
+            {/* Live Status Indicator */}
+            <div className="flex items-center space-x-2 bg-exchange-panel border border-exchange-border rounded-lg px-4 py-2">
+              {error ? (
+                <WifiOff className="w-4 h-4 text-exchange-red" />
+              ) : (
+                <Wifi className="w-4 h-4 text-exchange-green" />
+              )}
+              <div className="text-sm">
+                <div className="text-exchange-text-primary font-medium">
+                  {error ? 'Offline' : 'Live Prices'}
+                </div>
+                <div className="text-xs text-exchange-text-secondary">
+                  {lastUpdated ? lastUpdated.toLocaleTimeString() : 'Loading...'}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Contract Type Tabs */}
@@ -148,89 +171,98 @@ const ContractsPage = () => {
           </div>
         </div>
 
+        {/* Loading State */}
+        {loading && prices.length === 0 && (
+          <div className="bg-exchange-panel rounded-xl border border-exchange-border p-12 text-center">
+            <div className="text-exchange-text-secondary">Loading real-time contract data...</div>
+          </div>
+        )}
+
         {/* Contracts Table */}
-        <div className="bg-exchange-panel rounded-xl border border-exchange-border overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-exchange-accent border-b border-exchange-border">
-                <tr>
-                  <th className="text-left p-4 text-exchange-text-secondary font-medium">Contract</th>
-                  <th className="text-right p-4 text-exchange-text-secondary font-medium">Price</th>
-                  <th className="text-right p-4 text-exchange-text-secondary font-medium">24h Change</th>
-                  <th className="text-right p-4 text-exchange-text-secondary font-medium">Volume</th>
-                  {activeTab === 'futures' && (
-                    <>
-                      <th className="text-right p-4 text-exchange-text-secondary font-medium">Open Interest</th>
-                      <th className="text-right p-4 text-exchange-text-secondary font-medium">Funding Rate</th>
-                    </>
-                  )}
-                  <th className="text-center p-4 text-exchange-text-secondary font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredContracts.map((contract) => (
-                  <tr key={contract.id} className="border-b border-exchange-border/30 hover:bg-exchange-accent/30 transition-colors">
-                    <td className="p-4">
-                      <div className="flex items-center space-x-3">
-                        <div>
-                          <div className="font-semibold text-exchange-text-primary">{contract.symbol}</div>
-                          <div className="text-sm text-exchange-text-secondary">
-                            {contract.type === 'futures' ? `${contract.leverage} Leverage` : 'Spot'}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4 text-right">
-                      <div className="font-mono text-exchange-text-primary font-semibold">
-                        ${contract.price}
-                      </div>
-                    </td>
-                    <td className="p-4 text-right">
-                      <div className={`font-mono ${contract.isPositive ? 'text-exchange-green' : 'text-exchange-red'}`}>
-                        <div className="flex items-center justify-end space-x-1">
-                          {contract.isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                          <span>{contract.changePercent}</span>
-                        </div>
-                        <div className="text-sm">{contract.change}</div>
-                      </div>
-                    </td>
-                    <td className="p-4 text-right">
-                      <div className="font-mono text-exchange-text-primary">${contract.volume}</div>
-                    </td>
+        {prices.length > 0 && (
+          <div className="bg-exchange-panel rounded-xl border border-exchange-border overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-exchange-accent border-b border-exchange-border">
+                  <tr>
+                    <th className="text-left p-4 text-exchange-text-secondary font-medium">Contract</th>
+                    <th className="text-right p-4 text-exchange-text-secondary font-medium">Price</th>
+                    <th className="text-right p-4 text-exchange-text-secondary font-medium">24h Change</th>
+                    <th className="text-right p-4 text-exchange-text-secondary font-medium">Volume</th>
                     {activeTab === 'futures' && (
                       <>
-                        <td className="p-4 text-right">
-                          <div className="font-mono text-exchange-text-primary">${contract.openInterest}</div>
-                        </td>
-                        <td className="p-4 text-right">
-                          <div className={`font-mono ${contract.fundingRate?.startsWith('-') ? 'text-exchange-red' : 'text-exchange-green'}`}>
-                            {contract.fundingRate}
-                          </div>
-                        </td>
+                        <th className="text-right p-4 text-exchange-text-secondary font-medium">Open Interest</th>
+                        <th className="text-right p-4 text-exchange-text-secondary font-medium">Funding Rate</th>
                       </>
                     )}
-                    <td className="p-4 text-center">
-                      <div className="flex space-x-2 justify-center">
-                        <Button
-                          onClick={() => handleTradeClick(contract)}
-                          className="bg-exchange-green hover:bg-exchange-green/90 text-white px-4 py-2"
-                        >
-                          Buy
-                        </Button>
-                        <Button
-                          onClick={() => handleTradeClick(contract)}
-                          className="bg-exchange-red hover:bg-exchange-red/90 text-white px-4 py-2"
-                        >
-                          Sell
-                        </Button>
-                      </div>
-                    </td>
+                    <th className="text-center p-4 text-exchange-text-secondary font-medium">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredContracts.map((contract) => (
+                    <tr key={contract.id} className="border-b border-exchange-border/30 hover:bg-exchange-accent/30 transition-colors">
+                      <td className="p-4">
+                        <div className="flex items-center space-x-3">
+                          <div>
+                            <div className="font-semibold text-exchange-text-primary">{contract.symbol}</div>
+                            <div className="text-sm text-exchange-text-secondary">
+                              {contract.type === 'futures' ? `${contract.leverage} Leverage` : 'Spot'}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="font-mono text-exchange-text-primary font-semibold">
+                          ${contract.price}
+                        </div>
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className={`font-mono ${contract.isPositive ? 'text-exchange-green' : 'text-exchange-red'}`}>
+                          <div className="flex items-center justify-end space-x-1">
+                            {contract.isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                            <span>{contract.changePercent}</span>
+                          </div>
+                          <div className="text-sm">{contract.change}</div>
+                        </div>
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="font-mono text-exchange-text-primary">${contract.volume}</div>
+                      </td>
+                      {activeTab === 'futures' && (
+                        <>
+                          <td className="p-4 text-right">
+                            <div className="font-mono text-exchange-text-primary">${contract.openInterest}</div>
+                          </td>
+                          <td className="p-4 text-right">
+                            <div className={`font-mono ${contract.fundingRate?.startsWith('-') ? 'text-exchange-red' : 'text-exchange-green'}`}>
+                              {contract.fundingRate}
+                            </div>
+                          </td>
+                        </>
+                      )}
+                      <td className="p-4 text-center">
+                        <div className="flex space-x-2 justify-center">
+                          <Button
+                            onClick={() => handleTradeClick(contract)}
+                            className="bg-exchange-green hover:bg-exchange-green/90 text-white px-4 py-2"
+                          >
+                            Buy
+                          </Button>
+                          <Button
+                            onClick={() => handleTradeClick(contract)}
+                            className="bg-exchange-red hover:bg-exchange-red/90 text-white px-4 py-2"
+                          >
+                            Sell
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Order Book Preview */}
         {selectedContract && (
@@ -244,10 +276,10 @@ const ContractsPage = () => {
                 <div className="text-exchange-green font-semibold mb-3">Buy Orders</div>
                 <div className="space-y-2">
                   {[
-                    { price: '43,248.50', amount: '0.245', total: '10,595.88' },
-                    { price: '43,247.00', amount: '0.150', total: '6,487.05' },
-                    { price: '43,245.50', amount: '0.380', total: '16,433.29' },
-                    { price: '43,244.00', amount: '0.125', total: '5,405.50' },
+                    { price: (selectedContract.rawPrice * 0.9995).toFixed(2), amount: '0.245', total: ((selectedContract.rawPrice * 0.9995) * 0.245).toFixed(2) },
+                    { price: (selectedContract.rawPrice * 0.999).toFixed(2), amount: '0.150', total: ((selectedContract.rawPrice * 0.999) * 0.150).toFixed(2) },
+                    { price: (selectedContract.rawPrice * 0.9985).toFixed(2), amount: '0.380', total: ((selectedContract.rawPrice * 0.9985) * 0.380).toFixed(2) },
+                    { price: (selectedContract.rawPrice * 0.998).toFixed(2), amount: '0.125', total: ((selectedContract.rawPrice * 0.998) * 0.125).toFixed(2) },
                   ].map((order, index) => (
                     <div key={index} className="flex justify-between text-sm bg-exchange-green/10 p-2 rounded">
                       <span className="text-exchange-green font-mono">{order.price}</span>
@@ -263,10 +295,10 @@ const ContractsPage = () => {
                 <div className="text-exchange-red font-semibold mb-3">Sell Orders</div>
                 <div className="space-y-2">
                   {[
-                    { price: '43,252.50', amount: '0.185', total: '8,001.71' },
-                    { price: '43,254.00', amount: '0.290', total: '12,543.66' },
-                    { price: '43,255.50', amount: '0.165', total: '7,137.16' },
-                    { price: '43,257.00', amount: '0.220', total: '9,516.54' },
+                    { price: (selectedContract.rawPrice * 1.0005).toFixed(2), amount: '0.185', total: ((selectedContract.rawPrice * 1.0005) * 0.185).toFixed(2) },
+                    { price: (selectedContract.rawPrice * 1.001).toFixed(2), amount: '0.290', total: ((selectedContract.rawPrice * 1.001) * 0.290).toFixed(2) },
+                    { price: (selectedContract.rawPrice * 1.0015).toFixed(2), amount: '0.165', total: ((selectedContract.rawPrice * 1.0015) * 0.165).toFixed(2) },
+                    { price: (selectedContract.rawPrice * 1.002).toFixed(2), amount: '0.220', total: ((selectedContract.rawPrice * 1.002) * 0.220).toFixed(2) },
                   ].map((order, index) => (
                     <div key={index} className="flex justify-between text-sm bg-exchange-red/10 p-2 rounded">
                       <span className="text-exchange-red font-mono">{order.price}</span>

@@ -3,14 +3,94 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Eye, EyeOff, Shield, TrendingUp, Users } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Session } from '@supabase/supabase-js';
+
+interface FloatingLabelInputProps {
+  id: string;
+  type: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  label: string;
+  required?: boolean;
+  minLength?: number;
+  showPasswordToggle?: boolean;
+  showPassword?: boolean;
+  onTogglePassword?: () => void;
+}
+
+const FloatingLabelInput = ({ 
+  id, 
+  type, 
+  value, 
+  onChange, 
+  label, 
+  required = false, 
+  minLength, 
+  showPasswordToggle = false,
+  showPassword = false,
+  onTogglePassword
+}: FloatingLabelInputProps) => {
+  const [focused, setFocused] = useState(false);
+  const hasValue = value.length > 0;
+  const shouldFloat = focused || hasValue;
+
+  return (
+    <div className="relative">
+      <input
+        id={id}
+        type={showPasswordToggle ? (showPassword ? "text" : "password") : type}
+        value={value}
+        onChange={onChange}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        required={required}
+        minLength={minLength}
+        className={`
+          w-full px-4 py-3 bg-exchange-bg border-2 rounded-lg text-exchange-text-primary
+          transition-all duration-200 ease-in-out
+          focus:outline-none focus:ring-0 focus:border-exchange-blue
+          placeholder-transparent peer
+          ${showPasswordToggle ? 'pr-12' : ''}
+          ${focused ? 'border-exchange-blue' : 'border-exchange-border hover:border-exchange-border/80'}
+        `}
+        placeholder={label}
+      />
+      
+      <label
+        htmlFor={id}
+        className={`
+          absolute left-4 transition-all duration-200 ease-in-out pointer-events-none
+          ${shouldFloat 
+            ? 'top-0 -translate-y-1/2 px-2 bg-exchange-panel text-sm font-medium' 
+            : 'top-1/2 -translate-y-1/2 text-base'
+          }
+          ${focused 
+            ? 'text-exchange-blue' 
+            : hasValue 
+              ? 'text-exchange-text-primary' 
+              : 'text-exchange-text-secondary'
+          }
+        `}
+      >
+        {label}
+      </label>
+      
+      {showPasswordToggle && (
+        <button
+          type="button"
+          onClick={onTogglePassword}
+          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-exchange-text-secondary hover:text-exchange-text-primary transition-colors"
+        >
+          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+        </button>
+      )}
+    </div>
+  );
+};
 
 const AuthPage = () => {
   const [email, setEmail] = useState('');
@@ -110,10 +190,12 @@ const AuthPage = () => {
       <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
         
         {/* Left side - Branding */}
-        <div className="space-y-8 text-center lg:text-left">
+        <div className="space-y-8 text-center lg:text-left order-2 lg:order-1">
           <div className="space-y-4">
             <div className="flex items-center justify-center lg:justify-start space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-exchange-blue to-exchange-green rounded-xl"></div>
+              <div className="w-12 h-12 bg-gradient-to-br from-exchange-blue to-exchange-green rounded-xl flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-white" />
+              </div>
               <h1 className="text-4xl font-bold text-exchange-text-primary">MEXC Pro</h1>
             </div>
             <p className="text-xl text-exchange-text-secondary">
@@ -143,70 +225,66 @@ const AuthPage = () => {
         </div>
 
         {/* Right side - Auth Forms */}
-        <div className="flex justify-center">
-          <Card className="w-full max-w-md bg-exchange-panel border-exchange-border">
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl text-exchange-text-primary">Welcome</CardTitle>
-              <CardDescription className="text-exchange-text-secondary">
+        <div className="flex justify-center order-1 lg:order-2">
+          <Card className="w-full max-w-md bg-exchange-panel border-2 border-exchange-border shadow-2xl">
+            <CardHeader className="text-center pb-6">
+              <CardTitle className="text-3xl text-exchange-text-primary font-bold">Welcome Back</CardTitle>
+              <CardDescription className="text-exchange-text-secondary text-lg">
                 Sign in to your account or create a new one
               </CardDescription>
             </CardHeader>
             
-            <CardContent>
+            <CardContent className="pt-0">
               <Tabs defaultValue="signin" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-6">
-                  <TabsTrigger value="signin">Sign In</TabsTrigger>
-                  <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2 mb-8 bg-exchange-accent">
+                  <TabsTrigger 
+                    value="signin" 
+                    className="data-[state=active]:bg-exchange-blue data-[state=active]:text-white font-medium"
+                  >
+                    Sign In
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="signup"
+                    className="data-[state=active]:bg-exchange-green data-[state=active]:text-white font-medium"
+                  >
+                    Sign Up
+                  </TabsTrigger>
                 </TabsList>
 
                 {error && (
-                  <Alert className="mb-4 border-red-500 bg-red-500/10">
-                    <AlertDescription className="text-red-500">
+                  <Alert className="mb-6 border-2 border-red-500 bg-red-500/10">
+                    <AlertDescription className="text-red-500 font-medium">
                       {error}
                     </AlertDescription>
                   </Alert>
                 )}
 
                 <TabsContent value="signin">
-                  <form onSubmit={handleSignIn} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="signin-email">Email</Label>
-                      <Input
-                        id="signin-email"
-                        type="email"
-                        placeholder="Enter your email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        className="bg-exchange-bg border-exchange-border"
-                      />
-                    </div>
+                  <form onSubmit={handleSignIn} className="space-y-6">
+                    <FloatingLabelInput
+                      id="signin-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      label="Email Address"
+                      required
+                    />
                     
-                    <div className="space-y-2">
-                      <Label htmlFor="signin-password">Password</Label>
-                      <div className="relative">
-                        <Input
-                          id="signin-password"
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Enter your password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          required
-                          className="bg-exchange-bg border-exchange-border pr-10"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-exchange-text-secondary hover:text-exchange-text-primary"
-                        >
-                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
-                    </div>
+                    <FloatingLabelInput
+                      id="signin-password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      label="Password"
+                      required
+                      showPasswordToggle
+                      showPassword={showPassword}
+                      onTogglePassword={() => setShowPassword(!showPassword)}
+                    />
 
                     <Button 
                       type="submit" 
-                      className="w-full bg-exchange-blue hover:bg-exchange-blue/90"
+                      className="w-full bg-exchange-blue hover:bg-exchange-blue/90 text-white py-3 text-lg font-medium"
                       disabled={loading}
                     >
                       {loading ? 'Signing In...' : 'Sign In'}
@@ -215,77 +293,57 @@ const AuthPage = () => {
                 </TabsContent>
 
                 <TabsContent value="signup">
-                  <form onSubmit={handleSignUp} className="space-y-4">
+                  <form onSubmit={handleSignUp} className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="firstname">First Name</Label>
-                        <Input
-                          id="firstname"
-                          type="text"
-                          placeholder="First name"
-                          value={firstName}
-                          onChange={(e) => setFirstName(e.target.value)}
-                          required
-                          className="bg-exchange-bg border-exchange-border"
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="lastname">Last Name</Label>
-                        <Input
-                          id="lastname"
-                          type="text"
-                          placeholder="Last name"
-                          value={lastName}
-                          onChange={(e) => setLastName(e.target.value)}
-                          required
-                          className="bg-exchange-bg border-exchange-border"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-email">Email</Label>
-                      <Input
-                        id="signup-email"
-                        type="email"
-                        placeholder="Enter your email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                      <FloatingLabelInput
+                        id="firstname"
+                        type="text"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        label="First Name"
                         required
-                        className="bg-exchange-bg border-exchange-border"
+                      />
+                      
+                      <FloatingLabelInput
+                        id="lastname"
+                        type="text"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        label="Last Name"
+                        required
                       />
                     </div>
+
+                    <FloatingLabelInput
+                      id="signup-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      label="Email Address"
+                      required
+                    />
                     
                     <div className="space-y-2">
-                      <Label htmlFor="signup-password">Password</Label>
-                      <div className="relative">
-                        <Input
-                          id="signup-password"
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Create a strong password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          required
-                          minLength={6}
-                          className="bg-exchange-bg border-exchange-border pr-10"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-exchange-text-secondary hover:text-exchange-text-primary"
-                        >
-                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
-                      <p className="text-xs text-exchange-text-secondary">
+                      <FloatingLabelInput
+                        id="signup-password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        label="Create Password"
+                        required
+                        minLength={6}
+                        showPasswordToggle
+                        showPassword={showPassword}
+                        onTogglePassword={() => setShowPassword(!showPassword)}
+                      />
+                      <p className="text-xs text-exchange-text-secondary px-1">
                         Password must be at least 6 characters long
                       </p>
                     </div>
 
                     <Button 
                       type="submit" 
-                      className="w-full bg-exchange-green hover:bg-exchange-green/90"
+                      className="w-full bg-exchange-green hover:bg-exchange-green/90 text-white py-3 text-lg font-medium"
                       disabled={loading}
                     >
                       {loading ? 'Creating Account...' : 'Create Account'}
