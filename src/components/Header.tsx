@@ -44,10 +44,17 @@ const Header = () => {
   const handleProfileClick = () => {
     // Redirect based on user role
     if (userProfile?.role === 'superadmin') {
+      console.log('Navigating to superadmin dashboard');
       navigate('/superadmin-dashboard');
     } else {
       navigate('/dashboard');
     }
+  };
+
+  const handleSuperAdminClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    console.log('Super Admin link clicked, navigating to /superadmin-dashboard');
+    navigate('/superadmin-dashboard');
   };
 
   return (
@@ -72,12 +79,15 @@ const Header = () => {
               <Link to="/launchpad" className="text-exchange-text-secondary hover:text-exchange-blue transition-colors">Launchpad</Link>
               <Link to="/dashboard" className="text-exchange-text-secondary hover:text-exchange-blue transition-colors">Assets</Link>
               
-              {/* Super Admin Dashboard Link */}
+              {/* Super Admin Dashboard Link - Fixed */}
               {userProfile?.role === 'superadmin' && (
-                <Link to="/superadmin-dashboard" className="text-red-400 hover:text-red-300 transition-colors flex items-center space-x-1">
+                <button 
+                  onClick={handleSuperAdminClick}
+                  className="text-red-400 hover:text-red-300 transition-colors flex items-center space-x-1"
+                >
                   <Shield className="w-4 h-4" />
                   <span>Super Admin</span>
-                </Link>
+                </button>
               )}
             </>
           ) : (

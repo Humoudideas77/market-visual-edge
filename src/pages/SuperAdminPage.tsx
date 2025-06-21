@@ -20,13 +20,16 @@ const SuperAdminPage = () => {
   const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
 
+  console.log('SuperAdminPage - Current URL:', window.location.pathname);
+  console.log('SuperAdminPage - User:', user?.email);
+
   // Check if user is specifically a superadmin
   const { data: userProfile, isLoading: profileLoading, error } = useQuery({
     queryKey: ['superadmin-check', user?.id],
     queryFn: async () => {
       if (!user) return null;
       
-      console.log('Checking superadmin status for user:', user.id, user.email);
+      console.log('SuperAdminPage - Checking superadmin status for user:', user.id, user.email);
       
       const { data, error } = await supabase
         .from('profiles')
@@ -35,11 +38,11 @@ const SuperAdminPage = () => {
         .single();
       
       if (error) {
-        console.error('Error fetching user profile:', error);
+        console.error('SuperAdminPage - Error fetching user profile:', error);
         throw error;
       }
       
-      console.log('User profile data:', data);
+      console.log('SuperAdminPage - User profile data:', data);
       return data;
     },
     enabled: !!user && !authLoading,
@@ -47,16 +50,18 @@ const SuperAdminPage = () => {
     retryDelay: 1000,
   });
 
-  console.log('SuperAdminPage render:', {
+  console.log('SuperAdminPage - Render state:', {
     user: user?.email,
     authLoading,
     profileLoading,
     userProfile,
-    error
+    error,
+    currentPath: window.location.pathname
   });
 
   // Show loading while checking authentication or profile
   if (authLoading || profileLoading) {
+    console.log('SuperAdminPage - Showing loading state');
     return (
       <div className="min-h-screen bg-exchange-bg flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -69,6 +74,7 @@ const SuperAdminPage = () => {
 
   // Show error if profile fetch failed
   if (error) {
+    console.log('SuperAdminPage - Showing error state:', error);
     return (
       <div className="min-h-screen bg-exchange-bg flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -76,23 +82,45 @@ const SuperAdminPage = () => {
           <div className="text-exchange-text-secondary">
             Failed to verify admin access. Please try refreshing the page.
           </div>
+          <div className="text-sm text-exchange-text-secondary">
+            Error: {error.message}
+          </div>
         </div>
       </div>
     );
   }
 
-  // Redirect if user is not authenticated or not a superadmin
+  // Redirect if user is not authenticated
   if (!user) {
-    console.log('No user found, redirecting to auth');
+    console.log('SuperAdminPage - No user found, redirecting to auth');
     return <Navigate to="/auth" replace />;
   }
 
+  // Redirect if user is not a superadmin
   if (!userProfile || userProfile.role !== 'superadmin') {
-    console.log('User is not superadmin, redirecting to dashboard. Role:', userProfile?.role);
-    return <Navigate to="/dashboard" replace />;
+    console.log('SuperAdminPage - User is not superadmin, role:', userProfile?.role);
+    console.log('SuperAdminPage - Should redirect to dashboard, but staying on current page for debugging');
+    
+    // For debugging - show access denied instead of redirect
+    return (
+      <div className="min-h-screen bg-exchange-bg flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="text-red-500 text-xl">Access Denied</div>
+          <div className="text-exchange-text-secondary">
+            You don't have superadmin access. Your role: {userProfile?.role || 'unknown'}
+          </div>
+          <div className="text-sm text-exchange-text-secondary">
+            User: {user?.email}
+          </div>
+          <div className="text-sm text-exchange-text-secondary">
+            Current path: {window.location.pathname}
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  console.log('Rendering SuperAdmin dashboard for:', userProfile.email);
+  console.log('SuperAdminPage - Rendering SuperAdmin dashboard for:', userProfile.email);
 
   return (
     <div className="min-h-screen bg-exchange-bg">
