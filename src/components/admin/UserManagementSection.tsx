@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,12 +12,14 @@ import { toast } from '@/hooks/use-toast';
 import { Search, Eye, UserCog, Shield, User } from 'lucide-react';
 import { format } from 'date-fns';
 
+type UserRole = 'user' | 'admin' | 'superadmin';
+
 type UserProfile = {
   id: string;
   email: string | null;
   first_name: string | null;
   last_name: string | null;
-  role: 'user' | 'admin' | 'superadmin';
+  role: UserRole;
   kyc_status: string | null;
   created_at: string;
   updated_at: string;
@@ -27,7 +28,7 @@ type UserProfile = {
 const UserManagementSection = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
-  const [newRole, setNewRole] = useState<string>('');
+  const [newRole, setNewRole] = useState<UserRole>('user');
   const queryClient = useQueryClient();
 
   const { data: users, isLoading } = useQuery({
@@ -49,7 +50,7 @@ const UserManagementSection = () => {
   });
 
   const updateUserRoleMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
+    mutationFn: async ({ userId, role }: { userId: string; role: UserRole }) => {
       const { error } = await supabase
         .from('profiles')
         .update({ role, updated_at: new Date().toISOString() })
@@ -74,14 +75,14 @@ const UserManagementSection = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       toast({ title: 'User role updated successfully' });
       setSelectedUser(null);
-      setNewRole('');
+      setNewRole('user');
     },
     onError: () => {
       toast({ title: 'Failed to update user role', variant: 'destructive' });
     },
   });
 
-  const getRoleBadge = (role: string) => {
+  const getRoleBadge = (role: UserRole) => {
     const variants = {
       user: 'secondary',
       admin: 'default',
@@ -94,10 +95,10 @@ const UserManagementSection = () => {
       superadmin: Shield,
     } as const;
 
-    const Icon = icons[role as keyof typeof icons] || User;
+    const Icon = icons[role];
     
     return (
-      <Badge variant={variants[role as keyof typeof variants] || 'secondary'}>
+      <Badge variant={variants[role]}>
         <Icon className="w-3 h-3 mr-1" />
         {role.charAt(0).toUpperCase() + role.slice(1)}
       </Badge>
@@ -235,7 +236,7 @@ const UserManagementSection = () => {
                             <label className="text-sm font-medium text-exchange-text-secondary">
                               Change Role
                             </label>
-                            <Select value={newRole} onValueChange={setNewRole}>
+                            <Select value={newRole} onValueChange={(value: UserRole) => setNewRole(value)}>
                               <SelectTrigger className="mt-1 bg-exchange-bg border-exchange-border">
                                 <SelectValue />
                               </SelectTrigger>
