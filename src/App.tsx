@@ -47,7 +47,7 @@ const App = () => (
                     <TradingPage />
                   </ProtectedRoute>
                 } />
-                <Route path="/assets" element={
+                <Route path="/my-assets" element={
                   <ProtectedRoute>
                     <MyAssetsPage />
                   </ProtectedRoute>
