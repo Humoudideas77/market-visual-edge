@@ -169,7 +169,7 @@ const Index = () => {
                 ) : (
                   <>
                     <li><Link to="/auth" className="hover:text-white transition-colors">Sign In</Link></li>
-                    <li><Link to="/auth" className="hover:text-white transition-colors">Create Account</li>
+                    <li><Link to="/auth" className="hover:text-white transition-colors">Create Account</Link></li>
                   </>
                 )}
                 <li><a href="#" className="hover:text-white transition-colors">Contact Support</a></li>
