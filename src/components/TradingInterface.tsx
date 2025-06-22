@@ -28,7 +28,7 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
 
   const { tradingPair, buyOrders, sellOrders, recentTrades, userTrades } = useTradingEngine(selectedPair);
   const [activeTab, setActiveTab] = useState<'market' | 'orders'>('market');
-  const [activeView, setActiveView] = useState<ActiveViewType>('standard');
+  const [activeView, setActiveView] = useState<ActiveViewType>('standard' as ActiveViewType);
 
   // Update selected pair when URL changes
   useEffect(() => {
