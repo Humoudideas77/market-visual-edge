@@ -45,7 +45,7 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Initialize default balances
+  // Initialize default balances with all supported currencies
   useEffect(() => {
     if (user) {
       const defaultBalances: WalletBalance[] = [
@@ -53,11 +53,26 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
         { currency: 'BTC', available: 0, locked: 0, total: 0 },
         { currency: 'ETH', available: 0, locked: 0, total: 0 },
         { currency: 'BNB', available: 0, locked: 0, total: 0 },
+        { currency: 'SOL', available: 0, locked: 0, total: 0 },
+        { currency: 'XRP', available: 0, locked: 0, total: 0 },
+        { currency: 'LTC', available: 0, locked: 0, total: 0 },
+        { currency: 'BCH', available: 0, locked: 0, total: 0 },
+        { currency: 'ADA', available: 0, locked: 0, total: 0 },
+        { currency: 'DOT', available: 0, locked: 0, total: 0 },
+        { currency: 'LINK', available: 0, locked: 0, total: 0 },
+        { currency: 'DOGE', available: 0, locked: 0, total: 0 },
+        { currency: 'AVAX', available: 0, locked: 0, total: 0 },
       ];
       
       const savedBalances = localStorage.getItem(`wallet_balances_${user.id}`);
       if (savedBalances) {
-        setBalances(JSON.parse(savedBalances));
+        const parsedBalances = JSON.parse(savedBalances);
+        // Merge with default balances to ensure all currencies are present
+        const mergedBalances = defaultBalances.map(defaultBalance => {
+          const existingBalance = parsedBalances.find((b: WalletBalance) => b.currency === defaultBalance.currency);
+          return existingBalance || defaultBalance;
+        });
+        setBalances(mergedBalances);
       } else {
         setBalances(defaultBalances);
         localStorage.setItem(`wallet_balances_${user.id}`, JSON.stringify(defaultBalances));
@@ -103,7 +118,6 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     try {
-      // Simulate deposit processing
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       const newBalances = balances.map(balance => {
@@ -157,7 +171,6 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
       if (balanceIndex === -1) return false;
 
       if (transactionData.type === 'trade_sell') {
-        // Check if we have enough balance
         if (newBalances[balanceIndex].available < transactionData.amount) {
           return false;
         }

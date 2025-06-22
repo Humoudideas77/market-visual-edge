@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { useCryptoPrices } from './useCryptoPrices';
+import { useCryptoPrices, getPriceBySymbol } from './useCryptoPrices';
 import { useWallet } from './useWallet';
 import { useAuth } from './useAuth';
 
@@ -43,6 +43,25 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
   const [userTrades, setUserTrades] = useState<Trade[]>([]);
   const [tradingPair, setTradingPair] = useState<TradingPair | null>(null);
 
+  // Update trading pair data from crypto prices
+  useEffect(() => {
+    const [baseAsset] = selectedPair.split('/');
+    const cryptoData = getPriceBySymbol(prices, baseAsset);
+    
+    if (cryptoData) {
+      setTradingPair({
+        symbol: selectedPair,
+        baseAsset: baseAsset,
+        quoteAsset: 'USDT',
+        currentPrice: cryptoData.current_price,
+        change24h: cryptoData.price_change_24h,
+        volume24h: cryptoData.total_volume,
+        high24h: cryptoData.high_24h,
+        low24h: cryptoData.low_24h,
+      });
+    }
+  }, [selectedPair, prices]);
+
   // Generate mock order book data
   useEffect(() => {
     if (!tradingPair) return;
@@ -80,13 +99,13 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
     // Generate recent trades
     const trades: Trade[] = [];
     for (let i = 0; i < 20; i++) {
-      const iseBuy = Math.random() > 0.5;
+      const isBuy = Math.random() > 0.5;
       const price = currentPrice + (Math.random() - 0.5) * currentPrice * 0.002;
       const amount = Math.random() * 1 + 0.01;
       trades.push({
         id: `trade_${Date.now()}_${i}`,
         pair: selectedPair,
-        side: iseBuy ? 'buy' : 'sell',
+        side: isBuy ? 'buy' : 'sell',
         type: 'market',
         price: parseFloat(price.toFixed(8)),
         amount: parseFloat(amount.toFixed(8)),
@@ -98,25 +117,6 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
     setRecentTrades(trades.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()));
 
   }, [tradingPair, selectedPair]);
-
-  // Update trading pair data from crypto prices
-  useEffect(() => {
-    const [baseAsset] = selectedPair.split('/');
-    const cryptoData = prices.find(p => p.symbol.toUpperCase() === baseAsset);
-    
-    if (cryptoData) {
-      setTradingPair({
-        symbol: selectedPair,
-        baseAsset: baseAsset,
-        quoteAsset: 'USDT',
-        currentPrice: cryptoData.current_price,
-        change24h: cryptoData.price_change_24h,
-        volume24h: cryptoData.total_volume,
-        high24h: cryptoData.high_24h,
-        low24h: cryptoData.low_24h,
-      });
-    }
-  }, [selectedPair, prices]);
 
   const executeTrade = async (
     side: 'buy' | 'sell',

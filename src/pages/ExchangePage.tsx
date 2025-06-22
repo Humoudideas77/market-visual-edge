@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useCryptoPrices, formatPrice, formatVolume } from '@/hooks/useCryptoPrices';
+import { useCryptoPrices, formatPrice, formatVolume, SUPPORTED_PAIRS, CRYPTO_ID_TO_SYMBOL } from '@/hooks/useCryptoPrices';
 import Header from '../components/Header';
 import MarketTicker from '../components/MarketTicker';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,13 @@ const ExchangePage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'favorites' | 'gainers' | 'losers'>('all');
 
-  const filteredMarkets = prices.filter(crypto => {
+  // Filter to show only supported trading pairs
+  const supportedCryptos = prices.filter(crypto => {
+    const symbol = CRYPTO_ID_TO_SYMBOL[crypto.id];
+    return symbol && SUPPORTED_PAIRS.some(pair => pair.startsWith(symbol + '/'));
+  });
+
+  const filteredMarkets = supportedCryptos.filter(crypto => {
     const matchesSearch = crypto.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          crypto.name.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -31,7 +37,8 @@ const ExchangePage = () => {
 
   const handleTradeClick = (symbol: string) => {
     if (user) {
-      navigate(`/trading/${symbol.toUpperCase()}-USDT`);
+      const tradingPair = `${symbol.toUpperCase()}/USDT`;
+      navigate(`/trading/${tradingPair}`);
     } else {
       navigate('/auth');
     }
@@ -51,7 +58,7 @@ const ExchangePage = () => {
                 Cryptocurrency Markets
               </h1>
               <p className="text-exchange-text-secondary">
-                Real-time cryptocurrency prices and market data
+                Real-time cryptocurrency prices and market data - {supportedCryptos.length} supported pairs
               </p>
             </div>
             
@@ -81,6 +88,18 @@ const ExchangePage = () => {
               </p>
             </div>
           )}
+        </div>
+
+        {/* Supported Pairs Overview */}
+        <div className="bg-exchange-panel rounded-xl border border-exchange-border p-6 mb-8">
+          <h3 className="text-lg font-semibold text-exchange-text-primary mb-4">Supported Trading Pairs</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+            {SUPPORTED_PAIRS.map((pair) => (
+              <div key={pair} className="bg-exchange-accent/30 rounded px-3 py-2 text-center">
+                <span className="text-sm font-mono text-exchange-text-primary">{pair}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Controls */}
@@ -123,14 +142,14 @@ const ExchangePage = () => {
         </div>
 
         {/* Loading State */}
-        {loading && prices.length === 0 && (
+        {loading && supportedCryptos.length === 0 && (
           <div className="bg-exchange-panel rounded-xl border border-exchange-border p-12 text-center">
             <div className="text-exchange-text-secondary">Loading real-time market data...</div>
           </div>
         )}
 
         {/* Error State */}
-        {error && prices.length === 0 && (
+        {error && supportedCryptos.length === 0 && (
           <div className="bg-exchange-panel rounded-xl border border-exchange-border p-12 text-center">
             <WifiOff className="w-8 h-8 text-exchange-red mx-auto mb-4" />
             <div className="text-exchange-red mb-2">Unable to load market data</div>
@@ -139,7 +158,7 @@ const ExchangePage = () => {
         )}
 
         {/* Markets Table */}
-        {prices.length > 0 && (
+        {supportedCryptos.length > 0 && (
           <div className="bg-exchange-panel rounded-xl border border-exchange-border overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -156,7 +175,8 @@ const ExchangePage = () => {
                 <tbody>
                   {filteredMarkets.map((crypto) => {
                     const isPositive = crypto.price_change_percentage_24h >= 0;
-                    const symbol = `${crypto.symbol.toUpperCase()}/USDT`;
+                    const symbol = CRYPTO_ID_TO_SYMBOL[crypto.id];
+                    const tradingPair = `${symbol}/USDT`;
                     
                     return (
                       <tr key={crypto.id} className="border-b border-exchange-border/30 hover:bg-exchange-accent/30 transition-colors">
@@ -168,7 +188,7 @@ const ExchangePage = () => {
                               </button>
                             )}
                             <div>
-                              <div className="font-semibold text-exchange-text-primary">{symbol}</div>
+                              <div className="font-semibold text-exchange-text-primary">{tradingPair}</div>
                               <div className="text-sm text-exchange-text-secondary">{crypto.name}</div>
                             </div>
                           </div>
@@ -197,7 +217,7 @@ const ExchangePage = () => {
                         </td>
                         <td className="p-4 text-center">
                           <Button
-                            onClick={() => handleTradeClick(crypto.symbol)}
+                            onClick={() => handleTradeClick(symbol)}
                             className={`px-4 py-2 ${
                               user 
                                 ? 'bg-exchange-blue hover:bg-exchange-blue/90 text-white' 
@@ -214,7 +234,7 @@ const ExchangePage = () => {
               </table>
             </div>
 
-            {filteredMarkets.length === 0 && prices.length > 0 && (
+            {filteredMarkets.length === 0 && supportedCryptos.length > 0 && (
               <div className="text-center py-12">
                 <div className="text-exchange-text-secondary">
                   No markets found matching your search criteria.

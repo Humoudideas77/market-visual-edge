@@ -7,6 +7,8 @@ import TradingInterface from '../components/TradingInterface';
 
 const TradingPage = () => {
   const { pair } = useParams();
+  
+  console.log('TradingPage - URL pair parameter:', pair);
 
   return (
     <div className="min-h-screen bg-exchange-bg">

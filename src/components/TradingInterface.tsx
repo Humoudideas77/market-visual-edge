@@ -6,11 +6,17 @@ import { formatPrice, formatVolume } from '@/hooks/useCryptoPrices';
 import TradingPanel from './TradingPanel';
 import TradingChatLive from './TradingChatLive';
 import CandlestickChart from './CandlestickChart';
+import MarketPairSelector from './MarketPairSelector';
 
 const TradingInterface = () => {
   const [selectedPair, setSelectedPair] = useState('BTC/USDT');
   const { tradingPair, buyOrders, sellOrders, recentTrades, userTrades } = useTradingEngine(selectedPair);
   const [activeTab, setActiveTab] = useState<'market' | 'orders'>('market');
+
+  const handlePairChange = (newPair: string) => {
+    console.log('Trading Interface - Switching to pair:', newPair);
+    setSelectedPair(newPair);
+  };
 
   if (!tradingPair) {
     return (
@@ -31,17 +37,19 @@ const TradingInterface = () => {
       {/* Chart Section */}
       <div className="lg:col-span-8 space-y-4">
         <div className="exchange-panel p-4">
+          {/* Market Pair Selector */}
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-4">
-              <h2 className="text-xl font-bold text-exchange-text-primary">{selectedPair}</h2>
-              <div className="flex items-center space-x-2">
-                <span className="text-2xl font-mono text-exchange-text-primary">
-                  ${formatPrice(tradingPair.currentPrice)}
-                </span>
-                <div className={`flex items-center text-sm ${isPositive ? 'text-exchange-green' : 'text-exchange-red'}`}>
-                  {isPositive ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
-                  {isPositive ? '+' : ''}${Math.abs(tradingPair.change24h).toFixed(2)} ({((tradingPair.change24h / (tradingPair.currentPrice - tradingPair.change24h)) * 100).toFixed(2)}%)
-                </div>
+            <MarketPairSelector 
+              selectedPair={selectedPair}
+              onPairChange={handlePairChange}
+            />
+            <div className="flex items-center space-x-2">
+              <span className="text-2xl font-mono text-exchange-text-primary">
+                ${formatPrice(tradingPair.currentPrice)}
+              </span>
+              <div className={`flex items-center text-sm ${isPositive ? 'text-exchange-green' : 'text-exchange-red'}`}>
+                {isPositive ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
+                {isPositive ? '+' : ''}${Math.abs(tradingPair.change24h).toFixed(2)} ({((tradingPair.change24h / (tradingPair.currentPrice - tradingPair.change24h)) * 100).toFixed(2)}%)
               </div>
             </div>
           </div>

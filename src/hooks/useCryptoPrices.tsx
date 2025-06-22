@@ -21,7 +21,41 @@ interface UseCryptoPricesReturn {
   lastUpdated: Date | null;
 }
 
-const CRYPTO_IDS = 'bitcoin,ethereum,binancecoin,cardano,solana,ripple,polkadot,chainlink,dogecoin,avalanche-2';
+// Expanded list of supported cryptocurrencies
+const CRYPTO_IDS = 'bitcoin,ethereum,binancecoin,cardano,solana,ripple,polkadot,chainlink,dogecoin,avalanche-2,litecoin,bitcoin-cash,tether';
+
+// Supported trading pairs
+export const SUPPORTED_PAIRS = [
+  'BTC/USDT',
+  'ETH/USDT',
+  'SOL/USDT',
+  'XRP/USDT',
+  'BNB/USDT',
+  'LTC/USDT',
+  'BCH/USDT',
+  'ADA/USDT',
+  'DOT/USDT',
+  'LINK/USDT',
+  'DOGE/USDT',
+  'AVAX/USDT'
+];
+
+// Map crypto IDs to symbols for easy lookup
+export const CRYPTO_ID_TO_SYMBOL: { [key: string]: string } = {
+  'bitcoin': 'BTC',
+  'ethereum': 'ETH',
+  'binancecoin': 'BNB',
+  'cardano': 'ADA',
+  'solana': 'SOL',
+  'ripple': 'XRP',
+  'polkadot': 'DOT',
+  'chainlink': 'LINK',
+  'dogecoin': 'DOGE',
+  'avalanche-2': 'AVAX',
+  'litecoin': 'LTC',
+  'bitcoin-cash': 'BCH',
+  'tether': 'USDT'
+};
 
 export const useCryptoPrices = (refreshInterval: number = 8000): UseCryptoPricesReturn => {
   const [prices, setPrices] = useState<CryptoPrice[]>([]);
@@ -32,7 +66,7 @@ export const useCryptoPrices = (refreshInterval: number = 8000): UseCryptoPrices
   const fetchPrices = async () => {
     try {
       const response = await fetch(
-        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${CRYPTO_IDS}&order=market_cap_desc&per_page=10&page=1&sparkline=false&price_change_percentage=24h`
+        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${CRYPTO_IDS}&order=market_cap_desc&per_page=15&page=1&sparkline=false&price_change_percentage=24h`
       );
       
       if (!response.ok) {
@@ -55,13 +89,16 @@ export const useCryptoPrices = (refreshInterval: number = 8000): UseCryptoPrices
     // Initial fetch
     fetchPrices();
 
-    // Set up interval for regular updates
     const interval = setInterval(fetchPrices, refreshInterval);
-
     return () => clearInterval(interval);
   }, [refreshInterval]);
 
   return { prices, loading, error, lastUpdated };
+};
+
+// Helper function to get price by symbol
+export const getPriceBySymbol = (prices: CryptoPrice[], symbol: string): CryptoPrice | null => {
+  return prices.find(price => CRYPTO_ID_TO_SYMBOL[price.id] === symbol.toUpperCase()) || null;
 };
 
 // Helper function to format price
