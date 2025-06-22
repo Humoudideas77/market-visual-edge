@@ -108,6 +108,11 @@ const SuperAdminPage = () => {
   return (
     <div className="min-h-screen bg-exchange-bg">
       <div className="container mx-auto px-4 py-8">
+        {/* Back Button - Top Left */}
+        <div className="mb-6">
+          <BackButton fallbackPath="/" label="← Dashboard" />
+        </div>
+
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -129,7 +134,6 @@ const SuperAdminPage = () => {
                 </div>
               </div>
             </div>
-            <BackButton fallbackPath="/dashboard" label="← Go Back" />
           </div>
           <p className="text-exchange-text-secondary text-lg">
             Complete platform administration and user management dashboard

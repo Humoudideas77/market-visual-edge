@@ -11,6 +11,7 @@ import SecuritySection from '../components/SecuritySection';
 import GoldMiningSection from '../components/GoldMiningSection';
 import TradingInterface from '../components/TradingInterface';
 import MarketsOverview from '../components/MarketsOverview';
+import ContactForm from '../components/ContactForm';
 
 const Index = () => {
   const [activeView, setActiveView] = useState<'markets' | 'trading'>('markets');
@@ -32,6 +33,24 @@ const Index = () => {
       
       {/* Gold Mining Section */}
       <GoldMiningSection />
+      
+      {/* Contact Form Section */}
+      <section className="py-20 bg-exchange-accent/30">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-exchange-text-primary mb-4">
+              Contact <span className="text-exchange-blue">MecCrypto</span>
+            </h2>
+            <p className="text-xl text-exchange-text-secondary max-w-2xl mx-auto">
+              Have questions about trading, need technical support, or want to learn more about our platform? 
+              We're here to help you succeed in your crypto journey.
+            </p>
+          </div>
+          <div className="max-w-2xl mx-auto">
+            <ContactForm />
+          </div>
+        </div>
+      </section>
       
       {/* Navigation Tabs - Only show trading interface if authenticated */}
       <div className="border-b border-exchange-border">
@@ -55,7 +74,7 @@ const Index = () => {
                     ? 'border-exchange-blue text-exchange-blue'
                     : 'border-transparent text-exchange-text-secondary hover:text-exchange-text-primary'
                 }`}
-              >
+                >
                 Spot Trading
               </button>
             )}

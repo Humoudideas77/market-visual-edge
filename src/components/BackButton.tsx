@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
@@ -18,10 +17,12 @@ const BackButton: React.FC<BackButtonProps> = ({
   const navigate = useNavigate();
 
   const handleBack = () => {
-    // Try to go back in history, fallback to specified path
-    if (window.history.length > 1) {
-      navigate(-1);
+    // Check if there's history to go back to
+    if (window.history.length > 1 && document.referrer && document.referrer !== window.location.href) {
+      // If there's a referrer and it's not the same page, go back
+      window.history.back();
     } else {
+      // Otherwise, navigate to fallback path
       navigate(fallbackPath);
     }
   };
@@ -31,7 +32,7 @@ const BackButton: React.FC<BackButtonProps> = ({
       variant="outline"
       size="sm"
       onClick={handleBack}
-      className={`flex items-center space-x-2 bg-exchange-panel border-exchange-border text-exchange-text-primary hover:bg-exchange-accent hover:text-exchange-blue transition-colors ${className}`}
+      className={`flex items-center space-x-2 bg-exchange-panel border-exchange-red text-exchange-text-primary hover:bg-exchange-red hover:text-white transition-all duration-200 ${className}`}
     >
       <ArrowLeft className="w-4 h-4" />
       <span>{label}</span>

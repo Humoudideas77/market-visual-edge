@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
+import BackButton from '../components/BackButton';
 import { Button } from '@/components/ui/button';
 import { Wallet, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft, Eye, EyeOff, RefreshCw } from 'lucide-react';
 
@@ -117,6 +117,11 @@ const MyAssetsPage = () => {
       <Header />
       
       <div className="container mx-auto px-6 py-8">
+        {/* Back Button - Top Left */}
+        <div className="mb-6">
+          <BackButton fallbackPath="/dashboard" label="← Dashboard" />
+        </div>
+
         {/* Page Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
