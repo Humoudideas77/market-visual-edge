@@ -7,6 +7,7 @@ import Header from '../components/Header';
 import MarketTicker from '../components/MarketTicker';
 import { Button } from '@/components/ui/button';
 import { Search, TrendingUp, TrendingDown, Star, Lock, Wifi, WifiOff } from 'lucide-react';
+import { toast } from 'sonner';
 
 const ExchangePage = () => {
   const navigate = useNavigate();
@@ -38,8 +39,35 @@ const ExchangePage = () => {
   const handleTradeClick = (symbol: string) => {
     if (user) {
       const tradingPair = `${symbol.toUpperCase()}/USDT`;
+      console.log('ExchangePage - Navigating to trading pair:', tradingPair);
       navigate(`/trading/${tradingPair}`);
+      toast.success(`Opening ${tradingPair} trading interface`);
     } else {
+      toast.error('Please sign in to start trading');
+      navigate('/auth');
+    }
+  };
+
+  const handleQuickBuy = (symbol: string) => {
+    if (user) {
+      const tradingPair = `${symbol.toUpperCase()}/USDT`;
+      console.log('ExchangePage - Quick buy for:', tradingPair);
+      navigate(`/trading/${tradingPair}?action=buy`);
+      toast.success(`Quick buy for ${symbol} - redirecting to trading interface`);
+    } else {
+      toast.error('Please sign in to trade');
+      navigate('/auth');
+    }
+  };
+
+  const handleQuickSell = (symbol: string) => {
+    if (user) {
+      const tradingPair = `${symbol.toUpperCase()}/USDT`;
+      console.log('ExchangePage - Quick sell for:', tradingPair);
+      navigate(`/trading/${tradingPair}?action=sell`);
+      toast.success(`Quick sell for ${symbol} - redirecting to trading interface`);
+    } else {
+      toast.error('Please sign in to trade');
       navigate('/auth');
     }
   };
@@ -95,7 +123,19 @@ const ExchangePage = () => {
           <h3 className="text-lg font-semibold text-exchange-text-primary mb-4">Supported Trading Pairs</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
             {SUPPORTED_PAIRS.map((pair) => (
-              <div key={pair} className="bg-exchange-accent/30 rounded px-3 py-2 text-center">
+              <div 
+                key={pair} 
+                className="bg-exchange-accent/30 rounded px-3 py-2 text-center hover:bg-exchange-blue/20 cursor-pointer transition-colors"
+                onClick={() => {
+                  if (user) {
+                    navigate(`/trading/${pair}`);
+                    toast.success(`Opening ${pair} trading interface`);
+                  } else {
+                    toast.error('Please sign in to trade');
+                    navigate('/auth');
+                  }
+                }}
+              >
                 <span className="text-sm font-mono text-exchange-text-primary">{pair}</span>
               </div>
             ))}
@@ -157,7 +197,7 @@ const ExchangePage = () => {
           </div>
         )}
 
-        {/* Markets Table */}
+        {/* Enhanced Markets Table with Quick Actions */}
         {supportedCryptos.length > 0 && (
           <div className="bg-exchange-panel rounded-xl border border-exchange-border overflow-hidden">
             <div className="overflow-x-auto">
@@ -169,7 +209,7 @@ const ExchangePage = () => {
                     <th className="text-right p-4 text-exchange-text-secondary font-medium">24h Change</th>
                     <th className="text-right p-4 text-exchange-text-secondary font-medium">24h Volume</th>
                     <th className="text-right p-4 text-exchange-text-secondary font-medium">Market Cap</th>
-                    <th className="text-center p-4 text-exchange-text-secondary font-medium">Actions</th>
+                    <th className="text-center p-4 text-exchange-text-secondary font-medium">Quick Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -215,17 +255,42 @@ const ExchangePage = () => {
                         <td className="p-4 text-right">
                           <div className="font-mono text-exchange-text-primary">${formatVolume(crypto.market_cap)}</div>
                         </td>
-                        <td className="p-4 text-center">
-                          <Button
-                            onClick={() => handleTradeClick(symbol)}
-                            className={`px-4 py-2 ${
-                              user 
-                                ? 'bg-exchange-blue hover:bg-exchange-blue/90 text-white' 
-                                : 'bg-exchange-accent text-exchange-text-secondary border border-exchange-border hover:bg-exchange-blue hover:text-white'
-                            }`}
-                          >
-                            {user ? 'Trade' : 'Sign In to Trade'}
-                          </Button>
+                        <td className="p-4">
+                          <div className="flex items-center justify-center space-x-2">
+                            {user ? (
+                              <>
+                                <Button
+                                  onClick={() => handleQuickBuy(symbol)}
+                                  size="sm"
+                                  className="bg-exchange-green hover:bg-exchange-green/90 text-white px-3 py-1 text-xs"
+                                >
+                                  Buy
+                                </Button>
+                                <Button
+                                  onClick={() => handleQuickSell(symbol)}
+                                  size="sm"
+                                  className="bg-exchange-red hover:bg-exchange-red/90 text-white px-3 py-1 text-xs"
+                                >
+                                  Sell
+                                </Button>
+                                <Button
+                                  onClick={() => handleTradeClick(symbol)}
+                                  size="sm"
+                                  className="bg-exchange-blue hover:bg-exchange-blue/90 text-white px-3 py-1 text-xs"
+                                >
+                                  Trade
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                onClick={() => handleTradeClick(symbol)}
+                                size="sm"
+                                className="bg-exchange-accent text-exchange-text-secondary border border-exchange-border hover:bg-exchange-blue hover:text-white px-4 py-2 text-xs"
+                              >
+                                Sign In to Trade
+                              </Button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );

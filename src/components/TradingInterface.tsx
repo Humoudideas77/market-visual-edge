@@ -1,21 +1,47 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { TrendingUp, TrendingDown, Clock, CheckCircle } from 'lucide-react';
 import { useTradingEngine } from '@/hooks/useTradingEngine';
-import { formatPrice, formatVolume } from '@/hooks/useCryptoPrices';
+import { formatPrice, formatVolume, SUPPORTED_PAIRS } from '@/hooks/useCryptoPrices';
 import TradingPanel from './TradingPanel';
 import TradingChatLive from './TradingChatLive';
 import CandlestickChart from './CandlestickChart';
 import MarketPairSelector from './MarketPairSelector';
 
-const TradingInterface = () => {
-  const [selectedPair, setSelectedPair] = useState('BTC/USDT');
+interface TradingInterfaceProps {
+  initialPair?: string;
+}
+
+const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) => {
+  const { pair: urlPair } = useParams();
+  const [selectedPair, setSelectedPair] = useState(() => {
+    // Priority: URL param > initial prop > default
+    if (urlPair && SUPPORTED_PAIRS.includes(urlPair)) {
+      return urlPair;
+    }
+    return initialPair;
+  });
+
   const { tradingPair, buyOrders, sellOrders, recentTrades, userTrades } = useTradingEngine(selectedPair);
   const [activeTab, setActiveTab] = useState<'market' | 'orders'>('market');
+
+  // Update selected pair when URL changes
+  useEffect(() => {
+    if (urlPair && SUPPORTED_PAIRS.includes(urlPair) && urlPair !== selectedPair) {
+      console.log('TradingInterface - Updating pair from URL:', urlPair);
+      setSelectedPair(urlPair);
+    }
+  }, [urlPair, selectedPair]);
 
   const handlePairChange = (newPair: string) => {
     console.log('Trading Interface - Switching to pair:', newPair);
     setSelectedPair(newPair);
+    
+    // Update URL without page reload
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState(null, '', `/trading/${newPair}`);
+    }
   };
 
   if (!tradingPair) {
@@ -23,7 +49,9 @@ const TradingInterface = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 p-6">
         <div className="lg:col-span-8">
           <div className="exchange-panel p-8 text-center">
-            <div className="text-exchange-text-secondary">Loading trading data...</div>
+            <div className="text-exchange-text-secondary">
+              Loading trading data for {selectedPair}...
+            </div>
           </div>
         </div>
       </div>
@@ -152,7 +180,7 @@ const TradingInterface = () => {
           </div>
         </div>
 
-        {/* Trading Panel */}
+        {/* Trading Panel - Now supports all currencies */}
         <TradingPanel selectedPair={selectedPair} />
 
         {/* Market Trades */}

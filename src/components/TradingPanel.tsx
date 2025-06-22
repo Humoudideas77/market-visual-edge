@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -13,6 +14,7 @@ interface TradingPanelProps {
 }
 
 const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
+  const [searchParams] = useSearchParams();
   const { tradingPair, executeTrade } = useTradingEngine(selectedPair);
   const { getBalance } = useWallet();
   const [tradeTab, setTradeTab] = useState<'buy' | 'sell'>('buy');
@@ -20,6 +22,15 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
   const [amount, setAmount] = useState('');
   const [price, setPrice] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Handle URL action parameter (for quick buy/sell)
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'buy' || action === 'sell') {
+      setTradeTab(action);
+      console.log('TradingPanel - Setting trade tab from URL:', action);
+    }
+  }, [searchParams]);
 
   const [baseAsset, quoteAsset] = selectedPair.split('/');
   const baseBalance = getBalance(baseAsset);
@@ -31,7 +42,7 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
   const totalCost = tradeAmount * tradePrice;
 
   // Set price to current market price when switching to limit order
-  React.useEffect(() => {
+  useEffect(() => {
     if (orderType === 'limit' && tradingPair && !price) {
       setPrice(tradingPair.currentPrice.toString());
     }
@@ -94,7 +105,7 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
 
       if (result.success) {
         toast.success(
-          `${tradeTab.toUpperCase()} order executed successfully! ${tradeAmount.toFixed(8)} ${baseAsset} at $${tradePrice.toFixed(2)}`
+          `✅ ${tradeTab.toUpperCase()} ${baseAsset} executed successfully! ${tradeAmount.toFixed(8)} ${baseAsset} at $${tradePrice.toFixed(2)}`
         );
         
         // Reset form
@@ -141,8 +152,27 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
     return null;
   };
 
+  // Show loading state if trading pair is not loaded
+  if (!tradingPair) {
+    return (
+      <div className="exchange-panel p-4">
+        <div className="text-center py-8">
+          <div className="text-exchange-text-secondary">Loading trading data for {selectedPair}...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="exchange-panel p-4">
+      {/* Currency Header */}
+      <div className="mb-4 p-3 bg-exchange-accent/20 rounded-lg border">
+        <div className="text-sm font-semibold text-exchange-text-primary">Trading {selectedPair}</div>
+        <div className="text-xs text-exchange-text-secondary">
+          Current Price: <span className="text-exchange-text-primary font-mono">${formatPrice(currentPrice)}</span>
+        </div>
+      </div>
+
       {/* Trade Type Tabs */}
       <div className="flex mb-4">
         <button 
@@ -293,7 +323,7 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Processing...
+              Processing {tradeTab}...
             </>
           ) : (
             <>
@@ -314,6 +344,20 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
       </div>
     </div>
   );
+};
+
+// Helper function for price formatting (if not imported)
+const formatPrice = (price: number): string => {
+  if (price < 1) {
+    return price.toFixed(4);
+  } else if (price < 100) {
+    return price.toFixed(2);
+  } else {
+    return price.toLocaleString('en-US', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    });
+  }
 };
 
 export default TradingPanel;

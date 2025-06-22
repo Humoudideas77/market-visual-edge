@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ChevronDown, Star } from 'lucide-react';
+import { ChevronDown, Star, TrendingUp, TrendingDown } from 'lucide-react';
 import { SUPPORTED_PAIRS, getPriceBySymbol } from '@/hooks/useCryptoPrices';
 import { useCryptoPrices, formatPrice } from '@/hooks/useCryptoPrices';
 
@@ -12,8 +12,19 @@ interface MarketPairSelectorProps {
 const MarketPairSelector = ({ selectedPair, onPairChange }: MarketPairSelectorProps) => {
   const { prices } = useCryptoPrices();
   const [isOpen, setIsOpen] = React.useState(false);
+  const [searchTerm, setSearchTerm] = React.useState('');
   
   const currentPrice = getPriceBySymbol(prices, selectedPair.split('/')[0]);
+
+  const filteredPairs = SUPPORTED_PAIRS.filter(pair => 
+    pair.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handlePairSelect = (pair: string) => {
+    onPairChange(pair);
+    setIsOpen(false);
+    setSearchTerm('');
+  };
 
   return (
     <div className="relative">
@@ -46,14 +57,19 @@ const MarketPairSelector = ({ selectedPair, onPairChange }: MarketPairSelectorPr
               <input
                 type="text"
                 placeholder="Search pairs..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full px-3 py-2 bg-exchange-accent border border-exchange-border rounded text-exchange-text-primary placeholder:text-exchange-text-secondary text-sm focus:outline-none focus:ring-1 focus:ring-exchange-blue"
                 onClick={(e) => e.stopPropagation()}
               />
+              <div className="text-xs text-exchange-text-secondary mt-2">
+                {filteredPairs.length} of {SUPPORTED_PAIRS.length} pairs available
+              </div>
             </div>
             
             <div className="p-2">
               <div className="text-xs text-exchange-text-secondary mb-2 px-2">USDT Markets</div>
-              {SUPPORTED_PAIRS.map((pair) => {
+              {filteredPairs.map((pair) => {
                 const [baseAsset] = pair.split('/');
                 const priceData = getPriceBySymbol(prices, baseAsset);
                 const isSelected = pair === selectedPair;
@@ -62,10 +78,7 @@ const MarketPairSelector = ({ selectedPair, onPairChange }: MarketPairSelectorPr
                 return (
                   <button
                     key={pair}
-                    onClick={() => {
-                      onPairChange(pair);
-                      setIsOpen(false);
-                    }}
+                    onClick={() => handlePairSelect(pair)}
                     className={`w-full flex items-center justify-between p-3 rounded-lg hover:bg-exchange-accent/50 transition-colors ${
                       isSelected ? 'bg-exchange-blue/20 border border-exchange-blue/30' : ''
                     }`}
@@ -83,9 +96,14 @@ const MarketPairSelector = ({ selectedPair, onPairChange }: MarketPairSelectorPr
                         <div className="text-sm font-mono text-exchange-text-primary">
                           ${formatPrice(priceData.current_price)}
                         </div>
-                        <div className={`text-xs font-mono ${
+                        <div className={`text-xs font-mono flex items-center ${
                           isPositive ? 'text-exchange-green' : 'text-exchange-red'
                         }`}>
+                          {isPositive ? (
+                            <TrendingUp className="w-3 h-3 mr-1" />
+                          ) : (
+                            <TrendingDown className="w-3 h-3 mr-1" />
+                          )}
                           {isPositive ? '+' : ''}{priceData.price_change_percentage_24h.toFixed(2)}%
                         </div>
                       </div>
@@ -93,6 +111,12 @@ const MarketPairSelector = ({ selectedPair, onPairChange }: MarketPairSelectorPr
                   </button>
                 );
               })}
+
+              {filteredPairs.length === 0 && (
+                <div className="text-center py-4 text-exchange-text-secondary text-sm">
+                  No pairs found matching "{searchTerm}"
+                </div>
+              )}
             </div>
           </div>
         </>
