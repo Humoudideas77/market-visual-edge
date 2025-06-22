@@ -68,16 +68,16 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
   const isPositive = tradingPair.change24h >= 0;
 
   // Render Kindle Stake Lab view
-  if (activeView === 'kindle') {
+  if (activeView === ('kindle' as ActiveViewType)) {
     return (
       <div className="space-y-4 p-6">
         {/* View Toggle */}
         <div className="flex items-center justify-between">
           <div className="flex space-x-2 bg-exchange-accent/30 rounded-lg p-1">
             <button
-              onClick={() => handleViewChange('standard')}
+              onClick={() => handleViewChange('standard' as ActiveViewType)}
               className={`px-4 py-2 text-sm font-medium rounded transition-colors ${
-                activeView === 'standard'
+                activeView === ('standard' as ActiveViewType)
                   ? 'bg-exchange-blue text-white'
                   : 'text-exchange-text-secondary hover:text-exchange-text-primary'
               }`}
@@ -85,9 +85,9 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
               Standard Trading
             </button>
             <button
-              onClick={() => handleViewChange('kindle')}
+              onClick={() => handleViewChange('kindle' as ActiveViewType)}
               className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded transition-colors ${
-                activeView === 'kindle'
+                activeView === ('kindle' as ActiveViewType)
                   ? 'bg-exchange-blue text-white'
                   : 'text-exchange-text-secondary hover:text-exchange-text-primary'
               }`}
@@ -119,9 +119,9 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
         {/* View Toggle */}
         <div className="flex space-x-2 bg-exchange-accent/30 rounded-lg p-1 w-fit">
           <button
-            onClick={() => handleViewChange('standard')}
+            onClick={() => handleViewChange('standard' as ActiveViewType)}
             className={`px-4 py-2 text-sm font-medium rounded transition-colors ${
-              activeView === 'standard'
+              activeView === ('standard' as ActiveViewType)
                 ? 'bg-exchange-blue text-white'
                 : 'text-exchange-text-secondary hover:text-exchange-text-primary'
             }`}
@@ -129,9 +129,9 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
             Standard Trading
           </button>
           <button
-            onClick={() => handleViewChange('kindle')}
+            onClick={() => handleViewChange('kindle' as ActiveViewType)}
             className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded transition-colors ${
-              activeView === 'kindle'
+              activeView === ('kindle' as ActiveViewType)
                 ? 'bg-exchange-blue text-white'
                 : 'text-exchange-text-secondary hover:text-exchange-text-primary'
             }`}
