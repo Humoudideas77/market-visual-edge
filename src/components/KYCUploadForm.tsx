@@ -112,84 +112,84 @@ const KYCUploadForm = () => {
     <Card className="bg-exchange-card-bg border-exchange-border">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-exchange-text-primary flex items-center gap-2">
+          <CardTitle className="text-exchange-text-primary flex items-center gap-2 text-lg font-bold">
             <FileText className="w-5 h-5" />
             MecCrypto KYC Document Upload
           </CardTitle>
           <BackButton fallbackPath="/dashboard" label="← Back" />
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertCircle className="w-4 h-4 text-blue-400" />
-            <span className="text-sm font-medium text-blue-400">Required for Enhanced Security</span>
+      <CardContent className="space-y-8">
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertCircle className="w-5 h-5 text-blue-500" />
+            <span className="text-base font-bold text-blue-600">Required for Enhanced Security</span>
           </div>
-          <p className="text-sm text-exchange-text-secondary">
+          <p className="text-base text-gray-700 font-medium leading-relaxed">
             Complete KYC verification to unlock higher withdrawal limits and enhanced trading features on MecCrypto.
           </p>
         </div>
 
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label className="text-exchange-text-primary">Full Name *</Label>
+              <Label className="text-gray-900 font-bold text-base mb-3 block">Full Name *</Label>
               <Input
                 value={kycData.full_name}
                 onChange={(e) => setKycData(prev => ({ ...prev, full_name: e.target.value }))}
-                placeholder="Enter your full name"
-                className="bg-exchange-bg border-exchange-border"
+                placeholder="Enter your full legal name"
+                className="enhanced-form-input text-base font-medium h-12"
                 required
               />
             </div>
             <div>
-              <Label className="text-exchange-text-primary">Date of Birth *</Label>
+              <Label className="text-gray-900 font-bold text-base mb-3 block">Date of Birth *</Label>
               <Input
                 type="date"
                 value={kycData.date_of_birth}
                 onChange={(e) => setKycData(prev => ({ ...prev, date_of_birth: e.target.value }))}
-                className="bg-exchange-bg border-exchange-border"
+                className="enhanced-form-input text-base font-medium h-12"
                 required
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label className="text-exchange-text-primary">Nationality *</Label>
+              <Label className="text-gray-900 font-bold text-base mb-3 block">Nationality *</Label>
               <Input
                 value={kycData.nationality}
                 onChange={(e) => setKycData(prev => ({ ...prev, nationality: e.target.value }))}
-                placeholder="Enter your nationality"
-                className="bg-exchange-bg border-exchange-border"
+                placeholder="Enter your nationality or citizenship"
+                className="enhanced-form-input text-base font-medium h-12"
                 required
               />
             </div>
             <div>
-              <Label className="text-exchange-text-primary">Personal ID Number</Label>
+              <Label className="text-gray-900 font-bold text-base mb-3 block">Personal ID Number</Label>
               <Input
                 value={kycData.personal_id_number}
                 onChange={(e) => setKycData(prev => ({ ...prev, personal_id_number: e.target.value }))}
-                placeholder="Enter your national ID or passport number"
-                className="bg-exchange-bg border-exchange-border"
+                placeholder="National ID, passport, or driver's license"
+                className="enhanced-form-input text-base font-medium h-12"
               />
             </div>
           </div>
 
           <div>
-            <Label className="text-exchange-text-primary">Address *</Label>
+            <Label className="text-gray-900 font-bold text-base mb-3 block">Full Address *</Label>
             <Input
               value={kycData.address}
               onChange={(e) => setKycData(prev => ({ ...prev, address: e.target.value }))}
-              placeholder="Enter your full address"
-              className="bg-exchange-bg border-exchange-border"
+              placeholder="Street address, city, state/province, country"
+              className="enhanced-form-input text-base font-medium h-12"
               required
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label className="text-exchange-text-primary">Front of Document</Label>
+              <Label className="text-gray-900 font-bold text-base mb-3 block">Front of Document</Label>
               <div className="mt-2 border-2 border-dashed border-exchange-border rounded-lg p-4 text-center">
                 <Upload className="w-8 h-8 text-exchange-text-secondary mx-auto mb-2" />
                 <p className="text-sm text-exchange-text-secondary mb-2">
@@ -210,7 +210,7 @@ const KYCUploadForm = () => {
             </div>
 
             <div>
-              <Label className="text-exchange-text-primary">Back of Document</Label>
+              <Label className="text-gray-900 font-bold text-base mb-3 block">Back of Document</Label>
               <div className="mt-2 border-2 border-dashed border-exchange-border rounded-lg p-4 text-center">
                 <Upload className="w-8 h-8 text-exchange-text-secondary mx-auto mb-2" />
                 <p className="text-sm text-exchange-text-secondary mb-2">
@@ -231,13 +231,13 @@ const KYCUploadForm = () => {
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end pt-4">
             <Button
               onClick={submitKYC}
               disabled={loading || !kycData.full_name.trim() || !kycData.date_of_birth || !kycData.nationality.trim() || !kycData.address.trim()}
-              className="bg-exchange-blue hover:bg-exchange-blue/90"
+              className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-3 text-base"
             >
-              {loading ? 'Submitting...' : 'Submit KYC Documents'}
+              {loading ? 'Submitting Documents...' : 'Submit KYC Documents'}
             </Button>
           </div>
         </div>
