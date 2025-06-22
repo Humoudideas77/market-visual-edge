@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { TrendingUp, TrendingDown, Clock, CheckCircle, BarChart3 } from 'lucide-react';
@@ -28,7 +27,7 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
 
   const { tradingPair, buyOrders, sellOrders, recentTrades, userTrades } = useTradingEngine(selectedPair);
   const [activeTab, setActiveTab] = useState<'market' | 'orders'>('market');
-  const [activeView, setActiveView] = useState<ActiveViewType>('standard' as ActiveViewType);
+  const [activeView, setActiveView] = useState<ActiveViewType>('standard');
 
   // Update selected pair when URL changes
   useEffect(() => {
@@ -142,6 +141,7 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
           </button>
         </div>
 
+        {/* Market Panel with stats, chart, and user trade history sections */}
         <div className="exchange-panel p-4">
           {/* Market Pair Selector */}
           <div className="flex items-center justify-between mb-4">
