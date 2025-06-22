@@ -92,7 +92,7 @@
   }
 
   body {
-    @apply bg-white text-gray-900 font-sans;
+    @apply bg-gray-50 text-gray-900 font-sans;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     line-height: 1.5;
     letter-spacing: -0.01em;
@@ -172,7 +172,37 @@
 
 @layer components {
   .dashboard-card {
-    @apply bg-white border border-gray-200 rounded-lg shadow-sm backdrop-blur-sm;
+    @apply bg-white border border-gray-300 rounded-xl shadow-md backdrop-blur-sm;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+
+  .admin-stat-card {
+    @apply bg-white border-2 border-gray-200 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  }
+
+  .admin-stat-card h3 {
+    @apply text-lg font-bold text-gray-900 mb-2;
+  }
+
+  .admin-stat-card p {
+    @apply text-3xl font-bold text-gray-900 mb-1;
+  }
+
+  .admin-stat-card .stat-subtitle {
+    @apply text-sm font-medium text-gray-600;
+  }
+
+  .admin-pending-card {
+    @apply bg-gradient-to-br from-orange-50 to-red-50 border-2 border-orange-200 rounded-xl p-6 shadow-lg;
+  }
+
+  .admin-pending-card h3 {
+    @apply text-lg font-bold text-orange-900 mb-2;
+  }
+
+  .admin-pending-card p {
+    @apply text-3xl font-bold text-orange-900 mb-1;
   }
 
   .text-primary-red {
@@ -274,7 +304,7 @@
 
   /* Responsive utilities */
   .responsive-grid {
-    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6;
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6;
   }
 
   .responsive-padding {
@@ -309,6 +339,36 @@
     font-weight: 500 !important;
     opacity: 1 !important;
   }
+
+  /* Admin Dashboard Specific Styling */
+  .admin-dashboard-bg {
+    @apply bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen;
+  }
+
+  .admin-tab-button {
+    @apply px-4 py-2 font-semibold text-sm rounded-lg transition-all duration-200;
+  }
+
+  .admin-tab-active {
+    @apply bg-red-600 text-white shadow-lg;
+  }
+
+  .admin-tab-inactive {
+    @apply bg-white text-gray-700 border border-gray-200 hover:bg-gray-50;
+  }
+
+  /* Action notification styling */
+  .action-notification {
+    @apply bg-gradient-to-r from-orange-100 to-red-100 border-l-4 border-orange-500 rounded-lg p-4 shadow-md;
+  }
+
+  .action-notification h3 {
+    @apply text-orange-900 font-bold text-lg mb-2;
+  }
+
+  .action-notification p {
+    @apply text-orange-800 font-medium;
+  }
 }
 
 /* Enhanced effects for modern design */
@@ -319,6 +379,10 @@
 
   .shadow-modern-lg {
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+
+  .shadow-admin-card {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   }
 
   .gradient-red {
@@ -360,5 +424,31 @@
       font-weight: 600 !important;
       opacity: 1 !important;
     }
+  }
+
+  /* Admin-specific number styling */
+  .admin-stat-number {
+    @apply text-4xl font-black text-gray-900;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+
+  .admin-stat-label {
+    @apply text-base font-bold text-gray-800;
+  }
+
+  .admin-icon-accent {
+    @apply text-blue-600;
+  }
+
+  .admin-icon-success {
+    @apply text-green-600;
+  }
+
+  .admin-icon-warning {
+    @apply text-orange-600;
+  }
+
+  .admin-icon-danger {
+    @apply text-red-600;
   }
 }

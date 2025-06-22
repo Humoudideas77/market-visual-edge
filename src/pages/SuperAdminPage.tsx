@@ -65,10 +65,10 @@ const SuperAdminPage = () => {
   if (authLoading || profileLoading) {
     console.log('SuperAdminPage - Showing loading state');
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="admin-dashboard-bg flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
-          <div className="text-gray-700 text-base font-medium">Verifying Super Admin Access...</div>
+          <div className="text-gray-900 text-base font-bold">Verifying Super Admin Access...</div>
         </div>
       </div>
     );
@@ -78,13 +78,13 @@ const SuperAdminPage = () => {
   if (error) {
     console.log('SuperAdminPage - Showing error state:', error);
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="admin-dashboard-bg flex items-center justify-center">
         <div className="text-center space-y-4 p-6">
           <div className="text-red-600 text-xl font-bold">Error Loading Profile</div>
-          <div className="text-gray-700 text-base leading-relaxed">
+          <div className="text-gray-800 text-base leading-relaxed font-medium">
             Failed to verify admin access. Please try refreshing the page.
           </div>
-          <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+          <div className="text-sm text-gray-700 bg-gray-100 p-3 rounded-lg font-medium">
             Error: {error.message}
           </div>
         </div>
@@ -107,67 +107,88 @@ const SuperAdminPage = () => {
   console.log('SuperAdminPage - Rendering SuperAdmin dashboard for:', userProfile.email);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
+    <div className="admin-dashboard-bg">
+      <div className="container mx-auto px-6 py-8">
         {/* Back Button - Top Left */}
         <div className="mb-6">
           <BackButton fallbackPath="/" label="← Dashboard" />
         </div>
 
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-red-600 to-red-700 rounded-xl flex items-center justify-center shadow-lg">
-                <Shield className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-red-600 to-red-700 rounded-2xl flex items-center justify-center shadow-xl">
+                <Shield className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight">
+                <h1 className="text-4xl md:text-5xl font-black text-gray-900 leading-tight mb-2">
                   MecCrypto Super Admin
                 </h1>
-                <div className="flex items-center gap-2 mt-2">
-                  <Badge variant="destructive" className="bg-red-600 text-white font-semibold">
-                    <Shield className="w-3 h-3 mr-1" />
+                <div className="flex items-center gap-3 mt-3">
+                  <Badge variant="destructive" className="bg-red-600 text-white font-bold px-4 py-2 text-sm">
+                    <Shield className="w-4 h-4 mr-2" />
                     Superadmin Access
                   </Badge>
-                  <span className="text-gray-600 text-sm font-medium">
+                  <span className="text-gray-700 text-base font-semibold">
                     Welcome, {userProfile.email}
                   </span>
                 </div>
               </div>
             </div>
           </div>
-          <p className="text-gray-700 text-lg leading-relaxed">
-            Complete platform administration and user management dashboard
+          <p className="text-gray-800 text-xl leading-relaxed font-medium max-w-4xl">
+            Complete platform administration and user management dashboard with enhanced monitoring capabilities
           </p>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 bg-white border border-gray-200 shadow-sm">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-red-600 data-[state=active]:text-white font-semibold text-sm text-gray-700">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+          <TabsList className="grid w-full grid-cols-7 bg-white border-2 border-gray-200 shadow-lg rounded-xl p-2">
+            <TabsTrigger 
+              value="overview" 
+              className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive"
+            >
               <Activity className="w-4 h-4 mr-2" />
               Overview
             </TabsTrigger>
-            <TabsTrigger value="users" className="data-[state=active]:bg-red-600 data-[state=active]:text-white font-semibold text-sm text-gray-700">
+            <TabsTrigger 
+              value="users" 
+              className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive"
+            >
               <Users className="w-4 h-4 mr-2" />
               Users
             </TabsTrigger>
-            <TabsTrigger value="kyc" className="data-[state=active]:bg-red-600 data-[state=active]:text-white font-semibold text-sm text-gray-700">
+            <TabsTrigger 
+              value="kyc" 
+              className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive"
+            >
               <FileCheck className="w-4 h-4 mr-2" />
               KYC
             </TabsTrigger>
-            <TabsTrigger value="deposits" className="data-[state=active]:bg-red-600 data-[state=active]:text-white font-semibold text-sm text-gray-700">
+            <TabsTrigger 
+              value="deposits" 
+              className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive"
+            >
               <DollarSign className="w-4 h-4 mr-2" />
               Deposits
             </TabsTrigger>
-            <TabsTrigger value="withdrawals" className="data-[state=active]:bg-red-600 data-[state=active]:text-white font-semibold text-sm text-gray-700">
+            <TabsTrigger 
+              value="withdrawals" 
+              className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive"
+            >
               <CreditCard className="w-4 h-4 mr-2" />
               Withdrawals
             </TabsTrigger>
-            <TabsTrigger value="activity" className="data-[state=active]:bg-red-600 data-[state=active]:text-white font-semibold text-sm text-gray-700">
+            <TabsTrigger 
+              value="activity" 
+              className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive"
+            >
               <UserCheck className="w-4 h-4 mr-2" />
               Activity
             </TabsTrigger>
-            <TabsTrigger value="settings" className="data-[state=active]:bg-red-600 data-[state=active]:text-white font-semibold text-sm text-gray-700">
+            <TabsTrigger 
+              value="settings" 
+              className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive"
+            >
               <Settings className="w-4 h-4 mr-2" />
               Settings
             </TabsTrigger>
