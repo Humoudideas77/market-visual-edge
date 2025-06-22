@@ -5,7 +5,8 @@ import { Navigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Users, CreditCard, FileCheck, Activity, DollarSign, UserCheck, Shield, Settings } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Users, CreditCard, FileCheck, Activity, DollarSign, UserCheck, Shield, Settings, RefreshCw, Home } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import DepositApprovalSection from '@/components/admin/DepositApprovalSection';
@@ -17,16 +18,18 @@ import SuperAdminActivityLogs from '@/components/admin/SuperAdminActivityLogs';
 import SuperAdminPlatformSettings from '@/components/admin/SuperAdminPlatformSettings';
 import BackButton from '@/components/BackButton';
 import MecBot from '@/components/MecBot';
+import { toast } from 'sonner';
 
 const SuperAdminPage = () => {
   const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   console.log('SuperAdminPage - Current URL:', window.location.pathname);
   console.log('SuperAdminPage - User:', user?.email);
 
   // Check if user is specifically a superadmin
-  const { data: userProfile, isLoading: profileLoading, error } = useQuery({
+  const { data: userProfile, isLoading: profileLoading, error, refetch } = useQuery({
     queryKey: ['superadmin-check', user?.id],
     queryFn: async () => {
       if (!user) return null;
@@ -52,6 +55,23 @@ const SuperAdminPage = () => {
     retryDelay: 1000,
   });
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refetch();
+      toast.success('Dashboard refreshed successfully');
+    } catch (error) {
+      toast.error('Failed to refresh dashboard');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleTabChange = (newTab: string) => {
+    setActiveTab(newTab);
+    toast.info(`Switched to ${newTab.charAt(0).toUpperCase() + newTab.slice(1)} section`);
+  };
+
   console.log('SuperAdminPage - Render state:', {
     user: user?.email,
     authLoading,
@@ -65,7 +85,7 @@ const SuperAdminPage = () => {
   if (authLoading || profileLoading) {
     console.log('SuperAdminPage - Showing loading state');
     return (
-      <div className="admin-dashboard-bg flex items-center justify-center">
+      <div className="admin-dashboard-bg flex items-center justify-center min-h-screen">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
           <div className="text-white text-base font-bold">Verifying Super Admin Access...</div>
@@ -78,7 +98,7 @@ const SuperAdminPage = () => {
   if (error) {
     console.log('SuperAdminPage - Showing error state:', error);
     return (
-      <div className="admin-dashboard-bg flex items-center justify-center">
+      <div className="admin-dashboard-bg flex items-center justify-center min-h-screen">
         <div className="text-center space-y-4 p-6">
           <div className="text-red-400 text-xl font-bold">Error Loading Profile</div>
           <div className="text-gray-300 text-base leading-relaxed font-medium">
@@ -87,6 +107,10 @@ const SuperAdminPage = () => {
           <div className="text-sm text-gray-400 bg-gray-800 p-3 rounded-lg font-medium border border-gray-600">
             Error: {error.message}
           </div>
+          <Button onClick={handleRefresh} className="bg-red-600 hover:bg-red-700">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Try Again
+          </Button>
         </div>
       </div>
     );
@@ -107,13 +131,35 @@ const SuperAdminPage = () => {
   console.log('SuperAdminPage - Rendering SuperAdmin dashboard for:', userProfile.email);
 
   return (
-    <div className="admin-dashboard-bg">
+    <div className="admin-dashboard-bg min-h-screen">
       <div className="container mx-auto px-6 py-8">
-        {/* Back Button - Top Left */}
-        <div className="mb-6">
+        {/* Header Section with Action Buttons */}
+        <div className="flex justify-between items-start mb-6">
           <BackButton fallbackPath="/" label="← Dashboard" />
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleRefresh} 
+              disabled={isRefreshing}
+              variant="outline" 
+              size="sm"
+              className="border-gray-600 text-gray-300 hover:bg-gray-800"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            <Button 
+              onClick={() => window.location.href = '/dashboard'}
+              variant="outline" 
+              size="sm"
+              className="border-gray-600 text-gray-300 hover:bg-gray-800"
+            >
+              <Home className="w-4 h-4 mr-2" />
+              Dashboard
+            </Button>
+          </div>
         </div>
 
+        {/* Main Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
@@ -141,7 +187,7 @@ const SuperAdminPage = () => {
           </p>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-8">
           <TabsList className="grid w-full grid-cols-7 bg-gray-900 border-2 border-gray-700 shadow-2xl rounded-xl p-2">
             <TabsTrigger 
               value="overview" 

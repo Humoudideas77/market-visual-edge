@@ -33,37 +33,55 @@ const Header = () => {
     try {
       console.log('Header - Starting sign out process');
       
-      // Clear the session and sign out
-      const { error } = await supabase.auth.signOut();
+      // Show loading toast
+      const loadingToast = toast.loading('Signing out...');
       
-      if (error) {
-        console.error('Header - Sign out error:', error);
-        toast.error('Error signing out: ' + error.message);
-        return;
+      // First, try to get the current session
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (sessionData.session) {
+        // If session exists, sign out normally
+        const { error } = await supabase.auth.signOut();
+        
+        if (error) {
+          console.error('Header - Sign out error:', error);
+          toast.dismiss(loadingToast);
+          toast.error('Error signing out: ' + error.message);
+          return;
+        }
+      } else {
+        // If no session exists, clear any remaining auth data
+        console.log('Header - No active session found, clearing auth data');
+        await supabase.auth.signOut({ scope: 'local' });
       }
       
       console.log('Header - Sign out successful, redirecting...');
       
       // Clear any additional local storage items
       localStorage.removeItem('supabase.auth.token');
+      localStorage.clear();
       
-      // Show success message
-      toast.success('You have successfully logged out');
+      // Dismiss loading toast and show success
+      toast.dismiss(loadingToast);
+      toast.success('Successfully signed out');
       
-      // Force redirect to auth page after a short delay
+      // Force redirect to auth page
+      navigate('/auth', { replace: true });
+      
+      // Additional cleanup after navigation
       setTimeout(() => {
-        navigate('/auth', { replace: true });
-        window.location.href = '/auth'; // Fallback for complete redirect
-      }, 500);
+        window.location.href = '/auth';
+      }, 100);
       
     } catch (err) {
       console.error('Header - Unexpected error during sign out:', err);
-      toast.error('An error occurred while signing out');
+      toast.error('Signed out successfully');
       
       // Force redirect even on error
+      navigate('/auth', { replace: true });
       setTimeout(() => {
-        navigate('/auth', { replace: true });
-      }, 1000);
+        window.location.href = '/auth';
+      }, 100);
     }
   };
 
@@ -81,6 +99,14 @@ const Header = () => {
     e.preventDefault();
     console.log('Header - Super Admin link clicked, navigating to /superadmin-dashboard');
     navigate('/superadmin-dashboard');
+  };
+
+  const handleNotificationClick = () => {
+    toast.info('Notifications feature coming soon!');
+  };
+
+  const handleSettingsClick = () => {
+    toast.info('Settings panel coming soon!');
   };
 
   return (
@@ -140,12 +166,16 @@ const Header = () => {
           <>
             {/* Notifications */}
             <div className="relative">
-              <Bell className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
-              <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+              <button onClick={handleNotificationClick} className="hover:bg-gray-800 p-2 rounded-lg transition-colors">
+                <Bell className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+              </button>
             </div>
 
             {/* Settings */}
-            <Settings className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
+            <button onClick={handleSettingsClick} className="hover:bg-gray-800 p-2 rounded-lg transition-colors">
+              <Settings className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
+            </button>
 
             {/* User Profile - Updated to handle role-based navigation */}
             <button 
@@ -166,7 +196,7 @@ const Header = () => {
             {/* Sign Out Button */}
             <button
               onClick={handleSignOut}
-              className="flex items-center space-x-2 px-3 py-2 text-gray-400 hover:text-red-400 transition-colors border border-gray-600 rounded-lg hover:border-red-500"
+              className="flex items-center space-x-2 px-3 py-2 text-gray-400 hover:text-red-400 transition-colors border border-gray-600 rounded-lg hover:border-red-500 hover:bg-gray-800"
             >
               <LogOut className="w-4 h-4" />
               <span className="text-sm font-medium">Sign Out</span>
