@@ -4,16 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Upload, FileText, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, FileText, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const KYCUploadForm = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [kycData, setKycData] = useState({
+    full_name: '',
+    date_of_birth: '',
+    nationality: '',
+    address: '',
     personal_id_number: '',
     front_document: null as File | null,
     back_document: null as File | null
@@ -43,7 +46,7 @@ const KYCUploadForm = () => {
   };
 
   const submitKYC = async () => {
-    if (!user || !kycData.personal_id_number.trim()) {
+    if (!user || !kycData.full_name.trim() || !kycData.date_of_birth || !kycData.nationality.trim() || !kycData.address.trim()) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -70,7 +73,11 @@ const KYCUploadForm = () => {
         .from('kyc_submissions')
         .insert({
           user_id: user.id,
-          personal_id_number: kycData.personal_id_number,
+          full_name: kycData.full_name,
+          date_of_birth: kycData.date_of_birth,
+          nationality: kycData.nationality,
+          address: kycData.address,
+          personal_id_number: kycData.personal_id_number || null,
           front_document_url: frontDocUrl,
           back_document_url: backDocUrl,
           status: 'pending'
@@ -80,6 +87,10 @@ const KYCUploadForm = () => {
 
       toast.success('KYC submission successful! We will review your documents within 24-48 hours.');
       setKycData({
+        full_name: '',
+        date_of_birth: '',
+        nationality: '',
+        address: '',
         personal_id_number: '',
         front_document: null,
         back_document: null
@@ -117,12 +128,57 @@ const KYCUploadForm = () => {
         </div>
 
         <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-exchange-text-primary">Full Name *</Label>
+              <Input
+                value={kycData.full_name}
+                onChange={(e) => setKycData(prev => ({ ...prev, full_name: e.target.value }))}
+                placeholder="Enter your full name"
+                className="bg-exchange-bg border-exchange-border"
+                required
+              />
+            </div>
+            <div>
+              <Label className="text-exchange-text-primary">Date of Birth *</Label>
+              <Input
+                type="date"
+                value={kycData.date_of_birth}
+                onChange={(e) => setKycData(prev => ({ ...prev, date_of_birth: e.target.value }))}
+                className="bg-exchange-bg border-exchange-border"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-exchange-text-primary">Nationality *</Label>
+              <Input
+                value={kycData.nationality}
+                onChange={(e) => setKycData(prev => ({ ...prev, nationality: e.target.value }))}
+                placeholder="Enter your nationality"
+                className="bg-exchange-bg border-exchange-border"
+                required
+              />
+            </div>
+            <div>
+              <Label className="text-exchange-text-primary">Personal ID Number</Label>
+              <Input
+                value={kycData.personal_id_number}
+                onChange={(e) => setKycData(prev => ({ ...prev, personal_id_number: e.target.value }))}
+                placeholder="Enter your national ID or passport number"
+                className="bg-exchange-bg border-exchange-border"
+              />
+            </div>
+          </div>
+
           <div>
-            <Label className="text-exchange-text-primary">Personal ID Number *</Label>
+            <Label className="text-exchange-text-primary">Address *</Label>
             <Input
-              value={kycData.personal_id_number}
-              onChange={(e) => setKycData(prev => ({ ...prev, personal_id_number: e.target.value }))}
-              placeholder="Enter your national ID or passport number"
+              value={kycData.address}
+              onChange={(e) => setKycData(prev => ({ ...prev, address: e.target.value }))}
+              placeholder="Enter your full address"
               className="bg-exchange-bg border-exchange-border"
               required
             />
@@ -175,7 +231,7 @@ const KYCUploadForm = () => {
           <div className="flex justify-end">
             <Button
               onClick={submitKYC}
-              disabled={loading || !kycData.personal_id_number.trim()}
+              disabled={loading || !kycData.full_name.trim() || !kycData.date_of_birth || !kycData.nationality.trim() || !kycData.address.trim()}
               className="bg-exchange-blue hover:bg-exchange-blue/90"
             >
               {loading ? 'Submitting...' : 'Submit KYC Documents'}

@@ -132,6 +132,42 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_messages: {
+        Row: {
+          admin_id: string | null
+          admin_reply: string | null
+          created_at: string
+          id: string
+          message: string
+          status: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_id?: string | null
+          admin_reply?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          status?: string
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_id?: string | null
+          admin_reply?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          status?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       deposit_requests: {
         Row: {
           admin_notes: string | null
@@ -175,13 +211,16 @@ export type Database = {
         Row: {
           address: string
           admin_notes: string | null
+          back_document_url: string | null
           created_at: string
           date_of_birth: string
+          front_document_url: string | null
           full_name: string
           id: string
           id_card_url: string | null
           nationality: string
           passport_url: string | null
+          personal_id_number: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           selfie_with_id_url: string | null
@@ -193,13 +232,16 @@ export type Database = {
         Insert: {
           address: string
           admin_notes?: string | null
+          back_document_url?: string | null
           created_at?: string
           date_of_birth: string
+          front_document_url?: string | null
           full_name: string
           id?: string
           id_card_url?: string | null
           nationality: string
           passport_url?: string | null
+          personal_id_number?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           selfie_with_id_url?: string | null
@@ -211,13 +253,16 @@ export type Database = {
         Update: {
           address?: string
           admin_notes?: string | null
+          back_document_url?: string | null
           created_at?: string
           date_of_birth?: string
+          front_document_url?: string | null
           full_name?: string
           id?: string
           id_card_url?: string | null
           nationality?: string
           passport_url?: string | null
+          personal_id_number?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           selfie_with_id_url?: string | null
@@ -334,6 +379,7 @@ export type Database = {
           kyc_submission_id: string | null
           last_name: string | null
           role: Database["public"]["Enums"]["user_role"] | null
+          trading_enabled: boolean | null
           updated_at: string
         }
         Insert: {
@@ -346,6 +392,7 @@ export type Database = {
           kyc_submission_id?: string | null
           last_name?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
+          trading_enabled?: boolean | null
           updated_at?: string
         }
         Update: {
@@ -358,6 +405,7 @@ export type Database = {
           kyc_submission_id?: string | null
           last_name?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
+          trading_enabled?: boolean | null
           updated_at?: string
         }
         Relationships: [
@@ -369,6 +417,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      trading_chat_messages: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
       }
       user_activities: {
         Row: {
