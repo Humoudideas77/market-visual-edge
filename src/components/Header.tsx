@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, Settings, User, ChevronDown, Globe, LogOut, Shield } from 'lucide-react';
+import { Bell, Settings, User, ChevronDown, Globe, LogOut, Shield, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
@@ -93,15 +93,26 @@ const Header = () => {
     toast.info('Settings panel coming soon!');
   };
 
+  const handleSupportClick = () => {
+    navigate('/', { replace: true });
+    // Small delay to ensure navigation completes before scrolling
+    setTimeout(() => {
+      const contactSection = document.getElementById('contact-section');
+      if (contactSection) {
+        contactSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 100);
+  };
+
   return (
     <header className="bg-gray-900 border-b border-gray-700 px-6 py-4 flex items-center justify-between shadow-xl">
       {/* Logo and Main Navigation */}
       <div className="flex items-center space-x-8">
         <Link to="/" className="flex items-center space-x-2">
           <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-red-500 rounded-lg flex items-center justify-center shadow-lg">
-            <span className="text-white font-bold text-sm">MC</span>
+            <span className="text-white font-bold text-sm">MP</span>
           </div>
-          <span className="text-xl font-bold text-white">MecCrypto</span>
+          <span className="text-xl font-bold text-white">Mexc PRO</span>
         </Link>
         
         <nav className="hidden md:flex items-center space-x-6">
@@ -134,6 +145,15 @@ const Header = () => {
               <span className="text-gray-600 cursor-not-allowed">Launchpad</span>
             </>
           )}
+          
+          {/* Customer Support Button */}
+          <button 
+            onClick={handleSupportClick}
+            className="text-gray-300 hover:text-blue-400 transition-colors flex items-center space-x-1 font-medium"
+          >
+            <MessageCircle className="w-4 h-4" />
+            <span>Customer Support</span>
+          </button>
         </nav>
       </div>
 

@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { Check, X, Eye, ExternalLink, FileImage } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -34,6 +34,7 @@ type KYCSubmission = {
 const KYCManagementSection = () => {
   const [selectedKYC, setSelectedKYC] = useState<KYCSubmission | null>(null);
   const [adminNotes, setAdminNotes] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: kycSubmissions, isLoading } = useQuery({
@@ -53,7 +54,9 @@ const KYCManagementSection = () => {
     mutationFn: async ({ id, status, notes }: { id: string; status: string; notes?: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
       
-      const { error } = await supabase
+      console.log('Updating KYC submission:', { id, status, notes });
+      
+      const { error: kycError } = await supabase
         .from('kyc_submissions')
         .update({
           status,
@@ -64,55 +67,89 @@ const KYCManagementSection = () => {
         })
         .eq('id', id);
 
-      if (error) throw error;
+      if (kycError) {
+        console.error('KYC update error:', kycError);
+        throw kycError;
+      }
 
       // Update user's kyc_status in profiles
       const kycSubmission = kycSubmissions?.find(k => k.id === id);
       if (kycSubmission) {
-        await supabase
+        const { error: profileError } = await supabase
           .from('profiles')
           .update({ 
             kyc_status: status,
             kyc_submission_id: id 
           })
           .eq('id', kycSubmission.user_id);
+          
+        if (profileError) {
+          console.error('Profile update error:', profileError);
+          throw profileError;
+        }
       }
 
       // Log admin activity
       if (user) {
-        await supabase.from('admin_activities').insert({
+        const { error: activityError } = await supabase.from('admin_activities').insert({
           admin_id: user.id,
           action_type: `kyc_${status}`,
           target_table: 'kyc_submissions',
           target_record_id: id,
           action_details: { status, notes },
         });
+        
+        if (activityError) {
+          console.error('Activity log error:', activityError);
+        }
       }
+      
+      return { status, notes };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['admin-kyc'] });
-      toast({ title: 'KYC submission updated successfully' });
+      
+      let message = '';
+      switch (data.status) {
+        case 'approved':
+          message = 'KYC submission approved successfully';
+          break;
+        case 'rejected':
+          message = 'KYC submission rejected successfully. User has been notified.';
+          break;
+        case 'resubmission_required':
+          message = 'Resubmission requested successfully. User has been notified.';
+          break;
+        default:
+          message = 'KYC submission updated successfully';
+      }
+      
+      toast.success(message);
       setSelectedKYC(null);
       setAdminNotes('');
+      setIsDialogOpen(false);
     },
-    onError: () => {
-      toast({ title: 'Failed to update KYC submission', variant: 'destructive' });
+    onError: (error) => {
+      console.error('KYC update failed:', error);
+      toast.error('Failed to update KYC submission. Please try again.');
     },
   });
 
   const handleApprove = (kyc: KYCSubmission) => {
+    console.log('Approving KYC:', kyc.id);
     updateKYCMutation.mutate({
       id: kyc.id,
       status: 'approved',
-      notes: adminNotes || 'Approved by admin',
+      notes: adminNotes || 'KYC documents approved by admin',
     });
   };
 
   const handleReject = (kyc: KYCSubmission) => {
     if (!adminNotes.trim()) {
-      toast({ title: 'Please provide a reason for rejection', variant: 'destructive' });
+      toast.error('Please provide a reason for rejection');
       return;
     }
+    console.log('Rejecting KYC:', kyc.id);
     updateKYCMutation.mutate({
       id: kyc.id,
       status: 'rejected',
@@ -122,9 +159,10 @@ const KYCManagementSection = () => {
 
   const handleRequireResubmission = (kyc: KYCSubmission) => {
     if (!adminNotes.trim()) {
-      toast({ title: 'Please provide instructions for resubmission', variant: 'destructive' });
+      toast.error('Please provide instructions for resubmission');
       return;
     }
+    console.log('Requiring resubmission for KYC:', kyc.id);
     updateKYCMutation.mutate({
       id: kyc.id,
       status: 'resubmission_required',
@@ -149,7 +187,7 @@ const KYCManagementSection = () => {
 
   const viewDocument = (url: string | null, title: string) => {
     if (!url) {
-      toast({ title: `No ${title} provided`, variant: 'destructive' });
+      toast.error(`No ${title} provided`);
       return;
     }
     window.open(url, '_blank');
@@ -257,7 +295,7 @@ const KYCManagementSection = () => {
                   </TableCell>
                   <TableCell>
                     {kyc.status === 'pending' ? (
-                      <Dialog>
+                      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                         <DialogTrigger asChild>
                           <Button
                             variant="outline"
@@ -265,6 +303,7 @@ const KYCManagementSection = () => {
                             onClick={() => {
                               setSelectedKYC(kyc);
                               setAdminNotes(kyc.admin_notes || '');
+                              setIsDialogOpen(true);
                             }}
                           >
                             <Eye className="w-4 h-4 mr-1" />
@@ -277,99 +316,102 @@ const KYCManagementSection = () => {
                               Review KYC Submission
                             </DialogTitle>
                           </DialogHeader>
-                          <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                              <div>
-                                <span className="text-exchange-text-secondary">Full Name:</span>
-                                <span className="ml-2 font-semibold text-exchange-text-primary">
-                                  {kyc.full_name}
-                                </span>
+                          {selectedKYC && (
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <span className="text-exchange-text-secondary">Full Name:</span>
+                                  <span className="ml-2 font-semibold text-exchange-text-primary">
+                                    {selectedKYC.full_name}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-exchange-text-secondary">Nationality:</span>
+                                  <span className="ml-2 text-exchange-text-primary">{selectedKYC.nationality}</span>
+                                </div>
+                                <div>
+                                  <span className="text-exchange-text-secondary">Date of Birth:</span>
+                                  <span className="ml-2 text-exchange-text-primary">
+                                    {format(new Date(selectedKYC.date_of_birth), 'MMM dd, yyyy')}
+                                  </span>
+                                </div>
+                                <div className="col-span-2">
+                                  <span className="text-exchange-text-secondary">Address:</span>
+                                  <span className="ml-2 text-exchange-text-primary">{selectedKYC.address}</span>
+                                </div>
+                                <div className="col-span-2">
+                                  <span className="text-exchange-text-secondary">User ID:</span>
+                                  <span className="ml-2 font-mono text-sm text-exchange-text-primary">
+                                    {selectedKYC.user_id}
+                                  </span>
+                                </div>
                               </div>
-                              <div>
-                                <span className="text-exchange-text-secondary">Nationality:</span>
-                                <span className="ml-2 text-exchange-text-primary">{kyc.nationality}</span>
-                              </div>
-                              <div>
-                                <span className="text-exchange-text-secondary">Date of Birth:</span>
-                                <span className="ml-2 text-exchange-text-primary">
-                                  {format(new Date(kyc.date_of_birth), 'MMM dd, yyyy')}
-                                </span>
-                              </div>
-                              <div className="col-span-2">
-                                <span className="text-exchange-text-secondary">Address:</span>
-                                <span className="ml-2 text-exchange-text-primary">{kyc.address}</span>
-                              </div>
-                              <div className="col-span-2">
-                                <span className="text-exchange-text-secondary">User ID:</span>
-                                <span className="ml-2 font-mono text-sm text-exchange-text-primary">
-                                  {kyc.user_id}
-                                </span>
-                              </div>
-                            </div>
 
-                            <div className="border-t border-exchange-border pt-4">
-                              <h4 className="font-medium text-exchange-text-primary mb-2">Documents</h4>
-                              <div className="grid grid-cols-2 gap-2">
-                                {[
-                                  { url: kyc.id_card_url, label: 'ID Card' },
-                                  { url: kyc.passport_url, label: 'Passport' },
-                                  { url: kyc.utility_bill_url, label: 'Utility Bill' },
-                                  { url: kyc.selfie_with_id_url, label: 'Selfie with ID' },
-                                ].map((doc, index) => (
-                                  <Button
-                                    key={index}
-                                    variant={doc.url ? "outline" : "ghost"}
-                                    size="sm"
-                                    onClick={() => doc.url && window.open(doc.url, '_blank')}
-                                    disabled={!doc.url}
-                                    className="justify-start"
-                                  >
-                                    <ExternalLink className="w-4 h-4 mr-2" />
-                                    {doc.label}
-                                    {!doc.url && <span className="ml-2 text-xs text-exchange-text-secondary">(Not provided)</span>}
-                                  </Button>
-                                ))}
+                              <div className="border-t border-exchange-border pt-4">
+                                <h4 className="font-medium text-exchange-text-primary mb-2">Documents</h4>
+                                <div className="grid grid-cols-2 gap-2">
+                                  {[
+                                    { url: selectedKYC.id_card_url, label: 'ID Card' },
+                                    { url: selectedKYC.passport_url, label: 'Passport' },
+                                    { url: selectedKYC.utility_bill_url, label: 'Utility Bill' },
+                                    { url: selectedKYC.selfie_with_id_url, label: 'Selfie with ID' },
+                                  ].map((doc, index) => (
+                                    <Button
+                                      key={index}
+                                      variant={doc.url ? "outline" : "ghost"}
+                                      size="sm"
+                                      onClick={() => doc.url && window.open(doc.url, '_blank')}
+                                      disabled={!doc.url}
+                                      className="justify-start"
+                                    >
+                                      <ExternalLink className="w-4 h-4 mr-2" />
+                                      {doc.label}
+                                      {!doc.url && <span className="ml-2 text-xs text-exchange-text-secondary">(Not provided)</span>}
+                                    </Button>
+                                  ))}
+                                </div>
+                              </div>
+                              
+                              <div>
+                                <label className="text-sm font-medium text-exchange-text-secondary">
+                                  Admin Notes
+                                </label>
+                                <Textarea
+                                  value={adminNotes}
+                                  onChange={(e) => setAdminNotes(e.target.value)}
+                                  placeholder="Add notes (required for rejection/resubmission)"
+                                  className="mt-1 bg-exchange-bg border-exchange-border text-exchange-text-primary"
+                                />
+                              </div>
+
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={() => handleApprove(selectedKYC)}
+                                  disabled={updateKYCMutation.isPending}
+                                  className="bg-green-600 hover:bg-green-700 text-white"
+                                >
+                                  <Check className="w-4 h-4 mr-1" />
+                                  {updateKYCMutation.isPending ? 'Processing...' : 'Approve'}
+                                </Button>
+                                <Button
+                                  onClick={() => handleReject(selectedKYC)}
+                                  disabled={updateKYCMutation.isPending}
+                                  variant="destructive"
+                                >
+                                  <X className="w-4 h-4 mr-1" />
+                                  {updateKYCMutation.isPending ? 'Processing...' : 'Reject'}
+                                </Button>
+                                <Button
+                                  onClick={() => handleRequireResubmission(selectedKYC)}
+                                  disabled={updateKYCMutation.isPending}
+                                  variant="outline"
+                                  className="border-yellow-600 text-yellow-600 hover:bg-yellow-600 hover:text-white"
+                                >
+                                  {updateKYCMutation.isPending ? 'Processing...' : 'Request Resubmission'}
+                                </Button>
                               </div>
                             </div>
-                            
-                            <div>
-                              <label className="text-sm font-medium text-exchange-text-secondary">
-                                Admin Notes
-                              </label>
-                              <Textarea
-                                value={adminNotes}
-                                onChange={(e) => setAdminNotes(e.target.value)}
-                                placeholder="Add notes (required for rejection/resubmission)"
-                                className="mt-1 bg-exchange-bg border-exchange-border"
-                              />
-                            </div>
-
-                            <div className="flex gap-2">
-                              <Button
-                                onClick={() => handleApprove(kyc)}
-                                disabled={updateKYCMutation.isPending}
-                                className="bg-green-600 hover:bg-green-700"
-                              >
-                                <Check className="w-4 h-4 mr-1" />
-                                Approve
-                              </Button>
-                              <Button
-                                onClick={() => handleReject(kyc)}
-                                disabled={updateKYCMutation.isPending}
-                                variant="destructive"
-                              >
-                                <X className="w-4 h-4 mr-1" />
-                                Reject
-                              </Button>
-                              <Button
-                                onClick={() => handleRequireResubmission(kyc)}
-                                disabled={updateKYCMutation.isPending}
-                                variant="outline"
-                              >
-                                Request Resubmission
-                              </Button>
-                            </div>
-                          </div>
+                          )}
                         </DialogContent>
                       </Dialog>
                     ) : (

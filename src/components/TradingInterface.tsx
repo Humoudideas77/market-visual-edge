@@ -4,6 +4,8 @@ import { TrendingUp, TrendingDown, Clock, CheckCircle } from 'lucide-react';
 import { useTradingEngine } from '@/hooks/useTradingEngine';
 import { formatPrice, formatVolume } from '@/hooks/useCryptoPrices';
 import TradingPanel from './TradingPanel';
+import TradingChatLive from './TradingChatLive';
+import CandlestickChart from './CandlestickChart';
 
 const TradingInterface = () => {
   const [selectedPair, setSelectedPair] = useState('BTC/USDT');
@@ -27,7 +29,7 @@ const TradingInterface = () => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 p-6">
       {/* Chart Section */}
-      <div className="lg:col-span-8">
+      <div className="lg:col-span-8 space-y-4">
         <div className="exchange-panel p-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-4">
@@ -41,14 +43,6 @@ const TradingInterface = () => {
                   {isPositive ? '+' : ''}${Math.abs(tradingPair.change24h).toFixed(2)} ({((tradingPair.change24h / (tradingPair.currentPrice - tradingPair.change24h)) * 100).toFixed(2)}%)
                 </div>
               </div>
-            </div>
-            <div className="flex space-x-2">
-              <button className="px-3 py-1 text-xs bg-exchange-accent text-exchange-text-secondary rounded">1m</button>
-              <button className="px-3 py-1 text-xs bg-exchange-blue text-white rounded">5m</button>
-              <button className="px-3 py-1 text-xs bg-exchange-accent text-exchange-text-secondary rounded">15m</button>
-              <button className="px-3 py-1 text-xs bg-exchange-accent text-exchange-text-secondary rounded">1h</button>
-              <button className="px-3 py-1 text-xs bg-exchange-accent text-exchange-text-secondary rounded">4h</button>
-              <button className="px-3 py-1 text-xs bg-exchange-accent text-exchange-text-secondary rounded">1D</button>
             </div>
           </div>
 
@@ -74,14 +68,8 @@ const TradingInterface = () => {
             </div>
           </div>
           
-          {/* Mock Trading Chart */}
-          <div className="h-96 bg-exchange-bg rounded-lg flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-6xl mb-4">📈</div>
-              <p className="text-exchange-text-secondary">Live Trading Chart</p>
-              <p className="text-sm text-exchange-text-muted mt-1">Real-time price: ${formatPrice(tradingPair.currentPrice)}</p>
-            </div>
-          </div>
+          {/* Live Candlestick Chart */}
+          <CandlestickChart symbol={selectedPair} />
 
           {/* User Trade History */}
           {userTrades.length > 0 && (
@@ -111,6 +99,9 @@ const TradingInterface = () => {
             </div>
           )}
         </div>
+
+        {/* Live Trading Chat */}
+        <TradingChatLive />
       </div>
 
       {/* Order Book & Trading Panel */}

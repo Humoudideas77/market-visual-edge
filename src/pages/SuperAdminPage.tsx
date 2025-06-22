@@ -168,7 +168,7 @@ const SuperAdminPage = () => {
               </div>
               <div>
                 <h1 className="text-4xl md:text-5xl font-black text-white leading-tight mb-2">
-                  MecCrypto Super Admin
+                  Mexc PRO Super Admin
                 </h1>
                 <div className="flex items-center gap-3 mt-3">
                   <Badge variant="destructive" className="bg-red-600 text-white font-bold px-4 py-2 text-sm border border-red-500 shadow-lg">
