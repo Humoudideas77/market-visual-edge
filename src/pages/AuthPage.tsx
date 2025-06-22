@@ -79,7 +79,7 @@ const FloatingLabelInput = ({
         {label}
       </label>
       
-      {showPasswordToggle &&` (
+      {showPasswordToggle && (
         <button
           type="button"
           onClick={onTogglePassword}
