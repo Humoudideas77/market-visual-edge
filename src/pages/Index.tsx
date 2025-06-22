@@ -36,7 +36,7 @@ const Index = () => {
       <GoldMiningSection />
       
       {/* Contact Form Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-gray-50 contact-form-section">
         <div className="container mx-auto px-6">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 leading-tight">
@@ -169,7 +169,7 @@ const Index = () => {
                 ) : (
                   <>
                     <li><Link to="/auth" className="hover:text-white transition-colors">Sign In</Link></li>
-                    <li><Link to="/auth" className="hover:text-white transition-colors">Create Account</Link></li>
+                    <li><Link to="/auth" className="hover:text-white transition-colors">Create Account</li>
                   </>
                 )}
                 <li><a href="#" className="hover:text-white transition-colors">Contact Support</a></li>

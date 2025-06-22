@@ -94,10 +94,10 @@ const Header = () => {
   };
 
   const handleSupportClick = () => {
-    navigate('/', { replace: true });
+    navigate('/');
     // Small delay to ensure navigation completes before scrolling
     setTimeout(() => {
-      const contactSection = document.getElementById('contact-section');
+      const contactSection = document.querySelector('.contact-form-section');
       if (contactSection) {
         contactSection.scrollIntoView({ behavior: 'smooth' });
       }
