@@ -1,13 +1,13 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { TrendingUp, TrendingDown, Clock, CheckCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Clock, CheckCircle, BarChart3 } from 'lucide-react';
 import { useTradingEngine } from '@/hooks/useTradingEngine';
 import { formatPrice, formatVolume, SUPPORTED_PAIRS } from '@/hooks/useCryptoPrices';
 import TradingPanel from './TradingPanel';
 import TradingChatLive from './TradingChatLive';
 import CandlestickChart from './CandlestickChart';
 import MarketPairSelector from './MarketPairSelector';
+import KindleStakeLab from './KindleStakeLab';
 
 interface TradingInterfaceProps {
   initialPair?: string;
@@ -25,6 +25,7 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
 
   const { tradingPair, buyOrders, sellOrders, recentTrades, userTrades } = useTradingEngine(selectedPair);
   const [activeTab, setActiveTab] = useState<'market' | 'orders'>('market');
+  const [activeView, setActiveView] = useState<'standard' | 'kindle'>('standard');
 
   // Update selected pair when URL changes
   useEffect(() => {
@@ -60,10 +61,80 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
 
   const isPositive = tradingPair.change24h >= 0;
 
+  // Render Kindle Stake Lab view
+  if (activeView === 'kindle') {
+    return (
+      <div className="space-y-4 p-6">
+        {/* View Toggle */}
+        <div className="flex items-center justify-between">
+          <div className="flex space-x-2 bg-exchange-accent/30 rounded-lg p-1">
+            <button
+              onClick={() => setActiveView('standard')}
+              className={`px-4 py-2 text-sm font-medium rounded transition-colors ${
+                activeView === 'standard'
+                  ? 'bg-exchange-blue text-white'
+                  : 'text-exchange-text-secondary hover:text-exchange-text-primary'
+              }`}
+            >
+              Standard Trading
+            </button>
+            <button
+              onClick={() => setActiveView('kindle')}
+              className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded transition-colors ${
+                activeView === 'kindle'
+                  ? 'bg-exchange-blue text-white'
+                  : 'text-exchange-text-secondary hover:text-exchange-text-primary'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span>Kindle Stake Lab</span>
+            </button>
+          </div>
+        </div>
+
+        <KindleStakeLab 
+          selectedPair={selectedPair}
+          onPairChange={handlePairChange}
+        />
+
+        {/* Trading Panel for quick trades */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <TradingPanel selectedPair={selectedPair} />
+          <TradingChatLive />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 p-6">
       {/* Chart Section */}
       <div className="lg:col-span-8 space-y-4">
+        {/* View Toggle */}
+        <div className="flex space-x-2 bg-exchange-accent/30 rounded-lg p-1 w-fit">
+          <button
+            onClick={() => setActiveView('standard')}
+            className={`px-4 py-2 text-sm font-medium rounded transition-colors ${
+              activeView === 'standard'
+                ? 'bg-exchange-blue text-white'
+                : 'text-exchange-text-secondary hover:text-exchange-text-primary'
+            }`}
+          >
+            Standard Trading
+          </button>
+          <button
+            onClick={() => setActiveView('kindle')}
+            className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded transition-colors ${
+              activeView === 'kindle'
+                ? 'bg-exchange-blue text-white'
+                : 'text-exchange-text-secondary hover:text-exchange-text-primary'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>Kindle Stake Lab</span>
+          </button>
+        </div>
+
         <div className="exchange-panel p-4">
           {/* Market Pair Selector */}
           <div className="flex items-center justify-between mb-4">
