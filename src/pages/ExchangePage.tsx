@@ -6,13 +6,13 @@ import { useCryptoPrices, formatPrice, formatVolume, SUPPORTED_PAIRS, CRYPTO_ID_
 import Header from '../components/Header';
 import MarketTicker from '../components/MarketTicker';
 import { Button } from '@/components/ui/button';
-import { Search, TrendingUp, TrendingDown, Star, Lock, Wifi, WifiOff } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, Star, Lock, Wifi, WifiOff, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const ExchangePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { prices, loading, error, lastUpdated } = useCryptoPrices(8000);
+  const { prices, loading, error, lastUpdated } = useCryptoPrices(10000);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'favorites' | 'gainers' | 'losers'>('all');
 
@@ -37,9 +37,10 @@ const ExchangePage = () => {
   });
 
   const handleTradeClick = (symbol: string) => {
+    const tradingPair = `${symbol.toUpperCase()}/USDT`;
+    console.log('ExchangePage - Navigating to trading pair:', tradingPair);
+    
     if (user) {
-      const tradingPair = `${symbol.toUpperCase()}/USDT`;
-      console.log('ExchangePage - Navigating to trading pair:', tradingPair);
       navigate(`/trading/${tradingPair}`);
       toast.success(`Opening ${tradingPair} trading interface`);
     } else {
@@ -49,9 +50,10 @@ const ExchangePage = () => {
   };
 
   const handleQuickBuy = (symbol: string) => {
+    const tradingPair = `${symbol.toUpperCase()}/USDT`;
+    console.log('ExchangePage - Quick buy for:', tradingPair);
+    
     if (user) {
-      const tradingPair = `${symbol.toUpperCase()}/USDT`;
-      console.log('ExchangePage - Quick buy for:', tradingPair);
       navigate(`/trading/${tradingPair}?action=buy`);
       toast.success(`Quick buy for ${symbol} - redirecting to trading interface`);
     } else {
@@ -61,11 +63,24 @@ const ExchangePage = () => {
   };
 
   const handleQuickSell = (symbol: string) => {
+    const tradingPair = `${symbol.toUpperCase()}/USDT`;
+    console.log('ExchangePage - Quick sell for:', tradingPair);
+    
     if (user) {
-      const tradingPair = `${symbol.toUpperCase()}/USDT`;
-      console.log('ExchangePage - Quick sell for:', tradingPair);
       navigate(`/trading/${tradingPair}?action=sell`);
       toast.success(`Quick sell for ${symbol} - redirecting to trading interface`);
+    } else {
+      toast.error('Please sign in to trade');
+      navigate('/auth');
+    }
+  };
+
+  const handlePairClick = (pair: string) => {
+    console.log('ExchangePage - Pair clicked:', pair);
+    
+    if (user) {
+      navigate(`/trading/${pair}`);
+      toast.success(`Opening ${pair} trading interface`);
     } else {
       toast.error('Please sign in to trade');
       navigate('/auth');
@@ -92,14 +107,16 @@ const ExchangePage = () => {
             
             {/* Live Status Indicator */}
             <div className="flex items-center space-x-2 bg-exchange-panel border border-exchange-border rounded-lg px-4 py-2">
-              {error ? (
+              {error && !prices.length ? (
                 <WifiOff className="w-4 h-4 text-exchange-red" />
+              ) : error ? (
+                <AlertCircle className="w-4 h-4 text-yellow-500" />
               ) : (
                 <Wifi className="w-4 h-4 text-exchange-green" />
               )}
               <div className="text-sm">
                 <div className="text-exchange-text-primary font-medium">
-                  {error ? 'Offline' : 'Live'}
+                  {error && !prices.length ? 'Offline' : error ? 'Limited' : 'Live'}
                 </div>
                 <div className="text-xs text-exchange-text-secondary">
                   {lastUpdated ? lastUpdated.toLocaleTimeString() : 'Loading...'}
@@ -107,6 +124,15 @@ const ExchangePage = () => {
               </div>
             </div>
           </div>
+          
+          {error && (
+            <div className="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+              <p className="text-yellow-600 text-sm">
+                <AlertCircle className="w-4 h-4 inline-block mr-2" />
+                {error} - {prices.length > 0 ? 'Showing cached data' : 'Please refresh to try again'}
+              </p>
+            </div>
+          )}
           
           {!user && (
             <div className="mt-4 p-4 bg-exchange-accent/30 border border-exchange-border rounded-lg">
@@ -126,15 +152,7 @@ const ExchangePage = () => {
               <div 
                 key={pair} 
                 className="bg-exchange-accent/30 rounded px-3 py-2 text-center hover:bg-exchange-blue/20 cursor-pointer transition-colors"
-                onClick={() => {
-                  if (user) {
-                    navigate(`/trading/${pair}`);
-                    toast.success(`Opening ${pair} trading interface`);
-                  } else {
-                    toast.error('Please sign in to trade');
-                    navigate('/auth');
-                  }
-                }}
+                onClick={() => handlePairClick(pair)}
               >
                 <span className="text-sm font-mono text-exchange-text-primary">{pair}</span>
               </div>
@@ -192,8 +210,14 @@ const ExchangePage = () => {
         {error && supportedCryptos.length === 0 && (
           <div className="bg-exchange-panel rounded-xl border border-exchange-border p-12 text-center">
             <WifiOff className="w-8 h-8 text-exchange-red mx-auto mb-4" />
-            <div className="text-exchange-red mb-2">Unable to load market data</div>
-            <div className="text-exchange-text-secondary text-sm">Please check your connection and try again</div>
+            <div className="text-exchange-red mb-2">Unable to load live market data</div>
+            <div className="text-exchange-text-secondary text-sm mb-4">Using offline mode with sample data</div>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="px-4 py-2 bg-exchange-blue text-white rounded-lg hover:bg-exchange-blue/90"
+            >
+              Retry Connection
+            </button>
           </div>
         )}
 
@@ -227,8 +251,8 @@ const ExchangePage = () => {
                                 <Star className="w-4 h-4" />
                               </button>
                             )}
-                            <div>
-                              <div className="font-semibold text-exchange-text-primary">{tradingPair}</div>
+                            <div className="cursor-pointer" onClick={() => handleTradeClick(symbol)}>
+                              <div className="font-semibold text-exchange-text-primary hover:text-exchange-blue transition-colors">{tradingPair}</div>
                               <div className="text-sm text-exchange-text-secondary">{crypto.name}</div>
                             </div>
                           </div>
