@@ -94,6 +94,53 @@
   body {
     @apply bg-white text-gray-900 font-sans;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.5;
+    letter-spacing: -0.01em;
+  }
+
+  /* Typography Scale */
+  h1 {
+    @apply text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  h2 {
+    @apply text-xl md:text-2xl lg:text-3xl font-bold text-gray-900;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    @apply text-lg md:text-xl font-semibold text-gray-900;
+    line-height: 1.4;
+  }
+
+  h4 {
+    @apply text-base md:text-lg font-semibold text-gray-900;
+    line-height: 1.4;
+  }
+
+  p {
+    @apply text-base text-gray-700;
+    line-height: 1.6;
+  }
+
+  /* Form elements typography */
+  label {
+    @apply text-sm font-semibold text-gray-900;
+    line-height: 1.4;
+  }
+
+  input, textarea, select {
+    @apply text-base text-gray-900;
+    line-height: 1.5;
+  }
+
+  /* Button typography */
+  button {
+    @apply font-semibold;
+    line-height: 1.2;
   }
 
   /* Custom scrollbar for modern design */
@@ -103,16 +150,16 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: #f1f5f9;
+    background: #f9fafb;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: #d1d5db;
     border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: #9ca3af;
   }
 }
 
@@ -138,7 +185,8 @@
   }
 
   .modern-button {
-    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:opacity-90 active:scale-95;
+    @apply px-4 py-2 rounded-lg font-semibold transition-all duration-200 hover:opacity-90 active:scale-95 text-center;
+    line-height: 1.2;
   }
 
   .red-button {
@@ -154,23 +202,31 @@
   }
 
   .modern-input {
-    @apply bg-white border border-gray-300 rounded-lg px-3 py-2 text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500;
+    @apply bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .modern-label {
+    @apply block text-sm font-semibold text-gray-900 mb-2;
+    line-height: 1.4;
   }
 
   .status-badge {
-    @apply px-2 py-1 rounded-full text-xs font-semibold;
+    @apply px-3 py-1 rounded-full text-sm font-semibold;
+    line-height: 1.2;
   }
 
   .status-success {
-    @apply status-badge bg-green-100 text-green-600;
+    @apply status-badge bg-green-100 text-green-700;
   }
 
   .status-pending {
-    @apply status-badge bg-yellow-100 text-yellow-600;
+    @apply status-badge bg-yellow-100 text-yellow-700;
   }
 
   .status-failed {
-    @apply status-badge bg-red-100 text-red-600;
+    @apply status-badge bg-red-100 text-red-700;
   }
 
   /* Modern table styling */
@@ -179,11 +235,28 @@
   }
 
   .modern-table th {
-    @apply text-gray-700 font-medium p-3 text-left border-b border-gray-200 bg-gray-50;
+    @apply text-gray-900 font-semibold p-4 text-left border-b border-gray-200 bg-gray-50;
+    font-size: 14px;
+    line-height: 1.4;
   }
 
   .modern-table td {
-    @apply p-3 border-b border-gray-100;
+    @apply p-4 border-b border-gray-100 text-gray-900;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* High contrast text utilities */
+  .text-high-contrast {
+    @apply text-gray-900;
+  }
+
+  .text-medium-contrast {
+    @apply text-gray-700;
+  }
+
+  .text-low-contrast {
+    @apply text-gray-600;
   }
 
   /* Responsive utilities */
@@ -193,6 +266,14 @@
 
   .responsive-padding {
     @apply px-4 sm:px-6 py-6 sm:py-8;
+  }
+
+  .responsive-text {
+    @apply text-sm sm:text-base;
+  }
+
+  .responsive-heading {
+    @apply text-xl sm:text-2xl lg:text-3xl;
   }
 }
 
@@ -207,10 +288,27 @@
   }
 
   .gradient-red {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
   }
 
   .gradient-red-light {
-    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  }
+
+  /* Mobile-specific typography adjustments */
+  @media (max-width: 640px) {
+    .mobile-text-adjust {
+      font-size: 14px !important;
+      line-height: 1.5 !important;
+    }
+    
+    .mobile-heading-adjust {
+      font-size: 20px !important;
+      line-height: 1.3 !important;
+    }
+    
+    .mobile-padding {
+      padding: 12px !important;
+    }
   }
 }

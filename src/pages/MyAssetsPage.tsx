@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -60,8 +61,8 @@ const MyAssetsPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-exchange-bg flex items-center justify-center">
-        <div className="text-exchange-text-primary">Loading...</div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-gray-900 text-base font-medium">Loading...</div>
       </div>
     );
   }
@@ -74,14 +75,14 @@ const MyAssetsPage = () => {
     switch (type) {
       case 'buy':
       case 'deposit':
-        return <ArrowDownLeft className="w-4 h-4 text-exchange-green" />;
+        return <ArrowDownLeft className="w-4 h-4 text-green-600" />;
       case 'sell':
       case 'withdrawal':
-        return <ArrowUpRight className="w-4 h-4 text-exchange-red" />;
+        return <ArrowUpRight className="w-4 h-4 text-red-600" />;
       case 'mining_reward':
-        return <TrendingUp className="w-4 h-4 text-yellow-500" />;
+        return <TrendingUp className="w-4 h-4 text-yellow-600" />;
       default:
-        return <RefreshCw className="w-4 h-4 text-exchange-text-secondary" />;
+        return <RefreshCw className="w-4 h-4 text-gray-600" />;
     }
   };
 
@@ -90,30 +91,30 @@ const MyAssetsPage = () => {
       case 'buy':
       case 'deposit':
       case 'mining_reward':
-        return 'text-exchange-green';
+        return 'text-green-600';
       case 'sell':
       case 'withdrawal':
-        return 'text-exchange-red';
+        return 'text-red-600';
       default:
-        return 'text-exchange-text-secondary';
+        return 'text-gray-600';
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'bg-exchange-green/20 text-exchange-green';
+        return 'bg-green-100 text-green-700';
       case 'pending':
-        return 'bg-yellow-500/20 text-yellow-500';
+        return 'bg-yellow-100 text-yellow-700';
       case 'failed':
-        return 'bg-exchange-red/20 text-exchange-red';
+        return 'bg-red-100 text-red-700';
       default:
-        return 'bg-exchange-text-secondary/20 text-exchange-text-secondary';
+        return 'bg-gray-100 text-gray-700';
     }
   };
 
   return (
-    <div className="min-h-screen bg-exchange-bg">
+    <div className="min-h-screen bg-gray-50">
       <Header />
       
       <div className="container mx-auto px-6 py-8">
@@ -125,17 +126,17 @@ const MyAssetsPage = () => {
         {/* Page Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-exchange-text-primary mb-2">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 leading-tight">
               My Assets
             </h1>
-            <p className="text-exchange-text-secondary">
+            <p className="text-gray-700 text-base leading-relaxed">
               Manage your cryptocurrency portfolio and view transaction history
             </p>
           </div>
           <Button
             variant="outline"
             onClick={() => setShowBalances(!showBalances)}
-            className="flex items-center space-x-2"
+            className="flex items-center space-x-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-medium"
           >
             {showBalances ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             <span>{showBalances ? 'Hide' : 'Show'} Balances</span>
@@ -143,16 +144,16 @@ const MyAssetsPage = () => {
         </div>
 
         {/* Portfolio Overview */}
-        <div className="bg-exchange-panel rounded-xl border border-exchange-border p-8 mb-8">
+        <div className="bg-white rounded-xl border border-gray-200 p-8 mb-8 shadow-sm">
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center md:text-left">
               <div className="flex items-center justify-center md:justify-start space-x-3 mb-4">
-                <div className="w-12 h-12 bg-exchange-blue/20 rounded-lg flex items-center justify-center">
-                  <Wallet className="w-6 h-6 text-exchange-blue" />
+                <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                  <Wallet className="w-6 h-6 text-red-600" />
                 </div>
                 <div>
-                  <div className="text-sm text-exchange-text-secondary">Total Portfolio Value</div>
-                  <div className="text-3xl font-bold text-exchange-text-primary">
+                  <div className="text-sm text-gray-600 font-medium">Total Portfolio Value</div>
+                  <div className="text-2xl md:text-3xl font-bold text-gray-900">
                     {showBalances ? `$${totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '****'}
                   </div>
                 </div>
@@ -160,8 +161,8 @@ const MyAssetsPage = () => {
             </div>
 
             <div className="text-center">
-              <div className="text-sm text-exchange-text-secondary mb-2">24h Change</div>
-              <div className={`text-2xl font-bold ${totalChangePercent >= 0 ? 'text-exchange-green' : 'text-exchange-red'}`}>
+              <div className="text-sm text-gray-600 mb-2 font-medium">24h Change</div>
+              <div className={`text-xl md:text-2xl font-bold ${totalChangePercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {showBalances ? (
                   <>
                     {totalChangePercent >= 0 ? '+' : ''}${totalChange24h.toFixed(2)} ({totalChangePercent.toFixed(2)}%)
@@ -169,16 +170,16 @@ const MyAssetsPage = () => {
                 ) : '****'}
               </div>
               <div className="flex items-center justify-center space-x-1 mt-1">
-                {totalChangePercent >= 0 ? <TrendingUp className="w-4 h-4 text-exchange-green" /> : <TrendingDown className="w-4 h-4 text-exchange-red" />}
+                {totalChangePercent >= 0 ? <TrendingUp className="w-4 h-4 text-green-600" /> : <TrendingDown className="w-4 h-4 text-red-600" />}
               </div>
             </div>
 
             <div className="text-center md:text-right">
               <div className="space-y-2">
-                <Button className="bg-exchange-blue hover:bg-exchange-blue/90 w-full md:w-auto">
+                <Button className="bg-red-600 hover:bg-red-700 w-full md:w-auto font-semibold text-white">
                   Deposit
                 </Button>
-                <Button variant="outline" className="w-full md:w-auto border-exchange-border">
+                <Button variant="outline" className="w-full md:w-auto border-gray-300 text-gray-700 hover:bg-gray-50 font-medium">
                   Withdraw
                 </Button>
               </div>
@@ -187,24 +188,24 @@ const MyAssetsPage = () => {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="border-b border-exchange-border mb-8">
-          <nav className="flex space-x-8">
+        <div className="border-b border-gray-200 mb-8 bg-white rounded-t-xl">
+          <nav className="flex space-x-8 px-6">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`py-4 px-2 border-b-2 font-medium text-sm ${
+              className={`py-4 px-2 border-b-2 font-semibold text-sm md:text-base transition-colors ${
                 activeTab === 'overview'
-                  ? 'border-exchange-blue text-exchange-blue'
-                  : 'border-transparent text-exchange-text-secondary hover:text-exchange-text-primary'
+                  ? 'border-red-600 text-red-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
               }`}
             >
               Assets Overview
             </button>
             <button
               onClick={() => setActiveTab('transactions')}
-              className={`py-4 px-2 border-b-2 font-medium text-sm ${
+              className={`py-4 px-2 border-b-2 font-semibold text-sm md:text-base transition-colors ${
                 activeTab === 'transactions'
-                  ? 'border-exchange-blue text-exchange-blue'
-                  : 'border-transparent text-exchange-text-secondary hover:text-exchange-text-primary'
+                  ? 'border-red-600 text-red-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
               }`}
             >
               Transaction History
@@ -214,51 +215,51 @@ const MyAssetsPage = () => {
 
         {/* Content */}
         {activeTab === 'overview' && (
-          <div className="bg-exchange-panel rounded-xl border border-exchange-border overflow-hidden">
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-exchange-accent border-b border-exchange-border">
+                <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="text-left p-4 text-exchange-text-secondary font-medium">Asset</th>
-                    <th className="text-right p-4 text-exchange-text-secondary font-medium">Balance</th>
-                    <th className="text-right p-4 text-exchange-text-secondary font-medium">USD Value</th>
-                    <th className="text-right p-4 text-exchange-text-secondary font-medium">24h Change</th>
-                    <th className="text-center p-4 text-exchange-text-secondary font-medium">Actions</th>
+                    <th className="text-left p-4 text-gray-700 font-semibold text-sm">Asset</th>
+                    <th className="text-right p-4 text-gray-700 font-semibold text-sm">Balance</th>
+                    <th className="text-right p-4 text-gray-700 font-semibold text-sm">USD Value</th>
+                    <th className="text-right p-4 text-gray-700 font-semibold text-sm">24h Change</th>
+                    <th className="text-center p-4 text-gray-700 font-semibold text-sm">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {assets.map((asset, index) => (
-                    <tr key={index} className="border-b border-exchange-border/30 hover:bg-exchange-accent/30 transition-colors">
+                    <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                       <td className="p-4">
                         <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-exchange-accent rounded-full flex items-center justify-center">
-                            <span className="text-exchange-text-primary font-semibold text-sm">
+                          <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                            <span className="text-gray-900 font-semibold text-sm">
                               {asset.symbol.charAt(0)}
                             </span>
                           </div>
                           <div>
-                            <div className="font-semibold text-exchange-text-primary">{asset.symbol}</div>
-                            <div className="text-sm text-exchange-text-secondary">{asset.name}</div>
+                            <div className="font-semibold text-gray-900 text-base">{asset.symbol}</div>
+                            <div className="text-sm text-gray-600">{asset.name}</div>
                           </div>
                         </div>
                       </td>
                       <td className="p-4 text-right">
-                        <div className="font-mono text-exchange-text-primary">
+                        <div className="font-mono text-gray-900 font-medium">
                           {showBalances ? asset.balance : '****'}
                         </div>
                       </td>
                       <td className="p-4 text-right">
-                        <div className="font-mono text-exchange-text-primary font-semibold">
+                        <div className="font-mono text-gray-900 font-semibold">
                           {showBalances ? `$${asset.usdValue}` : '****'}
                         </div>
                       </td>
                       <td className="p-4 text-right">
-                        <div className={`font-mono ${asset.isPositive ? 'text-exchange-green' : 'text-exchange-red'}`}>
+                        <div className={`font-mono ${asset.isPositive ? 'text-green-600' : 'text-red-600'}`}>
                           <div className="flex items-center justify-end space-x-1">
                             {asset.isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                            <span>{showBalances ? asset.changePercent : '****'}</span>
+                            <span className="font-semibold">{showBalances ? asset.changePercent : '****'}</span>
                           </div>
-                          <div className="text-sm">
+                          <div className="text-sm font-medium">
                             {showBalances ? asset.change24h : '****'}
                           </div>
                         </div>
@@ -267,13 +268,13 @@ const MyAssetsPage = () => {
                         <div className="flex space-x-2 justify-center">
                           <Button
                             size="sm"
-                            className="bg-exchange-green hover:bg-exchange-green/90 text-white"
+                            className="bg-green-600 hover:bg-green-700 text-white font-semibold"
                           >
                             Buy
                           </Button>
                           <Button
                             size="sm"
-                            className="bg-exchange-red hover:bg-exchange-red/90 text-white"
+                            className="bg-red-600 hover:bg-red-700 text-white font-semibold"
                           >
                             Sell
                           </Button>
@@ -288,11 +289,11 @@ const MyAssetsPage = () => {
         )}
 
         {activeTab === 'transactions' && (
-          <div className="bg-exchange-panel rounded-xl border border-exchange-border overflow-hidden">
-            <div className="p-6 border-b border-exchange-border">
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+            <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-semibold text-exchange-text-primary">Recent Transactions</h3>
-                <Button variant="outline" className="flex items-center space-x-2">
+                <h3 className="text-xl font-bold text-gray-900">Recent Transactions</h3>
+                <Button variant="outline" className="flex items-center space-x-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-medium">
                   <RefreshCw className="w-4 h-4" />
                   <span>Refresh</span>
                 </Button>
@@ -301,42 +302,42 @@ const MyAssetsPage = () => {
 
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-exchange-accent border-b border-exchange-border">
+                <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="text-left p-4 text-exchange-text-secondary font-medium">Type</th>
-                    <th className="text-left p-4 text-exchange-text-secondary font-medium">Asset</th>
-                    <th className="text-right p-4 text-exchange-text-secondary font-medium">Amount</th>
-                    <th className="text-right p-4 text-exchange-text-secondary font-medium">Total (USD)</th>
-                    <th className="text-left p-4 text-exchange-text-secondary font-medium">Date</th>
-                    <th className="text-center p-4 text-exchange-text-secondary font-medium">Status</th>
+                    <th className="text-left p-4 text-gray-700 font-semibold text-sm">Type</th>
+                    <th className="text-left p-4 text-gray-700 font-semibold text-sm">Asset</th>
+                    <th className="text-right p-4 text-gray-700 font-semibold text-sm">Amount</th>
+                    <th className="text-right p-4 text-gray-700 font-semibold text-sm">Total (USD)</th>
+                    <th className="text-left p-4 text-gray-700 font-semibold text-sm">Date</th>
+                    <th className="text-center p-4 text-gray-700 font-semibold text-sm">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {transactions.map((transaction) => (
-                    <tr key={transaction.id} className="border-b border-exchange-border/30 hover:bg-exchange-accent/30 transition-colors">
+                    <tr key={transaction.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                       <td className="p-4">
                         <div className="flex items-center space-x-3">
                           {getTransactionIcon(transaction.type)}
-                          <span className={`capitalize font-medium ${getTransactionColor(transaction.type)}`}>
+                          <span className={`capitalize font-semibold ${getTransactionColor(transaction.type)}`}>
                             {transaction.type.replace('_', ' ')}
                           </span>
                         </div>
                       </td>
                       <td className="p-4">
-                        <span className="font-semibold text-exchange-text-primary">{transaction.symbol}</span>
+                        <span className="font-semibold text-gray-900">{transaction.symbol}</span>
                       </td>
                       <td className="p-4 text-right">
-                        <span className="font-mono text-exchange-text-primary">
+                        <span className="font-mono text-gray-900 font-medium">
                           {showBalances ? transaction.amount : '****'}
                         </span>
                       </td>
                       <td className="p-4 text-right">
-                        <span className="font-mono text-exchange-text-primary font-semibold">
+                        <span className="font-mono text-gray-900 font-semibold">
                           {showBalances ? `$${transaction.total}` : '****'}
                         </span>
                       </td>
                       <td className="p-4">
-                        <span className="text-exchange-text-secondary">{transaction.date}</span>
+                        <span className="text-gray-700 text-sm">{transaction.date}</span>
                       </td>
                       <td className="p-4 text-center">
                         <span className={`px-3 py-1 rounded-full text-sm font-semibold capitalize ${getStatusColor(transaction.status)}`}>

@@ -19,7 +19,7 @@ const Index = () => {
   const { user } = useAuth();
 
   return (
-    <div className="min-h-screen bg-exchange-bg">
+    <div className="min-h-screen bg-white">
       <Header />
       <MarketTicker />
       
@@ -36,13 +36,13 @@ const Index = () => {
       <GoldMiningSection />
       
       {/* Contact Form Section */}
-      <section className="py-20 bg-exchange-accent/30">
+      <section className="py-20 bg-gray-50">
         <div className="container mx-auto px-6">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-exchange-text-primary mb-4">
-              Contact <span className="text-exchange-blue">MecCrypto</span>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 leading-tight">
+              Contact <span className="text-red-600">MecCrypto</span>
             </h2>
-            <p className="text-xl text-exchange-text-secondary max-w-2xl mx-auto">
+            <p className="text-lg md:text-xl text-gray-700 max-w-2xl mx-auto leading-relaxed">
               Have questions about trading, need technical support, or want to learn more about our platform? 
               We're here to help you succeed in your crypto journey.
             </p>
@@ -54,15 +54,15 @@ const Index = () => {
       </section>
       
       {/* Navigation Tabs - Only show trading interface if authenticated */}
-      <div className="border-b border-exchange-border">
+      <div className="border-b border-gray-200 bg-white">
         <div className="px-6">
           <nav className="flex space-x-8">
             <button
               onClick={() => setActiveView('markets')}
-              className={`py-4 px-2 border-b-2 font-medium text-sm ${
+              className={`py-4 px-2 border-b-2 font-semibold text-sm md:text-base transition-colors ${
                 activeView === 'markets'
-                  ? 'border-exchange-blue text-exchange-blue'
-                  : 'border-transparent text-exchange-text-secondary hover:text-exchange-text-primary'
+                  ? 'border-red-600 text-red-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
               }`}
             >
               Markets Overview
@@ -70,10 +70,10 @@ const Index = () => {
             {user && (
               <button
                 onClick={() => setActiveView('trading')}
-                className={`py-4 px-2 border-b-2 font-medium text-sm ${
+                className={`py-4 px-2 border-b-2 font-semibold text-sm md:text-base transition-colors ${
                   activeView === 'trading'
-                    ? 'border-exchange-blue text-exchange-blue'
-                    : 'border-transparent text-exchange-text-secondary hover:text-exchange-text-primary'
+                    ? 'border-red-600 text-red-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
                 >
                 Spot Trading
@@ -89,15 +89,15 @@ const Index = () => {
         {activeView === 'trading' && user && <TradingInterface />}
         {activeView === 'trading' && !user && (
           <div className="container mx-auto px-6 py-12 text-center">
-            <div className="bg-exchange-panel rounded-xl border border-exchange-border p-12">
-              <h3 className="text-2xl font-bold text-exchange-text-primary mb-4">
+            <div className="bg-white rounded-xl border border-gray-200 p-12 shadow-sm">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4 leading-tight">
                 Authentication Required
               </h3>
-              <p className="text-exchange-text-secondary mb-6">
+              <p className="text-gray-700 mb-6 text-base leading-relaxed">
                 Please sign in to access the trading interface and start trading.
               </p>
               <Link to="/auth">
-                <Button className="bg-exchange-blue hover:bg-exchange-blue/90">
+                <Button className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3">
                   Sign In to Trade
                 </Button>
               </Link>
@@ -107,86 +107,86 @@ const Index = () => {
       </div>
 
       {/* Footer */}
-      <footer className="bg-exchange-panel border-t border-exchange-border mt-12">
+      <footer className="bg-gray-900 border-t border-gray-800 mt-12">
         <div className="px-6 py-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
-                <div className="w-6 h-6 bg-gradient-to-br from-exchange-blue to-exchange-green rounded"></div>
-                <span className="text-lg font-bold text-exchange-text-primary">MecCrypto</span>
+                <div className="w-6 h-6 bg-gradient-to-br from-red-600 to-red-700 rounded"></div>
+                <span className="text-lg font-bold text-white">MecCrypto</span>
               </div>
-              <p className="text-exchange-text-secondary text-sm">
+              <p className="text-gray-300 text-sm leading-relaxed">
                 The world's leading cryptocurrency exchange platform with advanced trading features.
               </p>
             </div>
             
             <div>
-              <h3 className="text-exchange-text-primary font-semibold mb-3">Products</h3>
-              <ul className="space-y-2 text-sm text-exchange-text-secondary">
-                <li><Link to="/exchange" className="hover:text-exchange-blue">Exchange</Link></li>
+              <h3 className="text-white font-semibold mb-3 text-base">Products</h3>
+              <ul className="space-y-2 text-sm text-gray-300">
+                <li><Link to="/exchange" className="hover:text-white transition-colors">Exchange</Link></li>
                 {user ? (
                   <>
-                    <li><Link to="/contracts" className="hover:text-exchange-blue">Contracts Trading</Link></li>
-                    <li><Link to="/gold-mining" className="hover:text-exchange-blue">Gold Mining</Link></li>
-                    <li><Link to="/launchpad" className="hover:text-exchange-blue">Launchpad</Link></li>
+                    <li><Link to="/contracts" className="hover:text-white transition-colors">Contracts Trading</Link></li>
+                    <li><Link to="/gold-mining" className="hover:text-white transition-colors">Gold Mining</Link></li>
+                    <li><Link to="/launchpad" className="hover:text-white transition-colors">Launchpad</Link></li>
                   </>
                 ) : (
                   <>
-                    <li><span className="text-exchange-text-secondary/50">Contracts Trading</span></li>
-                    <li><span className="text-exchange-text-secondary/50">Gold Mining</span></li>
-                    <li><span className="text-exchange-text-secondary/50">Launchpad</span></li>
+                    <li><span className="text-gray-500">Contracts Trading</span></li>
+                    <li><span className="text-gray-500">Gold Mining</span></li>
+                    <li><span className="text-gray-500">Launchpad</span></li>
                   </>
                 )}
               </ul>
             </div>
             
             <div>
-              <h3 className="text-exchange-text-primary font-semibold mb-3">Security</h3>
-              <ul className="space-y-2 text-sm text-exchange-text-secondary">
+              <h3 className="text-white font-semibold mb-3 text-base">Security</h3>
+              <ul className="space-y-2 text-sm text-gray-300">
                 <li className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-exchange-green rounded-full"></div>
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   <span>2FA Authentication</span>
                 </li>
                 <li className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-exchange-green rounded-full"></div>
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   <span>Cold Wallet Storage</span>
                 </li>
                 <li className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-exchange-green rounded-full"></div>
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   <span>SSL Encryption</span>
                 </li>
               </ul>
             </div>
             
             <div>
-              <h3 className="text-exchange-text-primary font-semibold mb-3">Account</h3>
-              <ul className="space-y-2 text-sm text-exchange-text-secondary">
+              <h3 className="text-white font-semibold mb-3 text-base">Account</h3>
+              <ul className="space-y-2 text-sm text-gray-300">
                 {user ? (
                   <>
-                    <li><Link to="/dashboard" className="hover:text-exchange-blue">Dashboard</Link></li>
-                    <li><Link to="/my-assets" className="hover:text-exchange-blue">My Assets</Link></li>
+                    <li><Link to="/dashboard" className="hover:text-white transition-colors">Dashboard</Link></li>
+                    <li><Link to="/my-assets" className="hover:text-white transition-colors">My Assets</Link></li>
                   </>
                 ) : (
                   <>
-                    <li><Link to="/auth" className="hover:text-exchange-blue">Sign In</Link></li>
-                    <li><Link to="/auth" className="hover:text-exchange-blue">Create Account</Link></li>
+                    <li><Link to="/auth" className="hover:text-white transition-colors">Sign In</Link></li>
+                    <li><Link to="/auth" className="hover:text-white transition-colors">Create Account</Link></li>
                   </>
                 )}
-                <li><a href="#" className="hover:text-exchange-blue">Contact Support</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Contact Support</a></li>
               </ul>
             </div>
           </div>
           
-          <div className="border-t border-exchange-border mt-8 pt-6 flex flex-col md:flex-row justify-between items-center">
-            <div className="text-exchange-text-secondary text-sm">
+          <div className="border-t border-gray-700 mt-8 pt-6 flex flex-col md:flex-row justify-between items-center">
+            <div className="text-gray-400 text-sm">
               © 2024 MecCrypto. All rights reserved.
             </div>
             <div className="flex items-center space-x-4 mt-4 md:mt-0">
-              <div className="flex items-center space-x-2 text-xs text-exchange-text-secondary">
-                <div className="w-3 h-3 bg-exchange-green rounded-full animate-pulse-green"></div>
+              <div className="flex items-center space-x-2 text-xs text-gray-400">
+                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse-green"></div>
                 <span>99.9% Uptime</span>
               </div>
-              <div className="text-xs text-exchange-text-secondary">
+              <div className="text-xs text-gray-400">
                 SOC 2 Certified
               </div>
             </div>

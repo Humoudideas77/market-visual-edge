@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
@@ -64,10 +65,10 @@ const SuperAdminPage = () => {
   if (authLoading || profileLoading) {
     console.log('SuperAdminPage - Showing loading state');
     return (
-      <div className="min-h-screen bg-exchange-bg flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-exchange-blue mx-auto"></div>
-          <div className="text-exchange-text-secondary">Verifying Super Admin Access...</div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
+          <div className="text-gray-700 text-base font-medium">Verifying Super Admin Access...</div>
         </div>
       </div>
     );
@@ -77,13 +78,13 @@ const SuperAdminPage = () => {
   if (error) {
     console.log('SuperAdminPage - Showing error state:', error);
     return (
-      <div className="min-h-screen bg-exchange-bg flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="text-red-500 text-xl">Error Loading Profile</div>
-          <div className="text-exchange-text-secondary">
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center space-y-4 p-6">
+          <div className="text-red-600 text-xl font-bold">Error Loading Profile</div>
+          <div className="text-gray-700 text-base leading-relaxed">
             Failed to verify admin access. Please try refreshing the page.
           </div>
-          <div className="text-sm text-exchange-text-secondary">
+          <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
             Error: {error.message}
           </div>
         </div>
@@ -106,7 +107,7 @@ const SuperAdminPage = () => {
   console.log('SuperAdminPage - Rendering SuperAdmin dashboard for:', userProfile.email);
 
   return (
-    <div className="min-h-screen bg-exchange-bg">
+    <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
         {/* Back Button - Top Left */}
         <div className="mb-6">
@@ -116,57 +117,57 @@ const SuperAdminPage = () => {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-red-600 to-purple-700 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-gradient-to-br from-red-600 to-red-700 rounded-xl flex items-center justify-center shadow-lg">
                 <Shield className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold text-exchange-text-primary">
+                <h1 className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight">
                   MecCrypto Super Admin
                 </h1>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="destructive" className="bg-red-600">
+                <div className="flex items-center gap-2 mt-2">
+                  <Badge variant="destructive" className="bg-red-600 text-white font-semibold">
                     <Shield className="w-3 h-3 mr-1" />
                     Superadmin Access
                   </Badge>
-                  <span className="text-exchange-text-secondary text-sm">
+                  <span className="text-gray-600 text-sm font-medium">
                     Welcome, {userProfile.email}
                   </span>
                 </div>
               </div>
             </div>
           </div>
-          <p className="text-exchange-text-secondary text-lg">
+          <p className="text-gray-700 text-lg leading-relaxed">
             Complete platform administration and user management dashboard
           </p>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 bg-exchange-card-bg border border-exchange-border">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-exchange-accent">
+          <TabsList className="grid w-full grid-cols-7 bg-white border border-gray-200 shadow-sm">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-red-600 data-[state=active]:text-white font-semibold text-sm text-gray-700">
               <Activity className="w-4 h-4 mr-2" />
               Overview
             </TabsTrigger>
-            <TabsTrigger value="users" className="data-[state=active]:bg-exchange-accent">
+            <TabsTrigger value="users" className="data-[state=active]:bg-red-600 data-[state=active]:text-white font-semibold text-sm text-gray-700">
               <Users className="w-4 h-4 mr-2" />
               Users
             </TabsTrigger>
-            <TabsTrigger value="kyc" className="data-[state=active]:bg-exchange-accent">
+            <TabsTrigger value="kyc" className="data-[state=active]:bg-red-600 data-[state=active]:text-white font-semibold text-sm text-gray-700">
               <FileCheck className="w-4 h-4 mr-2" />
               KYC
             </TabsTrigger>
-            <TabsTrigger value="deposits" className="data-[state=active]:bg-exchange-accent">
+            <TabsTrigger value="deposits" className="data-[state=active]:bg-red-600 data-[state=active]:text-white font-semibold text-sm text-gray-700">
               <DollarSign className="w-4 h-4 mr-2" />
               Deposits
             </TabsTrigger>
-            <TabsTrigger value="withdrawals" className="data-[state=active]:bg-exchange-accent">
+            <TabsTrigger value="withdrawals" className="data-[state=active]:bg-red-600 data-[state=active]:text-white font-semibold text-sm text-gray-700">
               <CreditCard className="w-4 h-4 mr-2" />
               Withdrawals
             </TabsTrigger>
-            <TabsTrigger value="activity" className="data-[state=active]:bg-exchange-accent">
+            <TabsTrigger value="activity" className="data-[state=active]:bg-red-600 data-[state=active]:text-white font-semibold text-sm text-gray-700">
               <UserCheck className="w-4 h-4 mr-2" />
               Activity
             </TabsTrigger>
-            <TabsTrigger value="settings" className="data-[state=active]:bg-exchange-accent">
+            <TabsTrigger value="settings" className="data-[state=active]:bg-red-600 data-[state=active]:text-white font-semibold text-sm text-gray-700">
               <Settings className="w-4 h-4 mr-2" />
               Settings
             </TabsTrigger>
