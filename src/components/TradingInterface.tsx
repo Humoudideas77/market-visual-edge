@@ -48,6 +48,10 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
     }
   };
 
+  const handleViewChange = (view: ActiveViewType) => {
+    setActiveView(view);
+  };
+
   if (!tradingPair) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 p-6">
@@ -72,7 +76,7 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
         <div className="flex items-center justify-between">
           <div className="flex space-x-2 bg-exchange-accent/30 rounded-lg p-1">
             <button
-              onClick={() => setActiveView('standard')}
+              onClick={() => handleViewChange('standard')}
               className={`px-4 py-2 text-sm font-medium rounded transition-colors ${
                 activeView === 'standard'
                   ? 'bg-exchange-blue text-white'
@@ -82,7 +86,7 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
               Standard Trading
             </button>
             <button
-              onClick={() => setActiveView('kindle')}
+              onClick={() => handleViewChange('kindle')}
               className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded transition-colors ${
                 activeView === 'kindle'
                   ? 'bg-exchange-blue text-white'
@@ -116,7 +120,7 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
         {/* View Toggle */}
         <div className="flex space-x-2 bg-exchange-accent/30 rounded-lg p-1 w-fit">
           <button
-            onClick={() => setActiveView('standard')}
+            onClick={() => handleViewChange('standard')}
             className={`px-4 py-2 text-sm font-medium rounded transition-colors ${
               activeView === 'standard'
                 ? 'bg-exchange-blue text-white'
@@ -126,7 +130,7 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
             Standard Trading
           </button>
           <button
-            onClick={() => setActiveView('kindle')}
+            onClick={() => handleViewChange('kindle')}
             className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded transition-colors ${
               activeView === 'kindle'
                 ? 'bg-exchange-blue text-white'
