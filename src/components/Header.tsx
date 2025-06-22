@@ -31,14 +31,39 @@ const Header = () => {
 
   const handleSignOut = async () => {
     try {
+      console.log('Header - Starting sign out process');
+      
+      // Clear the session and sign out
       const { error } = await supabase.auth.signOut();
+      
       if (error) {
-        toast.error('Error signing out');
-      } else {
-        toast.success('Signed out successfully');
+        console.error('Header - Sign out error:', error);
+        toast.error('Error signing out: ' + error.message);
+        return;
       }
+      
+      console.log('Header - Sign out successful, redirecting...');
+      
+      // Clear any additional local storage items
+      localStorage.removeItem('supabase.auth.token');
+      
+      // Show success message
+      toast.success('You have successfully logged out');
+      
+      // Force redirect to auth page after a short delay
+      setTimeout(() => {
+        navigate('/auth', { replace: true });
+        window.location.href = '/auth'; // Fallback for complete redirect
+      }, 500);
+      
     } catch (err) {
+      console.error('Header - Unexpected error during sign out:', err);
       toast.error('An error occurred while signing out');
+      
+      // Force redirect even on error
+      setTimeout(() => {
+        navigate('/auth', { replace: true });
+      }, 1000);
     }
   };
 
@@ -59,32 +84,32 @@ const Header = () => {
   };
 
   return (
-    <header className="bg-exchange-panel border-b border-exchange-border px-6 py-4 flex items-center justify-between">
+    <header className="bg-gray-900 border-b border-gray-700 px-6 py-4 flex items-center justify-between shadow-xl">
       {/* Logo and Main Navigation */}
       <div className="flex items-center space-x-8">
         <Link to="/" className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-exchange-blue to-exchange-green rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-red-500 rounded-lg flex items-center justify-center shadow-lg">
             <span className="text-white font-bold text-sm">MC</span>
           </div>
-          <span className="text-xl font-bold text-exchange-text-primary">MecCrypto</span>
+          <span className="text-xl font-bold text-white">MecCrypto</span>
         </Link>
         
         <nav className="hidden md:flex items-center space-x-6">
-          <Link to="/exchange" className="text-exchange-text-primary hover:text-exchange-blue transition-colors">Markets</Link>
+          <Link to="/exchange" className="text-white hover:text-red-400 transition-colors font-medium">Markets</Link>
           
           {user ? (
             <>
-              <Link to="/trading" className="text-exchange-text-primary hover:text-exchange-blue transition-colors">Trade</Link>
-              <Link to="/contracts" className="text-exchange-text-secondary hover:text-exchange-blue transition-colors">Contracts</Link>
-              <Link to="/gold-mining" className="text-exchange-text-secondary hover:text-exchange-blue transition-colors">Gold Mining</Link>
-              <Link to="/launchpad" className="text-exchange-text-secondary hover:text-exchange-blue transition-colors">Launchpad</Link>
-              <Link to="/dashboard" className="text-exchange-text-secondary hover:text-exchange-blue transition-colors">Assets</Link>
+              <Link to="/trading" className="text-white hover:text-red-400 transition-colors font-medium">Trade</Link>
+              <Link to="/contracts" className="text-gray-300 hover:text-red-400 transition-colors font-medium">Contracts</Link>
+              <Link to="/gold-mining" className="text-gray-300 hover:text-red-400 transition-colors font-medium">Gold Mining</Link>
+              <Link to="/launchpad" className="text-gray-300 hover:text-red-400 transition-colors font-medium">Launchpad</Link>
+              <Link to="/dashboard" className="text-gray-300 hover:text-red-400 transition-colors font-medium">Assets</Link>
               
               {/* Super Admin Dashboard Link */}
               {userProfile?.role === 'superadmin' && (
                 <button 
                   onClick={handleSuperAdminClick}
-                  className="text-red-400 hover:text-red-300 transition-colors flex items-center space-x-1"
+                  className="text-red-400 hover:text-red-300 transition-colors flex items-center space-x-1 font-medium"
                 >
                   <Shield className="w-4 h-4" />
                   <span>Super Admin</span>
@@ -93,10 +118,10 @@ const Header = () => {
             </>
           ) : (
             <>
-              <span className="text-exchange-text-secondary/50 cursor-not-allowed">Trade</span>
-              <span className="text-exchange-text-secondary/50 cursor-not-allowed">Contracts</span>
-              <span className="text-exchange-text-secondary/50 cursor-not-allowed">Gold Mining</span>
-              <span className="text-exchange-text-secondary/50 cursor-not-allowed">Launchpad</span>
+              <span className="text-gray-600 cursor-not-allowed">Trade</span>
+              <span className="text-gray-600 cursor-not-allowed">Contracts</span>
+              <span className="text-gray-600 cursor-not-allowed">Gold Mining</span>
+              <span className="text-gray-600 cursor-not-allowed">Launchpad</span>
             </>
           )}
         </nav>
@@ -105,7 +130,7 @@ const Header = () => {
       {/* Right Side Controls */}
       <div className="flex items-center space-x-4">
         {/* Language Selector */}
-        <div className="flex items-center space-x-1 text-exchange-text-secondary hover:text-exchange-text-primary cursor-pointer">
+        <div className="flex items-center space-x-1 text-gray-400 hover:text-white cursor-pointer transition-colors">
           <Globe className="w-4 h-4" />
           <span className="text-sm">EN</span>
           <ChevronDown className="w-3 h-3" />
@@ -115,36 +140,36 @@ const Header = () => {
           <>
             {/* Notifications */}
             <div className="relative">
-              <Bell className="w-5 h-5 text-exchange-text-secondary hover:text-exchange-text-primary cursor-pointer" />
-              <div className="absolute -top-1 -right-1 w-2 h-2 bg-exchange-red rounded-full"></div>
+              <Bell className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
+              <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
             </div>
 
             {/* Settings */}
-            <Settings className="w-5 h-5 text-exchange-text-secondary hover:text-exchange-text-primary cursor-pointer" />
+            <Settings className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
 
             {/* User Profile - Updated to handle role-based navigation */}
             <button 
               onClick={handleProfileClick}
-              className="flex items-center space-x-2 bg-exchange-accent px-3 py-2 rounded-lg cursor-pointer hover:bg-exchange-accent/80"
+              className="flex items-center space-x-2 bg-gray-800 border border-gray-600 px-3 py-2 rounded-lg cursor-pointer hover:bg-gray-700 transition-all duration-200"
             >
               {userProfile?.role === 'superadmin' ? (
                 <Shield className="w-4 h-4 text-red-400" />
               ) : (
-                <User className="w-4 h-4 text-exchange-text-primary" />
+                <User className="w-4 h-4 text-white" />
               )}
-              <span className="text-sm text-exchange-text-primary">
+              <span className="text-sm text-white font-medium">
                 {userProfile?.role === 'superadmin' ? 'Super Admin' : 'Profile'}
               </span>
-              <ChevronDown className="w-3 h-3 text-exchange-text-secondary" />
+              <ChevronDown className="w-3 h-3 text-gray-400" />
             </button>
 
             {/* Sign Out Button */}
             <button
               onClick={handleSignOut}
-              className="flex items-center space-x-2 px-3 py-2 text-exchange-text-secondary hover:text-exchange-red transition-colors"
+              className="flex items-center space-x-2 px-3 py-2 text-gray-400 hover:text-red-400 transition-colors border border-gray-600 rounded-lg hover:border-red-500"
             >
               <LogOut className="w-4 h-4" />
-              <span className="text-sm">Sign Out</span>
+              <span className="text-sm font-medium">Sign Out</span>
             </button>
           </>
         ) : (
@@ -152,12 +177,12 @@ const Header = () => {
             {/* Login/Register Buttons for unauthenticated users */}
             <div className="flex items-center space-x-2">
               <Link to="/auth">
-                <button className="px-4 py-2 text-exchange-text-primary border border-exchange-border rounded-md hover:bg-exchange-accent transition-colors">
+                <button className="px-4 py-2 text-white border border-gray-600 rounded-md hover:bg-gray-800 transition-colors">
                   Log In
                 </button>
               </Link>
               <Link to="/auth">
-                <button className="px-4 py-2 bg-exchange-blue text-white rounded-md hover:bg-exchange-blue/90 transition-colors">
+                <button className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
                   Sign Up
                 </button>
               </Link>
