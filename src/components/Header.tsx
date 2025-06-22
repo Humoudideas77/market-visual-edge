@@ -36,52 +36,36 @@ const Header = () => {
       // Show loading toast
       const loadingToast = toast.loading('Signing out...');
       
-      // First, try to get the current session
-      const { data: sessionData } = await supabase.auth.getSession();
+      // Always use global scope sign out to clear everything
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
       
-      if (sessionData.session) {
-        // If session exists, sign out normally
-        const { error } = await supabase.auth.signOut();
-        
-        if (error) {
-          console.error('Header - Sign out error:', error);
-          toast.dismiss(loadingToast);
-          toast.error('Error signing out: ' + error.message);
-          return;
-        }
-      } else {
-        // If no session exists, clear any remaining auth data
-        console.log('Header - No active session found, clearing auth data');
+      if (error) {
+        console.error('Header - Sign out error:', error);
+        // Even if there's an error, still clear local state
         await supabase.auth.signOut({ scope: 'local' });
       }
       
-      console.log('Header - Sign out successful, redirecting...');
+      console.log('Header - Sign out completed');
       
-      // Clear any additional local storage items
+      // Clear additional local storage items
       localStorage.removeItem('supabase.auth.token');
-      localStorage.clear();
       
       // Dismiss loading toast and show success
       toast.dismiss(loadingToast);
       toast.success('Successfully signed out');
       
-      // Force redirect to auth page
+      // Navigate to auth page
       navigate('/auth', { replace: true });
-      
-      // Additional cleanup after navigation
-      setTimeout(() => {
-        window.location.href = '/auth';
-      }, 100);
       
     } catch (err) {
       console.error('Header - Unexpected error during sign out:', err);
-      toast.error('Signed out successfully');
       
-      // Force redirect even on error
+      // Force clear everything in case of error
+      await supabase.auth.signOut({ scope: 'local' });
+      localStorage.clear();
+      
+      toast.success('Signed out successfully');
       navigate('/auth', { replace: true });
-      setTimeout(() => {
-        window.location.href = '/auth';
-      }, 100);
     }
   };
 
