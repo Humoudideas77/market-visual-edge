@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -265,7 +264,7 @@ const AuthPage = () => {
               <div className="w-12 h-12 bg-gradient-to-br from-exchange-blue to-exchange-green rounded-xl flex items-center justify-center">
                 <TrendingUp className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-4xl font-bold text-exchange-text-primary">MEXC Pro</h1>
+              <h1 className="text-4xl font-bold text-exchange-text-primary">MecCrypto</h1>
             </div>
             <p className="text-xl text-exchange-text-secondary">
               The world's most secure cryptocurrency exchange platform

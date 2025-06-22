@@ -1,53 +1,56 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { Shield, CheckCircle, Clock, XCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { Shield, Upload, CheckCircle, Clock, XCircle } from 'lucide-react';
+import KYCUploadForm from './KYCUploadForm';
 
 const KYCSection = () => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [kycData, setKycData] = useState({
-    full_name: '',
-    date_of_birth: '',
-    nationality: '',
-    address: ''
-  });
+  const [kycStatus, setKycStatus] = useState<string>('pending');
+  const [hasSubmission, setHasSubmission] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const handleSubmitKYC = async () => {
-    if (!user) return;
+  useEffect(() => {
+    if (user) {
+      checkKYCStatus();
+    }
+  }, [user]);
 
-    setLoading(true);
+  const checkKYCStatus = async () => {
     try {
-      const { error } = await supabase
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('kyc_status')
+        .eq('id', user?.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      const { data: submissionData, error: submissionError } = await supabase
         .from('kyc_submissions')
-        .insert({
-          user_id: user.id,
-          full_name: kycData.full_name,
-          date_of_birth: kycData.date_of_birth,
-          nationality: kycData.nationality,
-          address: kycData.address,
-          status: 'pending'
-        });
+        .select('id, status')
+        .eq('user_id', user?.id)
+        .single();
 
-      if (error) throw error;
+      if (submissionError && submissionError.code !== 'PGRST116') {
+        throw submissionError;
+      }
 
-      toast.success('KYC submission successful! We will review your information within 24-48 hours.');
-      setKycData({ full_name: '', date_of_birth: '', nationality: '', address: '' });
+      setKycStatus(submissionData?.status || profileData?.kyc_status || 'pending');
+      setHasSubmission(!!submissionData);
     } catch (error) {
-      toast.error('Failed to submit KYC information. Please try again.');
+      console.error('Error checking KYC status:', error);
+      toast.error('Failed to check KYC status');
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusIcon = (status?: string) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'approved':
         return <CheckCircle className="w-5 h-5 text-green-600" />;
@@ -60,94 +63,71 @@ const KYCSection = () => {
     }
   };
 
+  const getStatusMessage = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return 'Your KYC verification has been approved!';
+      case 'rejected':
+        return 'Your KYC submission was rejected. Please submit new documents.';
+      case 'pending':
+        return hasSubmission ? 'Your KYC documents are under review' : 'Complete your identity verification';
+      default:
+        return 'Complete your identity verification';
+    }
+  };
+
+  if (loading) {
+    return (
+      <Card className="bg-exchange-card-bg border-exchange-border">
+        <CardContent className="p-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-exchange-border rounded w-3/4"></div>
+            <div className="h-4 bg-exchange-border rounded w-1/2"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card className="bg-white border border-gray-200 shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-gray-900 flex items-center">
-          <Shield className="w-5 h-5 mr-2 text-blue-600" />
-          KYC Verification
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-center mb-2">
-              {getStatusIcon('pending')}
-              <span className="ml-2 text-sm font-medium text-gray-900">
-                Complete your identity verification
-              </span>
-            </div>
-            <p className="text-sm text-gray-600">
-              Verify your identity to unlock higher withdrawal limits and enhanced security features.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label className="text-sm text-gray-700">Full Name</Label>
-              <Input
-                value={kycData.full_name}
-                onChange={(e) => setKycData(prev => ({ ...prev, full_name: e.target.value }))}
-                className="mt-1"
-                placeholder="Enter your full legal name"
-              />
-            </div>
-            <div>
-              <Label className="text-sm text-gray-700">Date of Birth</Label>
-              <Input
-                type="date"
-                value={kycData.date_of_birth}
-                onChange={(e) => setKycData(prev => ({ ...prev, date_of_birth: e.target.value }))}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label className="text-sm text-gray-700">Nationality</Label>
-              <Input
-                value={kycData.nationality}
-                onChange={(e) => setKycData(prev => ({ ...prev, nationality: e.target.value }))}
-                className="mt-1"
-                placeholder="Your nationality"
-              />
-            </div>
-            <div>
-              <Label className="text-sm text-gray-700">Address</Label>
-              <Textarea
-                value={kycData.address}
-                onChange={(e) => setKycData(prev => ({ ...prev, address: e.target.value }))}
-                className="mt-1 resize-none"
-                placeholder="Your complete address"
-                rows={3}
-              />
-            </div>
-          </div>
-
-          <div className="border-t pt-4">
-            <h4 className="text-sm font-medium text-gray-900 mb-3">Document Upload</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600">Upload ID Document</p>
-                <p className="text-xs text-gray-500">Passport, Driver's License, or National ID</p>
-              </div>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600">Upload Proof of Address</p>
-                <p className="text-xs text-gray-500">Utility bill or bank statement</p>
+    <div className="space-y-6">
+      <Card className="bg-exchange-card-bg border-exchange-border">
+        <CardHeader>
+          <CardTitle className="text-exchange-text-primary flex items-center gap-2">
+            <Shield className="w-5 h-5 text-exchange-blue" />
+            KYC Verification Status
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between p-4 bg-exchange-bg rounded-lg">
+            <div className="flex items-center gap-3">
+              {getStatusIcon(kycStatus)}
+              <div>
+                <p className="font-medium text-exchange-text-primary">
+                  {getStatusMessage(kycStatus)}
+                </p>
+                <p className="text-sm text-exchange-text-secondary">
+                  {kycStatus === 'approved' 
+                    ? 'Enhanced trading limits unlocked'
+                    : 'Verify your identity to unlock higher withdrawal limits'
+                  }
+                </p>
               </div>
             </div>
+            
+            {kycStatus === 'approved' && (
+              <div className="px-3 py-1 bg-green-500/20 text-green-400 text-sm rounded-full">
+                Verified
+              </div>
+            )}
           </div>
+        </CardContent>
+      </Card>
 
-          <Button
-            onClick={handleSubmitKYC}
-            disabled={loading || !kycData.full_name || !kycData.date_of_birth}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            {loading ? 'Submitting...' : 'Submit KYC Information'}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      {(kycStatus === 'pending' && !hasSubmission) || kycStatus === 'rejected' ? (
+        <KYCUploadForm />
+      ) : null}
+    </div>
   );
 };
 
