@@ -13,6 +13,8 @@ interface TradingInterfaceProps {
   initialPair?: string;
 }
 
+type ActiveViewType = 'standard' | 'kindle';
+
 const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) => {
   const { pair: urlPair } = useParams();
   const [selectedPair, setSelectedPair] = useState(() => {
@@ -25,7 +27,7 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
 
   const { tradingPair, buyOrders, sellOrders, recentTrades, userTrades } = useTradingEngine(selectedPair);
   const [activeTab, setActiveTab] = useState<'market' | 'orders'>('market');
-  const [activeView, setActiveView] = useState<'standard' | 'kindle'>('standard');
+  const [activeView, setActiveView] = useState<ActiveViewType>('standard');
 
   // Update selected pair when URL changes
   useEffect(() => {
