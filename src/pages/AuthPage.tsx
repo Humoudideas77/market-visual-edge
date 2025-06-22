@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -78,7 +79,7 @@ const FloatingLabelInput = ({
         {label}
       </label>
       
-      {showPasswordToggle && (
+      {showPasswordToggle &&` (
         <button
           type="button"
           onClick={onTogglePassword}
@@ -198,16 +199,16 @@ const AuthPage = () => {
             console.error('AuthPage - Error updating to superadmin:', profileError);
           } else {
             console.log('AuthPage - Successfully updated to superadmin');
-            toast.success('Superadmin account created successfully!');
+            toast.success('MecCrypto superadmin account created successfully!');
             navigate('/superadmin-dashboard');
             return;
           }
         }
         
         if (data.user && !data.session) {
-          toast.success('Account created! Please check your email for verification, or try signing in if email confirmation is disabled.');
+          toast.success('MecCrypto account created! Please check your email for verification, or try signing in if email confirmation is disabled.');
         } else {
-          toast.success('Account created successfully!');
+          toast.success('MecCrypto account created successfully!');
         }
       }
     } catch (err) {
@@ -243,7 +244,7 @@ const AuthPage = () => {
         }
       } else {
         console.log('AuthPage - Sign in successful:', data);
-        toast.success('Signed in successfully!');
+        toast.success('Signed in to MecCrypto successfully!');
       }
     } catch (err) {
       console.error('AuthPage - Unexpected sign in error:', err);
@@ -295,7 +296,7 @@ const AuthPage = () => {
           <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4 text-center">
             <div className="flex items-center justify-center space-x-2 mb-2">
               <Shield className="w-5 h-5 text-red-400" />
-              <span className="text-red-400 font-semibold">Create Superadmin Account</span>
+              <span className="text-red-400 font-semibold">Create MecCrypto Superadmin Account</span>
             </div>
             <p className="text-sm text-red-300">
               To create a superadmin account, sign up with:<br />
@@ -310,7 +311,7 @@ const AuthPage = () => {
         <div className="flex justify-center order-1 lg:order-2">
           <Card className="w-full max-w-md bg-exchange-panel border-2 border-exchange-border shadow-2xl">
             <CardHeader className="text-center pb-6">
-              <CardTitle className="text-3xl text-exchange-text-primary font-bold">Welcome Back</CardTitle>
+              <CardTitle className="text-3xl text-exchange-text-primary font-bold">Welcome to MecCrypto</CardTitle>
               <CardDescription className="text-exchange-text-secondary text-lg">
                 Sign in to your account or create a new one
               </CardDescription>
@@ -369,7 +370,7 @@ const AuthPage = () => {
                       className="w-full bg-exchange-blue hover:bg-exchange-blue/90 text-white py-3 text-lg font-medium"
                       disabled={loading}
                     >
-                      {loading ? 'Signing In...' : 'Sign In'}
+                      {loading ? 'Signing In...' : 'Sign In to MecCrypto'}
                     </Button>
                   </form>
                 </TabsContent>
@@ -428,7 +429,7 @@ const AuthPage = () => {
                       className="w-full bg-exchange-green hover:bg-exchange-green/90 text-white py-3 text-lg font-medium"
                       disabled={loading}
                     >
-                      {loading ? 'Creating Account...' : 'Create Account'}
+                      {loading ? 'Creating Account...' : 'Create MecCrypto Account'}
                     </Button>
                   </form>
                 </TabsContent>

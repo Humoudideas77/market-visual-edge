@@ -15,6 +15,7 @@ import KYCManagementSection from '@/components/admin/KYCManagementSection';
 import AdminStatsSection from '@/components/admin/AdminStatsSection';
 import SuperAdminActivityLogs from '@/components/admin/SuperAdminActivityLogs';
 import SuperAdminPlatformSettings from '@/components/admin/SuperAdminPlatformSettings';
+import BackButton from '@/components/BackButton';
 
 const SuperAdminPage = () => {
   const { user, loading: authLoading } = useAuth();
@@ -108,24 +109,27 @@ const SuperAdminPage = () => {
     <div className="min-h-screen bg-exchange-bg">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-red-600 to-purple-700 rounded-xl flex items-center justify-center">
-              <Shield className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold text-exchange-text-primary">
-                Super Admin Dashboard
-              </h1>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge variant="destructive" className="bg-red-600">
-                  <Shield className="w-3 h-3 mr-1" />
-                  Superadmin Access
-                </Badge>
-                <span className="text-exchange-text-secondary text-sm">
-                  Welcome, {userProfile.email}
-                </span>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-red-600 to-purple-700 rounded-xl flex items-center justify-center">
+                <Shield className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold text-exchange-text-primary">
+                  MecCrypto Super Admin
+                </h1>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="destructive" className="bg-red-600">
+                    <Shield className="w-3 h-3 mr-1" />
+                    Superadmin Access
+                  </Badge>
+                  <span className="text-exchange-text-secondary text-sm">
+                    Welcome, {userProfile.email}
+                  </span>
+                </div>
               </div>
             </div>
+            <BackButton fallbackPath="/dashboard" label="← Go Back" />
           </div>
           <p className="text-exchange-text-secondary text-lg">
             Complete platform administration and user management dashboard

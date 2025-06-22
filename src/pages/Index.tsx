@@ -93,7 +93,7 @@ const Index = () => {
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 <div className="w-6 h-6 bg-gradient-to-br from-exchange-blue to-exchange-green rounded"></div>
-                <span className="text-lg font-bold text-exchange-text-primary">MEXC Pro</span>
+                <span className="text-lg font-bold text-exchange-text-primary">MecCrypto</span>
               </div>
               <p className="text-exchange-text-secondary text-sm">
                 The world's leading cryptocurrency exchange platform with advanced trading features.
@@ -159,7 +159,7 @@ const Index = () => {
           
           <div className="border-t border-exchange-border mt-8 pt-6 flex flex-col md:flex-row justify-between items-center">
             <div className="text-exchange-text-secondary text-sm">
-              © 2024 MEXC Pro. All rights reserved.
+              © 2024 MecCrypto. All rights reserved.
             </div>
             <div className="flex items-center space-x-4 mt-4 md:mt-0">
               <div className="flex items-center space-x-2 text-xs text-exchange-text-secondary">

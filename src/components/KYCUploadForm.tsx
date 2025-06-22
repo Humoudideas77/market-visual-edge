@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Upload, FileText, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import BackButton from './BackButton';
 
 const KYCUploadForm = () => {
   const { user } = useAuth();
@@ -85,7 +85,7 @@ const KYCUploadForm = () => {
 
       if (error) throw error;
 
-      toast.success('KYC submission successful! We will review your documents within 24-48 hours.');
+      toast.success('KYC submission successful! MecCrypto will review your documents within 24-48 hours.');
       setKycData({
         full_name: '',
         date_of_birth: '',
@@ -111,10 +111,13 @@ const KYCUploadForm = () => {
   return (
     <Card className="bg-exchange-card-bg border-exchange-border">
       <CardHeader>
-        <CardTitle className="text-exchange-text-primary flex items-center gap-2">
-          <FileText className="w-5 h-5" />
-          KYC Document Upload
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-exchange-text-primary flex items-center gap-2">
+            <FileText className="w-5 h-5" />
+            MecCrypto KYC Document Upload
+          </CardTitle>
+          <BackButton fallbackPath="/dashboard" label="← Back" />
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
@@ -123,7 +126,7 @@ const KYCUploadForm = () => {
             <span className="text-sm font-medium text-blue-400">Required for Enhanced Security</span>
           </div>
           <p className="text-sm text-exchange-text-secondary">
-            Complete KYC verification to unlock higher withdrawal limits and enhanced trading features.
+            Complete KYC verification to unlock higher withdrawal limits and enhanced trading features on MecCrypto.
           </p>
         </div>
 

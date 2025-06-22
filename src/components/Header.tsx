@@ -64,9 +64,9 @@ const Header = () => {
       <div className="flex items-center space-x-8">
         <Link to="/" className="flex items-center space-x-2">
           <div className="w-8 h-8 bg-gradient-to-br from-exchange-blue to-exchange-green rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">MX</span>
+            <span className="text-white font-bold text-sm">MC</span>
           </div>
-          <span className="text-xl font-bold text-exchange-text-primary">MEXC Pro</span>
+          <span className="text-xl font-bold text-exchange-text-primary">MecCrypto</span>
         </Link>
         
         <nav className="hidden md:flex items-center space-x-6">
