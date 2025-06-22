@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
@@ -167,7 +166,6 @@ const SuperAdminPage = () => {
               <UserCheck className="w-4 h-4 mr-2" />
               Activity
             </TabsTrigger>
-            <TabsTrig}
             <TabsTrigger value="settings" className="data-[state=active]:bg-exchange-accent">
               <Settings className="w-4 h-4 mr-2" />
               Settings
