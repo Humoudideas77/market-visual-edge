@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { MessageCircle, X, Send, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -125,38 +124,46 @@ const MecBot = () => {
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase
-        .from('customer_messages')
-        .insert({
-          user_id: user?.id || null,
-          subject: `MecBot Support Request from ${contactForm.firstName} ${contactForm.lastName}`,
-          message: `Contact via MecBot:\n\nName: ${contactForm.firstName} ${contactForm.lastName}\nEmail: ${contactForm.email}\n\nMessage:\n${contactForm.message}`,
-          status: 'open'
-        });
+      console.log('Submitting MecBot support request:', contactForm);
+
+      // Call the same edge function used by the main contact form
+      const { data, error } = await supabase.functions.invoke('send-contact-email', {
+        body: {
+          firstName: contactForm.firstName,
+          lastName: contactForm.lastName,
+          email: contactForm.email,
+          message: `MecBot Support Request:\n\n${contactForm.message}`,
+          userId: user?.id
+        }
+      });
 
       if (error) {
-        console.error('Error submitting support request:', error);
+        console.error('Error calling edge function:', error);
         toast.error('Failed to send message. Please try again.');
         return;
       }
 
-      toast.success('Your message has been sent to our support team!');
-      setShowContactForm(false);
-      setContactForm({
-        firstName: '',
-        lastName: '',
-        email: user?.email || '',
-        message: ''
-      });
+      if (data?.success) {
+        toast.success('Your message has been sent to our support team!');
+        setShowContactForm(false);
+        setContactForm({
+          firstName: '',
+          lastName: '',
+          email: user?.email || '',
+          message: ''
+        });
 
-      // Add confirmation message to chat
-      const confirmationMessage: Message = {
-        id: Date.now().toString(),
-        text: "Your message has been sent to our support team! We'll get back to you soon.",
-        isBot: true,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, confirmationMessage]);
+        // Add confirmation message to chat
+        const confirmationMessage: Message = {
+          id: Date.now().toString(),
+          text: "Your message has been sent to our support team! We'll get back to you via email soon.",
+          isBot: true,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, confirmationMessage]);
+      } else {
+        toast.error(data?.error || 'Failed to send message. Please try again.');
+      }
 
     } catch (error) {
       console.error('Error submitting support request:', error);

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
@@ -64,31 +63,41 @@ const ContactForm = () => {
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase
-        .from('customer_messages')
-        .insert({
-          user_id: user?.id || null,
-          subject: `Contact Form Inquiry from ${formData.firstName} ${formData.lastName}`,
-          message: `Name: ${formData.firstName} ${formData.lastName}\nEmail: ${formData.email}\n\nMessage:\n${formData.message}`,
-          status: 'open'
-        });
+      console.log('Submitting contact form:', formData);
+
+      // Call the edge function to send email
+      const { data, error } = await supabase.functions.invoke('send-contact-email', {
+        body: {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          message: formData.message,
+          userId: user?.id
+        }
+      });
 
       if (error) {
-        console.error('Error submitting contact form:', error);
+        console.error('Error calling edge function:', error);
         toast.error('Failed to send message. Please try again.');
         return;
       }
 
-      setIsSubmitted(true);
-      toast.success('Thank you for contacting MecCrypto. We\'ll get back to you shortly.');
-      
-      // Reset form
-      setFormData({
-        firstName: '',
-        lastName: '',
-        email: user?.email || '',
-        message: ''
-      });
+      console.log('Edge function response:', data);
+
+      if (data?.success) {
+        setIsSubmitted(true);
+        toast.success('Thank you for contacting MecCrypto! We\'ll get back to you shortly via email.');
+        
+        // Reset form
+        setFormData({
+          firstName: '',
+          lastName: '',
+          email: user?.email || '',
+          message: ''
+        });
+      } else {
+        toast.error(data?.error || 'Failed to send message. Please try again.');
+      }
 
     } catch (error) {
       console.error('Error submitting contact form:', error);
@@ -108,7 +117,7 @@ const ContactForm = () => {
           Message Sent Successfully!
         </h3>
         <p className="text-exchange-text-secondary mb-6">
-          Thank you for contacting MecCrypto. We'll get back to you shortly.
+          Thank you for contacting MecCrypto. We'll get back to you shortly via email.
         </p>
         <Button
           onClick={() => setIsSubmitted(false)}
