@@ -16,6 +16,7 @@ import AdminStatsSection from '@/components/admin/AdminStatsSection';
 import SuperAdminActivityLogs from '@/components/admin/SuperAdminActivityLogs';
 import SuperAdminPlatformSettings from '@/components/admin/SuperAdminPlatformSettings';
 import BackButton from '@/components/BackButton';
+import MecBot from '@/components/MecBot';
 
 const SuperAdminPage = () => {
   const { user, loading: authLoading } = useAuth();
@@ -166,6 +167,7 @@ const SuperAdminPage = () => {
               <UserCheck className="w-4 h-4 mr-2" />
               Activity
             </TabsTrigger>
+            <TabsTrig}
             <TabsTrigger value="settings" className="data-[state=active]:bg-exchange-accent">
               <Settings className="w-4 h-4 mr-2" />
               Settings
@@ -201,6 +203,9 @@ const SuperAdminPage = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* MecBot Integration for SuperAdmin monitoring */}
+      <MecBot />
     </div>
   );
 };

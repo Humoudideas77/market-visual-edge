@@ -8,6 +8,7 @@ import { WalletProvider } from "@/hooks/useWallet";
 import { MiningProvider } from "@/hooks/useMiningInvestments";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import PublicRoute from "@/components/PublicRoute";
+import MecBot from "@/components/MecBot";
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -39,7 +40,10 @@ const App = () => (
                 } />
                 <Route path="/dashboard" element={
                   <ProtectedRoute>
-                    <DashboardPage />
+                    <>
+                      <DashboardPage />
+                      <MecBot />
+                    </>
                   </ProtectedRoute>
                 } />
                 <Route path="/superadmin-dashboard" element={
@@ -50,23 +54,35 @@ const App = () => (
                 <Route path="/exchange" element={<ExchangePage />} />
                 <Route path="/trading/:pair?" element={
                   <ProtectedRoute>
-                    <TradingPage />
+                    <>
+                      <TradingPage />
+                      <MecBot />
+                    </>
                   </ProtectedRoute>
                 } />
                 <Route path="/my-assets" element={
                   <ProtectedRoute>
-                    <MyAssetsPage />
+                    <>
+                      <MyAssetsPage />
+                      <MecBot />
+                    </>
                   </ProtectedRoute>
                 } />
                 <Route path="/launchpad" element={
                   <ProtectedRoute>
-                    <LaunchpadPage />
+                    <>
+                      <LaunchpadPage />
+                      <MecBot />
+                    </>
                   </ProtectedRoute>
                 } />
                 <Route path="/contracts" element={<ContractsPage />} />
                 <Route path="/gold-mining" element={
                   <ProtectedRoute>
-                    <GoldMiningPage />
+                    <>
+                      <GoldMiningPage />
+                      <MecBot />
+                    </>
                   </ProtectedRoute>
                 } />
                 <Route path="/404" element={<NotFound />} />

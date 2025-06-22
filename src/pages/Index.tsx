@@ -12,6 +12,7 @@ import GoldMiningSection from '../components/GoldMiningSection';
 import TradingInterface from '../components/TradingInterface';
 import MarketsOverview from '../components/MarketsOverview';
 import ContactForm from '../components/ContactForm';
+import MecBot from '../components/MecBot';
 
 const Index = () => {
   const [activeView, setActiveView] = useState<'markets' | 'trading'>('markets');
@@ -192,6 +193,9 @@ const Index = () => {
           </div>
         </div>
       </footer>
+
+      {/* MecBot Integration */}
+      <MecBot />
     </div>
   );
 };
