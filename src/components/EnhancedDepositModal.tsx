@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
@@ -157,24 +156,34 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
     setLoading(true);
 
     try {
-      console.log('Submitting deposit request:', {
-        user_id: user.id,
+      console.log('Current user from auth:', user);
+      
+      // Verify user session is valid
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        console.error('Session error:', sessionError);
+        toast.error('Authentication error. Please login again.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Active session found:', session.user.id);
+
+      const depositData = {
+        user_id: session.user.id, // Use session user ID to ensure it matches auth.uid()
         currency,
         network,
         amount: parseFloat(amount),
-        transaction_screenshot_url: screenshotUrl || null
-      });
+        transaction_screenshot_url: screenshotUrl || null,
+        status: 'pending'
+      };
+
+      console.log('Submitting deposit request:', depositData);
 
       const { data, error } = await supabase
         .from('deposit_requests')
-        .insert({
-          user_id: user.id,
-          currency,
-          network,
-          amount: parseFloat(amount),
-          transaction_screenshot_url: screenshotUrl || null,
-          status: 'pending'
-        })
+        .insert(depositData)
         .select()
         .single();
 
@@ -183,7 +192,7 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
         throw error;
       }
 
-      console.log('Deposit request created:', data);
+      console.log('Deposit request created successfully:', data);
       toast.success('Deposit request submitted successfully! Our team will review and approve it within 24 hours.');
       
       // Reset form
