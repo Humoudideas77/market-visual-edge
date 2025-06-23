@@ -1,6 +1,5 @@
 
 import { Toaster } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
@@ -25,74 +24,72 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <WalletProvider>
-          <MiningProvider>
-            <Toaster />
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/auth" element={
-                  <PublicRoute>
-                    <AuthPage />
-                  </PublicRoute>
-                } />
-                <Route path="/dashboard" element={
-                  <ProtectedRoute>
-                    <>
-                      <DashboardPage />
-                      <MecBot />
-                    </>
-                  </ProtectedRoute>
-                } />
-                <Route path="/superadmin-dashboard" element={
-                  <ProtectedRoute>
-                    <SuperAdminPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/exchange" element={<ExchangePage />} />
-                <Route path="/trading/:pair?" element={
-                  <ProtectedRoute>
-                    <>
-                      <TradingPage />
-                      <MecBot />
-                    </>
-                  </ProtectedRoute>
-                } />
-                <Route path="/my-assets" element={
-                  <ProtectedRoute>
-                    <>
-                      <MyAssetsPage />
-                      <MecBot />
-                    </>
-                  </ProtectedRoute>
-                } />
-                <Route path="/launchpad" element={
-                  <ProtectedRoute>
-                    <>
-                      <LaunchpadPage />
-                      <MecBot />
-                    </>
-                  </ProtectedRoute>
-                } />
-                <Route path="/contracts" element={<ContractsPage />} />
-                <Route path="/gold-mining" element={
-                  <ProtectedRoute>
-                    <>
-                      <GoldMiningPage />
-                      <MecBot />
-                    </>
-                  </ProtectedRoute>
-                } />
-                <Route path="/404" element={<NotFound />} />
-                <Route path="*" element={<Navigate to="/404" replace />} />
-              </Routes>
-            </BrowserRouter>
-          </MiningProvider>
-        </WalletProvider>
-      </AuthProvider>
-    </TooltipProvider>
+    <AuthProvider>
+      <WalletProvider>
+        <MiningProvider>
+          <Toaster />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={
+                <PublicRoute>
+                  <AuthPage />
+                </PublicRoute>
+              } />
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <>
+                    <DashboardPage />
+                    <MecBot />
+                  </>
+                </ProtectedRoute>
+              } />
+              <Route path="/superadmin-dashboard" element={
+                <ProtectedRoute>
+                  <SuperAdminPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/exchange" element={<ExchangePage />} />
+              <Route path="/trading/:pair?" element={
+                <ProtectedRoute>
+                  <>
+                    <TradingPage />
+                    <MecBot />
+                  </>
+                </ProtectedRoute>
+              } />
+              <Route path="/my-assets" element={
+                <ProtectedRoute>
+                  <>
+                    <MyAssetsPage />
+                    <MecBot />
+                  </>
+                </ProtectedRoute>
+              } />
+              <Route path="/launchpad" element={
+                <ProtectedRoute>
+                  <>
+                    <LaunchpadPage />
+                    <MecBot />
+                  </>
+                </ProtectedRoute>
+              } />
+              <Route path="/contracts" element={<ContractsPage />} />
+              <Route path="/gold-mining" element={
+                <ProtectedRoute>
+                  <>
+                    <GoldMiningPage />
+                    <MecBot />
+                  </>
+                </ProtectedRoute>
+              } />
+              <Route path="/404" element={<NotFound />} />
+              <Route path="*" element={<Navigate to="/404" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </MiningProvider>
+      </WalletProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
