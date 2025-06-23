@@ -32,13 +32,13 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log('Processing contact form submission:', { firstName, lastName, email, hasUserId: !!userId });
 
-    // Create Supabase client
+    // Create Supabase client with SERVICE ROLE KEY to bypass RLS
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Store in customer_messages table - now works for both authenticated and anonymous users
+    // Store in customer_messages table - using service role bypasses RLS
     const messageData = {
       user_id: userId || null, // Allow null for anonymous users
       subject: `Contact Form Inquiry from ${firstName} ${lastName}`,
