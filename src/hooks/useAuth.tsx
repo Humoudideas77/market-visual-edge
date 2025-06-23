@@ -35,6 +35,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchUserRole = async (userId: string) => {
     try {
+      console.log('fetchUserRole - Fetching role for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('role')
@@ -42,13 +43,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .single();
 
       if (error) {
-        console.error('Error fetching user role:', error);
+        console.error('fetchUserRole - Error fetching user role:', error);
         setUserRole('user');
       } else {
-        setUserRole(data?.role || 'user');
+        console.log('fetchUserRole - Role data:', data);
+        const role = data?.role || 'user';
+        setUserRole(role);
+        console.log('fetchUserRole - Set role to:', role);
       }
     } catch (error) {
-      console.error('Error fetching user role:', error);
+      console.error('fetchUserRole - Exception:', error);
       setUserRole('user');
     }
   };
@@ -100,7 +104,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     let mounted = true;
 
-    const handleAuthStateChange = (event: string, newSession: Session | null) => {
+    const handleAuthStateChange = async (event: string, newSession: Session | null) => {
       console.log('Auth state changed:', event);
       
       if (!mounted) return;
@@ -111,7 +115,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(newSession);
           setUser(newSession?.user ?? null);
           if (newSession?.user) {
-            fetchUserRole(newSession.user.id);
+            await fetchUserRole(newSession.user.id);
           }
           break;
         case 'SIGNED_OUT':
@@ -126,7 +130,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(newSession);
           setUser(newSession?.user ?? null);
           if (newSession?.user) {
-            fetchUserRole(newSession.user.id);
+            await fetchUserRole(newSession.user.id);
           } else {
             setUserRole(null);
           }

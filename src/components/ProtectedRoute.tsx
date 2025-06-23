@@ -8,14 +8,23 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { user, loading } = useAuth();
+  const { user, userRole, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !user) {
-      navigate('/auth', { replace: true });
+    console.log('ProtectedRoute - Auth state:', { user: user?.email, userRole, loading });
+    
+    if (!loading) {
+      if (!user) {
+        console.log('ProtectedRoute - No user, redirecting to /auth');
+        navigate('/auth', { replace: true });
+      } else if (userRole && userRole !== 'superadmin') {
+        // Non-superadmin users trying to access protected routes should go to their dashboard
+        console.log('ProtectedRoute - Non-superadmin user, redirecting to /dashboard');
+        navigate('/dashboard', { replace: true });
+      }
     }
-  }, [user, loading, navigate]);
+  }, [user, userRole, loading, navigate]);
 
   if (loading) {
     return (
@@ -28,10 +37,13 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
 
-  if (!user) {
+  // Only allow access if user is authenticated and is superadmin
+  if (!user || userRole !== 'superadmin') {
+    console.log('ProtectedRoute - Blocking access:', { user: !!user, userRole });
     return null;
   }
 
+  console.log('ProtectedRoute - Allowing access for superadmin');
   return <>{children}</>;
 };
 

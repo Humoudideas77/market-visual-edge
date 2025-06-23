@@ -2,52 +2,32 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 
 interface UserDashboardRouteProps {
   children: React.ReactNode;
 }
 
 const UserDashboardRoute = ({ children }: UserDashboardRouteProps) => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, userRole, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
-  // Check user role from database
-  const { data: userProfile, isLoading: profileLoading } = useQuery({
-    queryKey: ['user-role-check', user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role, email')
-        .eq('id', user.id)
-        .single();
-      
-      if (error) {
-        console.error('Error fetching user profile:', error);
-        throw error;
-      }
-      
-      return data;
-    },
-    enabled: !!user && !authLoading,
-  });
-
   useEffect(() => {
-    if (!authLoading && !profileLoading) {
+    console.log('UserDashboardRoute - Auth state:', { user: user?.email, userRole, authLoading });
+    
+    if (!authLoading) {
       if (!user) {
         // Not authenticated, redirect to auth page
+        console.log('UserDashboardRoute - No user, redirecting to /auth');
         navigate('/auth', { replace: true });
-      } else if (userProfile?.role === 'superadmin') {
+      } else if (userRole === 'superadmin') {
         // Superadmin trying to access user dashboard, redirect to admin dashboard
+        console.log('UserDashboardRoute - Superadmin detected, redirecting to /superadmin-dashboard');
         navigate('/superadmin-dashboard', { replace: true });
       }
     }
-  }, [user, userProfile, authLoading, profileLoading, navigate]);
+  }, [user, userRole, authLoading, navigate]);
 
-  if (authLoading || profileLoading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-exchange-bg flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -59,10 +39,12 @@ const UserDashboardRoute = ({ children }: UserDashboardRouteProps) => {
   }
 
   // Don't render if user is not authenticated or is superadmin
-  if (!user || userProfile?.role === 'superadmin') {
+  if (!user || userRole === 'superadmin') {
+    console.log('UserDashboardRoute - Blocking access:', { user: !!user, userRole });
     return null;
   }
 
+  console.log('UserDashboardRoute - Allowing access for regular user');
   return <>{children}</>;
 };
 

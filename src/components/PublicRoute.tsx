@@ -12,14 +12,20 @@ const PublicRoute = ({ children }: PublicRouteProps) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && user) {
+    console.log('PublicRoute - Auth state:', { user: user?.email, userRole, loading });
+    
+    if (!loading && user && userRole) {
       // Clear any cached data when redirecting authenticated users
       localStorage.clear();
       
+      console.log('PublicRoute - Redirecting authenticated user with role:', userRole);
+      
       // Redirect based on user role - superadmin goes to admin dashboard only
       if (userRole === 'superadmin') {
+        console.log('PublicRoute - Redirecting superadmin to /superadmin-dashboard');
         navigate('/superadmin-dashboard', { replace: true });
       } else {
+        console.log('PublicRoute - Redirecting regular user to /dashboard');
         navigate('/dashboard', { replace: true });
       }
     }
