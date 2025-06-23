@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
@@ -40,7 +41,7 @@ const SuperAdminPage = () => {
         .from('profiles')
         .select('role, email')
         .eq('id', user.id)
-        .single();
+        .maybeSingle(); // Changed from .single() to .maybeSingle()
       
       if (error) {
         console.error('SuperAdminPage - Error fetching user profile:', error);
@@ -126,9 +127,14 @@ const SuperAdminPage = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  // Redirect if user is not a superadmin
-  if (!userProfile || userProfile.role !== 'superadmin') {
-    console.log('SuperAdminPage - User is not superadmin, role:', userProfile?.role);
+  // Handle case where profile doesn't exist or user is not a superadmin
+  if (!userProfile) {
+    console.log('SuperAdminPage - No profile found for user, redirecting to dashboard');
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  if (userProfile.role !== 'superadmin') {
+    console.log('SuperAdminPage - User is not superadmin, role:', userProfile.role);
     return <Navigate to="/dashboard" replace />;
   }
 
