@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
@@ -6,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Users, CreditCard, FileCheck, Activity, DollarSign, UserCheck } from 'lucide-react';
+import { Users, CreditCard, FileCheck, Activity, DollarSign, UserCheck, MessageSquare } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import DepositApprovalSection from '@/components/admin/DepositApprovalSection';
@@ -14,6 +13,7 @@ import WithdrawalApprovalSection from '@/components/admin/WithdrawalApprovalSect
 import UserManagementSection from '@/components/admin/UserManagementSection';
 import KYCManagementSection from '@/components/admin/KYCManagementSection';
 import AdminStatsSection from '@/components/admin/AdminStatsSection';
+import ContactMessagesSection from '@/components/admin/ContactMessagesSection';
 
 const AdminDashboardPage = () => {
   const { user } = useAuth();
@@ -61,10 +61,14 @@ const AdminDashboardPage = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 bg-exchange-card-bg border border-exchange-border">
+          <TabsList className="grid w-full grid-cols-6 bg-exchange-card-bg border border-exchange-border">
             <TabsTrigger value="overview" className="data-[state=active]:bg-exchange-accent">
               <Activity className="w-4 h-4 mr-2" />
               Overview
+            </TabsTrigger>
+            <TabsTrigger value="messages" className="data-[state=active]:bg-exchange-accent">
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Messages
             </TabsTrigger>
             <TabsTrigger value="deposits" className="data-[state=active]:bg-exchange-accent">
               <DollarSign className="w-4 h-4 mr-2" />
@@ -86,6 +90,10 @@ const AdminDashboardPage = () => {
 
           <TabsContent value="overview">
             <AdminStatsSection />
+          </TabsContent>
+
+          <TabsContent value="messages">
+            <ContactMessagesSection />
           </TabsContent>
 
           <TabsContent value="deposits">

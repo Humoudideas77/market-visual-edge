@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
@@ -18,6 +17,7 @@ import SuperAdminActivityLogs from '@/components/admin/SuperAdminActivityLogs';
 import SuperAdminPlatformSettings from '@/components/admin/SuperAdminPlatformSettings';
 import BackButton from '@/components/BackButton';
 import MecBot from '@/components/MecBot';
+import ContactMessagesSection from '@/components/admin/ContactMessagesSection';
 import { toast } from 'sonner';
 
 const SuperAdminPage = () => {
@@ -188,13 +188,20 @@ const SuperAdminPage = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-8">
-          <TabsList className="grid w-full grid-cols-7 bg-gray-900 border-2 border-gray-700 shadow-2xl rounded-xl p-2">
+          <TabsList className="grid w-full grid-cols-8 bg-gray-900 border-2 border-gray-700 shadow-2xl rounded-xl p-2">
             <TabsTrigger 
               value="overview" 
               className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive"
             >
               <Activity className="w-4 h-4 mr-2" />
               Overview
+            </TabsTrigger>
+            <TabsTrigger 
+              value="messages" 
+              className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive"
+            >
+              <UserCheck className="w-4 h-4 mr-2" />
+              Messages
             </TabsTrigger>
             <TabsTrigger 
               value="users" 
@@ -242,6 +249,10 @@ const SuperAdminPage = () => {
 
           <TabsContent value="overview">
             <AdminStatsSection />
+          </TabsContent>
+
+          <TabsContent value="messages">
+            <ContactMessagesSection />
           </TabsContent>
 
           <TabsContent value="users">
