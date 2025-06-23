@@ -565,12 +565,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_role: {
+        Args: { user_uuid: string }
+        Returns: string
+      }
       is_admin: {
         Args: { user_id: string }
         Returns: boolean
       }
+      is_admin_user: {
+        Args: { user_uuid: string }
+        Returns: boolean
+      }
       is_superadmin: {
         Args: { user_id: string }
+        Returns: boolean
+      }
+      is_superadmin_user: {
+        Args: { user_uuid: string }
         Returns: boolean
       }
       update_wallet_balance: {
