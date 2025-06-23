@@ -62,20 +62,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(null);
       setUserRole(null);
       
-      // Clear localStorage
+      // Clear all browser storage
       localStorage.clear();
+      sessionStorage.clear();
+      
+      // Clear any cached IndexedDB data if present
+      if ('indexedDB' in window) {
+        try {
+          // Clear Supabase's internal storage
+          const databases = await indexedDB.databases();
+          for (const db of databases) {
+            if (db.name?.includes('supabase')) {
+              indexedDB.deleteDatabase(db.name);
+            }
+          }
+        } catch (e) {
+          console.log('IndexedDB cleanup skipped:', e);
+        }
+      }
       
       // Sign out from Supabase
       await supabase.auth.signOut({ scope: 'global' });
       
       console.log('Sign out completed successfully');
       
-      // Force reload to clear any cached state
+      // Force reload to clear any cached state and redirect to auth
       window.location.href = '/auth';
     } catch (error) {
       console.error('Sign out error:', error);
       // Even if there's an error, clear everything and redirect
       localStorage.clear();
+      sessionStorage.clear();
       window.location.href = '/auth';
     }
   };
@@ -101,7 +118,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(null);
           setUser(null);
           setUserRole(null);
+          // Clear storage on sign out
           localStorage.clear();
+          sessionStorage.clear();
           break;
         default:
           setSession(newSession);

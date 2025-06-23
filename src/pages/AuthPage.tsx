@@ -134,6 +134,7 @@ const AuthPage = () => {
     setError('');
 
     try {
+      // Sign up the user with email confirmation
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -152,9 +153,13 @@ const AuthPage = () => {
         } else {
           setError(error.message);
         }
-      } else {
-        // Handle superadmin creation
-        if (email === 'sabilkhattak77@gmail.com' && data.user && data.session) {
+        return;
+      }
+
+      // Handle successful signup
+      if (data.user) {
+        // Check if this is the special superadmin email
+        if (email === 'sabilkhattak77@gmail.com' && data.session) {
           const { error: profileError } = await supabase
             .from('profiles')
             .update({ role: 'superadmin' })
@@ -166,19 +171,24 @@ const AuthPage = () => {
             return;
           }
         }
-        
-        if (data.user && !data.session) {
-          toast.success('MecCrypto account created! Please check your email for verification.');
-          setActiveTab('signin');
+
+        // Clear the signup form
+        setEmail('');
+        setPassword('');
+        setFirstName('');
+        setLastName('');
+
+        // Show success message and redirect to login
+        if (!data.session) {
+          // Email confirmation required
+          toast.success('Your MecCrypto account has been created successfully! Please check your email for verification, then sign in below.');
         } else {
-          toast.success('MecCrypto account created successfully! Please sign in to continue.');
-          // Clear form and switch to sign in tab
-          setEmail('');
-          setPassword('');
-          setFirstName('');
-          setLastName('');
-          setActiveTab('signin');
+          // Auto-confirmed account
+          toast.success('Your MecCrypto account has been created successfully! Please sign in to continue.');
         }
+
+        // Switch to signin tab
+        setActiveTab('signin');
       }
     } catch (err) {
       console.error('Sign up error:', err);
@@ -202,11 +212,29 @@ const AuthPage = () => {
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
           setError('Invalid email or password. Please check your credentials.');
+        } else if (error.message.includes('Email not confirmed')) {
+          setError('Please check your email and click the verification link before signing in.');
         } else {
           setError(error.message);
         }
-      } else {
-        toast.success('Signed in to MecCrypto successfully!');
+      } else if (data.user) {
+        // Clear any cached data
+        localStorage.clear();
+        
+        toast.success('Welcome to MecCrypto! Signed in successfully.');
+        
+        // Check user role and redirect appropriately
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single();
+        
+        if (profile?.role === 'superadmin') {
+          navigate('/superadmin-dashboard');
+        } else {
+          navigate('/dashboard');
+        }
       }
     } catch (err) {
       console.error('Sign in error:', err);
