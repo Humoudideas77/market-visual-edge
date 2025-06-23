@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -56,6 +55,24 @@ const DepositApprovalSection = () => {
 
       if (error) throw error;
 
+      // If approved, update wallet balance automatically
+      if (status === 'approved') {
+        const deposit = deposits?.find(d => d.id === id);
+        if (deposit) {
+          const { error: walletError } = await supabase.rpc('update_wallet_balance', {
+            p_user_id: deposit.user_id,
+            p_currency: deposit.currency,
+            p_amount: deposit.amount,
+            p_operation: 'add'
+          });
+          
+          if (walletError) {
+            console.error('Error updating wallet balance:', walletError);
+            throw walletError;
+          }
+        }
+      }
+
       // Log admin activity
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -74,7 +91,7 @@ const DepositApprovalSection = () => {
       if (variables.status === 'approved') {
         toast({ 
           title: 'Deposit approved successfully', 
-          description: 'Funds will be credited to user wallet immediately' 
+          description: 'Funds have been credited to user wallet immediately' 
         });
       } else {
         toast({ title: 'Deposit request updated successfully' });
@@ -83,7 +100,8 @@ const DepositApprovalSection = () => {
       setSelectedDeposit(null);
       setAdminNotes('');
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('Deposit approval error:', error);
       toast({ title: 'Failed to update deposit request', variant: 'destructive' });
     },
   });
@@ -243,7 +261,6 @@ const DepositApprovalSection = () => {
                               </div>
                             </div>
 
-                            {/* Screenshot Preview */}
                             {deposit.transaction_screenshot_url && (
                               <div>
                                 <label className="text-sm font-medium text-exchange-text-secondary mb-2 block">

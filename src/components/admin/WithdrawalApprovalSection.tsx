@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -56,6 +55,24 @@ const WithdrawalApprovalSection = () => {
 
       if (error) throw error;
 
+      // If approved, deduct from wallet balance automatically
+      if (status === 'approved') {
+        const withdrawal = withdrawals?.find(w => w.id === id);
+        if (withdrawal) {
+          const { error: walletError } = await supabase.rpc('update_wallet_balance', {
+            p_user_id: withdrawal.user_id,
+            p_currency: withdrawal.currency,
+            p_amount: withdrawal.amount,
+            p_operation: 'subtract'
+          });
+          
+          if (walletError) {
+            console.error('Error updating wallet balance:', walletError);
+            throw walletError;
+          }
+        }
+      }
+
       // Log admin activity
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -68,13 +85,23 @@ const WithdrawalApprovalSection = () => {
         });
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['admin-withdrawals'] });
-      toast({ title: 'Withdrawal request updated successfully' });
+      
+      if (variables.status === 'approved') {
+        toast({ 
+          title: 'Withdrawal approved successfully',
+          description: 'Funds have been deducted from user wallet'
+        });
+      } else {
+        toast({ title: 'Withdrawal request updated successfully' });
+      }
+      
       setSelectedWithdrawal(null);
       setAdminNotes('');
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('Withdrawal approval error:', error);
       toast({ title: 'Failed to update withdrawal request', variant: 'destructive' });
     },
   });

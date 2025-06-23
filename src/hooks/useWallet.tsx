@@ -46,12 +46,12 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Initialize default balances with all supported currencies
+  // Initialize balances from database
   const initializeBalances = async () => {
     if (!user) return;
 
     const defaultBalances: WalletBalance[] = [
-      { currency: 'USDT', available: 10000, locked: 0, total: 10000 },
+      { currency: 'USDT', available: 0, locked: 0, total: 0 },
       { currency: 'BTC', available: 0, locked: 0, total: 0 },
       { currency: 'ETH', available: 0, locked: 0, total: 0 },
       { currency: 'BNB', available: 0, locked: 0, total: 0 },
@@ -66,58 +66,101 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
       { currency: 'AVAX', available: 0, locked: 0, total: 0 },
     ];
     
-    // Check for approved deposits and add them to balances
     try {
-      const { data: approvedDeposits } = await supabase
-        .from('deposit_requests')
-        .select('currency, amount')
-        .eq('user_id', user.id)
-        .eq('status', 'approved');
+      // Fetch wallet balances from database
+      const { data: walletBalances } = await supabase
+        .from('wallet_balances')
+        .select('*')
+        .eq('user_id', user.id);
 
-      if (approvedDeposits) {
-        approvedDeposits.forEach(deposit => {
-          const balanceIndex = defaultBalances.findIndex(b => b.currency === deposit.currency);
-          if (balanceIndex !== -1) {
-            defaultBalances[balanceIndex].available += deposit.amount;
-            defaultBalances[balanceIndex].total += deposit.amount;
-          } else {
-            defaultBalances.push({
-              currency: deposit.currency,
-              available: deposit.amount,
-              locked: 0,
-              total: deposit.amount,
-            });
+      if (walletBalances && walletBalances.length > 0) {
+        // Update default balances with database values
+        const updatedBalances = defaultBalances.map(defaultBalance => {
+          const dbBalance = walletBalances.find(wb => wb.currency === defaultBalance.currency);
+          if (dbBalance) {
+            return {
+              currency: dbBalance.currency,
+              available: Number(dbBalance.available_balance),
+              locked: Number(dbBalance.locked_balance),
+              total: Number(dbBalance.total_balance),
+            };
           }
+          return defaultBalance;
         });
+        setBalances(updatedBalances);
+      } else {
+        // Initialize with USDT starter balance if no records exist
+        const starterBalance = [...defaultBalances];
+        starterBalance[0] = { currency: 'USDT', available: 10000, locked: 0, total: 10000 };
+        
+        // Insert starter balances into database
+        await supabase.from('wallet_balances').insert(
+          starterBalance.map(balance => ({
+            user_id: user.id,
+            currency: balance.currency,
+            available_balance: balance.available,
+            locked_balance: balance.locked,
+            total_balance: balance.total,
+          }))
+        );
+        
+        setBalances(starterBalance);
       }
     } catch (error) {
-      console.error('Error fetching approved deposits:', error);
-    }
-    
-    const savedBalances = localStorage.getItem(`wallet_balances_${user.id}`);
-    if (savedBalances) {
-      const parsedBalances = JSON.parse(savedBalances);
-      // Merge with default balances to ensure all currencies are present
-      const mergedBalances = defaultBalances.map(defaultBalance => {
-        const existingBalance = parsedBalances.find((b: WalletBalance) => b.currency === defaultBalance.currency);
-        return existingBalance || defaultBalance;
-      });
-      setBalances(mergedBalances);
-    } else {
+      console.error('Error initializing balances:', error);
       setBalances(defaultBalances);
-      localStorage.setItem(`wallet_balances_${user.id}`, JSON.stringify(defaultBalances));
-    }
-    
-    const savedTransactions = localStorage.getItem(`wallet_transactions_${user.id}`);
-    if (savedTransactions) {
-      setTransactions(JSON.parse(savedTransactions).map((t: any) => ({
-        ...t,
-        timestamp: new Date(t.timestamp)
-      })));
     }
     
     setLoading(false);
   };
+
+  // Set up real-time subscriptions
+  useEffect(() => {
+    if (!user) return;
+
+    // Subscribe to wallet balance changes
+    const walletChannel = supabase
+      .channel('wallet-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'wallet_balances',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Wallet balance changed:', payload);
+          refreshBalances();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to deposit approvals
+    const depositChannel = supabase
+      .channel('deposit-approvals')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'deposit_requests',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Deposit status changed:', payload);
+          if (payload.new.status === 'approved') {
+            refreshBalances();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(walletChannel);
+      supabase.removeChannel(depositChannel);
+    };
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -125,24 +168,32 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [user]);
 
-  const saveBalances = (newBalances: WalletBalance[]) => {
-    if (user) {
-      setBalances(newBalances);
-      localStorage.setItem(`wallet_balances_${user.id}`, JSON.stringify(newBalances));
-    }
-  };
-
-  const saveTransaction = (transaction: Transaction) => {
-    if (user) {
-      const newTransactions = [transaction, ...transactions].slice(0, 100);
-      setTransactions(newTransactions);
-      localStorage.setItem(`wallet_transactions_${user.id}`, JSON.stringify(newTransactions));
-    }
-  };
-
   const refreshBalances = async () => {
-    if (user) {
-      await initializeBalances();
+    if (!user) return;
+
+    try {
+      const { data: walletBalances } = await supabase
+        .from('wallet_balances')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (walletBalances) {
+        const updatedBalances = balances.map(balance => {
+          const dbBalance = walletBalances.find(wb => wb.currency === balance.currency);
+          if (dbBalance) {
+            return {
+              currency: dbBalance.currency,
+              available: Number(dbBalance.available_balance),
+              locked: Number(dbBalance.locked_balance),
+              total: Number(dbBalance.total_balance),
+            };
+          }
+          return balance;
+        });
+        setBalances(updatedBalances);
+      }
+    } catch (error) {
+      console.error('Error refreshing balances:', error);
     }
   };
 
@@ -162,33 +213,29 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
       // This is for demo/test deposits only - real deposits go through the EnhancedDepositModal
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const newBalances = balances.map(balance => {
-        if (balance.currency === currency) {
-          return {
-            ...balance,
-            available: balance.available + amount,
-            total: balance.total + amount,
-          };
-        }
-        return balance;
+      // Update database
+      await supabase.rpc('update_wallet_balance', {
+        p_user_id: user.id,
+        p_currency: currency,
+        p_amount: amount,
+        p_operation: 'add'
       });
 
-      // Add new currency if it doesn't exist
-      if (!newBalances.find(b => b.currency === currency)) {
-        newBalances.push({
-          currency,
-          available: amount,
-          locked: 0,
-          total: amount,
-        });
-      }
-
-      saveBalances(newBalances);
+      await refreshBalances();
       saveTransaction({ ...transaction, status: 'completed' });
       return true;
     } catch (error) {
+      console.error('Deposit error:', error);
       saveTransaction({ ...transaction, status: 'failed' });
       return false;
+    }
+  };
+
+  const saveTransaction = (transaction: Transaction) => {
+    if (user) {
+      const newTransactions = [transaction, ...transactions].slice(0, 100);
+      setTransactions(newTransactions);
+      localStorage.setItem(`wallet_transactions_${user.id}`, JSON.stringify(newTransactions));
     }
   };
 
@@ -207,26 +254,20 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     try {
-      const newBalances = [...balances];
-      const balanceIndex = newBalances.findIndex(b => b.currency === transactionData.currency);
+      const operation = transactionData.type === 'trade_sell' ? 'subtract' : 'add';
       
-      if (balanceIndex === -1) return false;
+      await supabase.rpc('update_wallet_balance', {
+        p_user_id: user.id,
+        p_currency: transactionData.currency,
+        p_amount: transactionData.amount,
+        p_operation: operation
+      });
 
-      if (transactionData.type === 'trade_sell') {
-        if (newBalances[balanceIndex].available < transactionData.amount) {
-          return false;
-        }
-        newBalances[balanceIndex].available -= transactionData.amount;
-        newBalances[balanceIndex].total -= transactionData.amount;
-      } else if (transactionData.type === 'trade_buy') {
-        newBalances[balanceIndex].available += transactionData.amount;
-        newBalances[balanceIndex].total += transactionData.amount;
-      }
-
-      saveBalances(newBalances);
+      await refreshBalances();
       saveTransaction({ ...transaction, status: 'completed' });
       return true;
     } catch (error) {
+      console.error('Transaction error:', error);
       saveTransaction({ ...transaction, status: 'failed' });
       return false;
     }
