@@ -12,8 +12,6 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log('ProtectedRoute - Auth state:', { user: user?.email, userRole, loading });
-    
     if (!loading) {
       if (!user) {
         console.log('ProtectedRoute - No user, redirecting to /auth');
@@ -43,11 +41,11 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   }
 
   // Only render children if user is authenticated and is superadmin
-  if (!user || userRole !== 'superadmin') {
-    return null;
+  if (user && userRole === 'superadmin') {
+    return <>{children}</>;
   }
 
-  return <>{children}</>;
+  return null;
 };
 
 export default ProtectedRoute;

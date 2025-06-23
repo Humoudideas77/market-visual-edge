@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
@@ -67,7 +66,7 @@ const SuperAdminPage = () => {
 
   // Redirect if user is not a superadmin
   if (userRole !== 'superadmin') {
-    console.log('SuperAdminPage - User is not superadmin, role:', userRole);
+    console.log('SuperAdminPage - User is not superadmin, role:', userRole, 'redirecting to dashboard');
     return <Navigate to="/dashboard" replace />;
   }
 

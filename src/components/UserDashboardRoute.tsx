@@ -8,13 +8,11 @@ interface UserDashboardRouteProps {
 }
 
 const UserDashboardRoute = ({ children }: UserDashboardRouteProps) => {
-  const { user, userRole, loading: authLoading } = useAuth();
+  const { user, userRole, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log('UserDashboardRoute - Auth state:', { user: user?.email, userRole, authLoading });
-    
-    if (!authLoading) {
+    if (!loading) {
       if (!user) {
         console.log('UserDashboardRoute - No user, redirecting to /auth');
         navigate('/auth', { replace: true });
@@ -29,9 +27,9 @@ const UserDashboardRoute = ({ children }: UserDashboardRouteProps) => {
       
       console.log('UserDashboardRoute - Allowing access for regular user');
     }
-  }, [user, userRole, authLoading, navigate]);
+  }, [user, userRole, loading, navigate]);
 
-  if (authLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-exchange-bg flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -43,11 +41,11 @@ const UserDashboardRoute = ({ children }: UserDashboardRouteProps) => {
   }
 
   // Only render children if user is authenticated and not superadmin
-  if (!user || userRole === 'superadmin') {
-    return null;
+  if (user && userRole !== 'superadmin') {
+    return <>{children}</>;
   }
 
-  return <>{children}</>;
+  return null;
 };
 
 export default UserDashboardRoute;

@@ -12,9 +12,7 @@ const PublicRoute = ({ children }: PublicRouteProps) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log('PublicRoute - Auth state:', { user: user?.email, userRole, loading });
-    
-    if (!loading && user && userRole !== null) {
+    if (!loading && user && userRole) {
       console.log('PublicRoute - Redirecting authenticated user with role:', userRole);
       
       if (userRole === 'superadmin') {
@@ -38,8 +36,8 @@ const PublicRoute = ({ children }: PublicRouteProps) => {
     );
   }
 
-  // Only render children if user is not authenticated or role is not yet determined
-  if (!user || userRole === null) {
+  // Only render children if user is not authenticated
+  if (!user) {
     return <>{children}</>;
   }
 
