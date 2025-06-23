@@ -72,6 +72,10 @@ const SuperAdminPage = () => {
     toast.info(`Switched to ${newTab.charAt(0).toUpperCase() + newTab.slice(1)} section`);
   };
 
+  const handleLandingPageRedirect = () => {
+    window.location.href = '/';
+  };
+
   console.log('SuperAdminPage - Render state:', {
     user: user?.email,
     authLoading,
@@ -148,7 +152,7 @@ const SuperAdminPage = () => {
               Refresh
             </Button>
             <Button 
-              onClick={() => window.location.href = '/dashboard'}
+              onClick={handleLandingPageRedirect}
               variant="outline" 
               size="sm"
               className="border-gray-600 text-gray-300 hover:bg-gray-800"
