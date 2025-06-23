@@ -65,6 +65,7 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
     if (!user) return;
 
     try {
+      console.log('Fetching bank cards for user:', user.id);
       const { data, error } = await supabase
         .from('bank_cards')
         .select('*')
@@ -72,8 +73,13 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
         .order('is_default', { ascending: false })
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching bank cards:', error);
+        toast.error('Failed to load bank cards');
+        return;
+      }
       
+      console.log('Bank cards fetched:', data);
       setBankCards(data || []);
       
       // Auto-select default card or first card
@@ -84,7 +90,7 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
         setSelectedBankCard(data[0].id);
       }
     } catch (error) {
-      console.error('Error fetching bank cards:', error);
+      console.error('Unexpected error fetching bank cards:', error);
       toast.error('Failed to load bank cards');
     }
   };
@@ -128,8 +134,16 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
     setLoading(true);
 
     try {
+      console.log('Submitting withdrawal request:', {
+        user_id: user.id,
+        bank_card_id: selectedBankCard,
+        currency,
+        network,
+        amount: withdrawAmount
+      });
+
       // Create withdrawal request
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('withdrawal_requests')
         .insert({
           user_id: user.id,
@@ -138,10 +152,16 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
           network,
           amount: withdrawAmount,
           status: 'pending'
-        });
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
 
+      console.log('Withdrawal request created:', data);
       toast.success('Withdrawal request submitted successfully. Processing time: 1-3 business days.');
       
       // Reset form
@@ -149,7 +169,7 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
       onClose();
     } catch (error: any) {
       console.error('Error submitting withdrawal:', error);
-      toast.error('Failed to submit withdrawal request');
+      toast.error(error.message || 'Failed to submit withdrawal request. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -185,7 +205,7 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
                 <select
                   value={selectedBankCard}
                   onChange={(e) => setSelectedBankCard(e.target.value)}
-                  className="exchange-input w-full"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 >
                   {bankCards.map((card) => (
                     <option key={card.id} value={card.id}>
@@ -195,15 +215,15 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
                   ))}
                 </select>
               ) : (
-                <div className="border border-exchange-border rounded-lg p-4 text-center">
-                  <CreditCard className="w-8 h-8 mx-auto mb-2 text-exchange-text-secondary" />
-                  <p className="text-sm text-exchange-text-secondary mb-2">
+                <div className="border border-gray-200 rounded-lg p-4 text-center">
+                  <CreditCard className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                  <p className="text-sm text-gray-500 mb-2">
                     No bank cards added yet
                   </p>
                   <Button
                     size="sm"
                     onClick={() => setShowBankCardModal(true)}
-                    className="bg-exchange-blue hover:bg-exchange-blue/90"
+                    className="bg-red-600 hover:bg-red-700"
                   >
                     Add Bank Card
                   </Button>
@@ -213,11 +233,11 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
 
             {/* Selected Card Details */}
             {selectedCard && (
-              <div className="bg-exchange-accent/20 rounded-lg p-3">
-                <h4 className="text-sm font-medium text-exchange-text-primary mb-2">
+              <div className="bg-gray-50 rounded-lg p-3">
+                <h4 className="text-sm font-medium text-gray-900 mb-2">
                   Withdrawal Destination
                 </h4>
-                <div className="space-y-1 text-xs text-exchange-text-secondary">
+                <div className="space-y-1 text-xs text-gray-600">
                   <div>Bank: {selectedCard.bank_name}</div>
                   <div>Account: ****{selectedCard.bank_number.slice(-4)}</div>
                   <div>Holder: {selectedCard.payee_name}</div>
@@ -235,7 +255,7 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
                 id="currency"
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
-                className="exchange-input w-full"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
               >
                 {currencies.map((curr) => (
                   <option key={curr} value={curr}>
@@ -255,7 +275,7 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
                   id="network"
                   value={network}
                   onChange={(e) => setNetwork(e.target.value)}
-                  className="exchange-input w-full"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 >
                   {networkOptions[currency].map((net) => (
                     <option key={net} value={net}>
@@ -267,10 +287,10 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
             )}
 
             {/* Available Balance */}
-            <div className="bg-exchange-accent/20 rounded-lg p-3">
+            <div className="bg-blue-50 rounded-lg p-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-exchange-text-secondary">Available Balance:</span>
-                <span className="text-sm font-mono text-exchange-text-primary">
+                <span className="text-sm text-gray-600">Available Balance:</span>
+                <span className="text-sm font-mono text-gray-900">
                   {availableBalance.toFixed(8)} {currency}
                 </span>
               </div>
@@ -297,31 +317,31 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
                 placeholder="Enter amount"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="exchange-input"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 min="50"
                 step="0.01"
               />
-              <p className="text-xs text-exchange-text-secondary mt-1">
+              <p className="text-xs text-gray-500 mt-1">
                 Minimum withdrawal: $50 USD
               </p>
             </div>
 
             {/* Withdrawal Summary */}
             {amount && withdrawAmount >= 50 && (
-              <div className="bg-exchange-accent/20 rounded-lg p-3 space-y-2">
+              <div className="bg-blue-50 rounded-lg p-3 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-exchange-text-secondary">Withdrawal Amount:</span>
-                  <span className="text-exchange-text-primary font-mono">
+                  <span className="text-gray-600">Withdrawal Amount:</span>
+                  <span className="text-gray-900 font-mono">
                     {withdrawAmount.toFixed(8)} {currency}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-exchange-text-secondary">Processing Fee:</span>
-                  <span className="text-exchange-text-primary">Free</span>
+                  <span className="text-gray-600">Processing Fee:</span>
+                  <span className="text-green-600">Free</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-exchange-text-secondary">Processing Time:</span>
-                  <span className="text-exchange-text-primary">1-3 business days</span>
+                  <span className="text-gray-600">Processing Time:</span>
+                  <span className="text-gray-600">1-3 business days</span>
                 </div>
               </div>
             )}
@@ -330,7 +350,7 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
             <Button
               onClick={handleWithdraw}
               disabled={loading || !selectedBankCard || !amount || withdrawAmount < 50 || withdrawAmount > availableBalance}
-              className="w-full bg-exchange-red hover:bg-exchange-red/90"
+              className="w-full bg-red-600 hover:bg-red-700 text-white py-3"
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -341,11 +361,11 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
             </Button>
 
             {/* Important Notice */}
-            <div className="bg-exchange-yellow/10 border border-exchange-yellow/30 rounded-lg p-3">
-              <h4 className="text-sm font-medium text-exchange-text-primary mb-2">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <h4 className="text-sm font-medium text-gray-900 mb-2">
                 Important Notice:
               </h4>
-              <ul className="text-xs text-exchange-text-secondary space-y-1">
+              <ul className="text-xs text-gray-600 space-y-1">
                 <li>• Withdrawals are processed within 1-3 business days</li>
                 <li>• Ensure your bank card details are accurate</li>
                 <li>• International transfers may take longer</li>
