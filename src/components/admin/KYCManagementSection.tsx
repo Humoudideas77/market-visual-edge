@@ -56,6 +56,7 @@ const KYCManagementSection = () => {
       
       console.log('Updating KYC submission:', { id, status, notes });
       
+      // Update KYC submission
       const { error: kycError } = await supabase
         .from('kyc_submissions')
         .update({
@@ -107,7 +108,10 @@ const KYCManagementSection = () => {
       return { status, notes };
     },
     onSuccess: (data) => {
+      // Invalidate multiple queries to ensure UI updates
       queryClient.invalidateQueries({ queryKey: ['admin-kyc'] });
+      queryClient.invalidateQueries({ queryKey: ['kyc-status'] });
+      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
       
       let message = '';
       switch (data.status) {
@@ -190,6 +194,7 @@ const KYCManagementSection = () => {
       toast.error(`No ${title} provided`);
       return;
     }
+    console.log(`Opening document: ${title} - ${url}`);
     window.open(url, '_blank');
   };
 
@@ -261,6 +266,7 @@ const KYCManagementSection = () => {
                         onClick={() => viewDocument(kyc.id_card_url, 'ID Card')}
                         disabled={!kyc.id_card_url}
                         title="ID Card"
+                        className={kyc.id_card_url ? "text-blue-400 hover:text-blue-300" : "text-gray-500"}
                       >
                         <FileImage className="w-4 h-4" />
                       </Button>
@@ -270,6 +276,7 @@ const KYCManagementSection = () => {
                         onClick={() => viewDocument(kyc.passport_url, 'Passport')}
                         disabled={!kyc.passport_url}
                         title="Passport"
+                        className={kyc.passport_url ? "text-blue-400 hover:text-blue-300" : "text-gray-500"}
                       >
                         <FileImage className="w-4 h-4" />
                       </Button>
@@ -279,6 +286,7 @@ const KYCManagementSection = () => {
                         onClick={() => viewDocument(kyc.utility_bill_url, 'Utility Bill')}
                         disabled={!kyc.utility_bill_url}
                         title="Utility Bill"
+                        className={kyc.utility_bill_url ? "text-blue-400 hover:text-blue-300" : "text-gray-500"}
                       >
                         <FileImage className="w-4 h-4" />
                       </Button>
@@ -288,6 +296,7 @@ const KYCManagementSection = () => {
                         onClick={() => viewDocument(kyc.selfie_with_id_url, 'Selfie with ID')}
                         disabled={!kyc.selfie_with_id_url}
                         title="Selfie with ID"
+                        className={kyc.selfie_with_id_url ? "text-blue-400 hover:text-blue-300" : "text-gray-500"}
                       >
                         <FileImage className="w-4 h-4" />
                       </Button>
@@ -295,7 +304,13 @@ const KYCManagementSection = () => {
                   </TableCell>
                   <TableCell>
                     {kyc.status === 'pending' ? (
-                      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                      <Dialog open={isDialogOpen && selectedKYC?.id === kyc.id} onOpenChange={(open) => {
+                        setIsDialogOpen(open);
+                        if (!open) {
+                          setSelectedKYC(null);
+                          setAdminNotes('');
+                        }
+                      }}>
                         <DialogTrigger asChild>
                           <Button
                             variant="outline"
@@ -395,7 +410,7 @@ const KYCManagementSection = () => {
                                 </Button>
                                 <Button
                                   onClick={() => handleReject(selectedKYC)}
-                                  disabled={updateKYCMutation.isPending}
+                                  disabled={updateKYCMutation.isPending || !adminNotes.trim()}
                                   variant="destructive"
                                 >
                                   <X className="w-4 h-4 mr-1" />
@@ -403,7 +418,7 @@ const KYCManagementSection = () => {
                                 </Button>
                                 <Button
                                   onClick={() => handleRequireResubmission(selectedKYC)}
-                                  disabled={updateKYCMutation.isPending}
+                                  disabled={updateKYCMutation.isPending || !adminNotes.trim()}
                                   variant="outline"
                                   className="border-yellow-600 text-yellow-600 hover:bg-yellow-600 hover:text-white"
                                 >
