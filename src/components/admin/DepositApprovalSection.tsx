@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Check, X, Eye, ExternalLink } from 'lucide-react';
+import { Check, X, Eye, ExternalLink, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 
 type DepositRequest = {
@@ -29,10 +30,19 @@ const DepositApprovalSection = () => {
   const [adminNotes, setAdminNotes] = useState('');
   const queryClient = useQueryClient();
 
-  const { data: deposits, isLoading, error } = useQuery({
-    queryKey: ['admin-deposits-v2'], // Updated query key to force refetch
+  const { data: deposits, isLoading, error, refetch } = useQuery({
+    queryKey: ['admin-deposits-v3'], // Updated query key
     queryFn: async () => {
-      console.log('Fetching deposits with updated RLS policies...');
+      console.log('Fetching deposits with full access policies...');
+      
+      // Get current user session to ensure we're authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.error('No active session found');
+        throw new Error('Authentication required');
+      }
+      
+      console.log('Session confirmed, fetching deposits...');
       const { data, error } = await supabase
         .from('deposit_requests')
         .select('*')
@@ -42,14 +52,25 @@ const DepositApprovalSection = () => {
         console.error('Error fetching deposits:', error);
         throw error;
       }
+      
       console.log('Deposits fetched successfully:', data?.length || 0, 'records');
+      console.log('Sample deposit data:', data?.[0]);
       return data as DepositRequest[];
     },
+    refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
+    retry: 3,
+    retryDelay: 1000,
   });
 
   const updateDepositMutation = useMutation({
     mutationFn: async ({ id, status, notes }: { id: string; status: string; notes?: string }) => {
       console.log('Updating deposit:', { id, status, notes });
+      
+      // Verify session before making update
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Authentication required');
+      }
       
       const { error } = await supabase
         .from('deposit_requests')
@@ -85,11 +106,10 @@ const DepositApprovalSection = () => {
       }
 
       // Log admin activity
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
+      if (session.user) {
         console.log('Logging admin activity for deposit update');
         const { error: activityError } = await supabase.from('admin_activities').insert({
-          admin_id: user.id,
+          admin_id: session.user.id,
           action_type: `deposit_${status}`,
           target_table: 'deposit_requests',
           target_record_id: id,
@@ -102,7 +122,8 @@ const DepositApprovalSection = () => {
       }
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-deposits-v2'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-deposits-v3'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
       
       if (variables.status === 'approved') {
         toast({ 
@@ -162,6 +183,12 @@ const DepositApprovalSection = () => {
     }
   };
 
+  const handleRefresh = () => {
+    console.log('Manually refreshing deposits...');
+    refetch();
+    toast({ title: 'Refreshing deposits...', description: 'Latest data will be loaded shortly' });
+  };
+
   if (isLoading) {
     return (
       <Card className="bg-exchange-card-bg border-exchange-border">
@@ -181,8 +208,14 @@ const DepositApprovalSection = () => {
     return (
       <Card className="bg-exchange-card-bg border-exchange-border">
         <CardContent className="p-6">
-          <div className="text-center py-8 text-red-500">
-            Error loading deposits: {error.message}
+          <div className="text-center py-8">
+            <div className="text-red-500 mb-4">
+              Error loading deposits: {error.message}
+            </div>
+            <Button onClick={handleRefresh} variant="outline">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Retry
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -194,14 +227,20 @@ const DepositApprovalSection = () => {
   return (
     <Card className="bg-exchange-card-bg border-exchange-border">
       <CardHeader>
-        <CardTitle className="text-exchange-text-primary">
-          Deposit Approvals
-          {pendingDeposits.length > 0 && (
-            <Badge variant="destructive" className="ml-2">
-              {pendingDeposits.length} Pending
-            </Badge>
-          )}
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-exchange-text-primary">
+            Deposit Approvals
+            {pendingDeposits.length > 0 && (
+              <Badge variant="destructive" className="ml-2">
+                {pendingDeposits.length} Pending
+              </Badge>
+            )}
+          </CardTitle>
+          <Button onClick={handleRefresh} variant="outline" size="sm">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
