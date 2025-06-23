@@ -20,8 +20,11 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
         navigate('/auth', { replace: true });
       } else if (userRole && userRole !== 'superadmin') {
         // Non-superadmin users trying to access protected routes should go to their dashboard
-        console.log('ProtectedRoute - Non-superadmin user, redirecting to /dashboard');
-        navigate('/dashboard', { replace: true });
+        // Only redirect if not already on the dashboard to prevent loops
+        if (window.location.pathname !== '/dashboard') {
+          console.log('ProtectedRoute - Non-superadmin user, redirecting to /dashboard');
+          navigate('/dashboard', { replace: true });
+        }
       }
     }
   }, [user, userRole, loading, navigate]);

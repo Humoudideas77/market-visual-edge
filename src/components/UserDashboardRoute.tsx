@@ -21,8 +21,11 @@ const UserDashboardRoute = ({ children }: UserDashboardRouteProps) => {
         navigate('/auth', { replace: true });
       } else if (userRole === 'superadmin') {
         // Superadmin trying to access user dashboard, redirect to admin dashboard
-        console.log('UserDashboardRoute - Superadmin detected, redirecting to /superadmin-dashboard');
-        navigate('/superadmin-dashboard', { replace: true });
+        // Only redirect if not already on the superadmin page to prevent loops
+        if (window.location.pathname !== '/superadmin-dashboard') {
+          console.log('UserDashboardRoute - Superadmin detected, redirecting to /superadmin-dashboard');
+          navigate('/superadmin-dashboard', { replace: true });
+        }
       }
     }
   }, [user, userRole, authLoading, navigate]);
