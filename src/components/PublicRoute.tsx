@@ -16,7 +16,7 @@ const PublicRoute = ({ children }: PublicRouteProps) => {
       // Clear any cached data when redirecting authenticated users
       localStorage.clear();
       
-      // Redirect based on user role
+      // Redirect based on user role - superadmin goes to admin dashboard only
       if (userRole === 'superadmin') {
         navigate('/superadmin-dashboard', { replace: true });
       } else {

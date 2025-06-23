@@ -8,6 +8,7 @@ import { WalletProvider } from "@/hooks/useWallet";
 import { MiningProvider } from "@/hooks/useMiningInvestments";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import PublicRoute from "@/components/PublicRoute";
+import UserDashboardRoute from "@/components/UserDashboardRoute";
 import MecBot from "@/components/MecBot";
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
@@ -39,12 +40,12 @@ const App = () => (
                   </PublicRoute>
                 } />
                 <Route path="/dashboard" element={
-                  <ProtectedRoute>
+                  <UserDashboardRoute>
                     <>
                       <DashboardPage />
                       <MecBot />
                     </>
-                  </ProtectedRoute>
+                  </UserDashboardRoute>
                 } />
                 <Route path="/superadmin-dashboard" element={
                   <ProtectedRoute>
@@ -53,37 +54,37 @@ const App = () => (
                 } />
                 <Route path="/exchange" element={<ExchangePage />} />
                 <Route path="/trading/:pair?" element={
-                  <ProtectedRoute>
+                  <UserDashboardRoute>
                     <>
                       <TradingPage />
                       <MecBot />
                     </>
-                  </ProtectedRoute>
+                  </UserDashboardRoute>
                 } />
                 <Route path="/my-assets" element={
-                  <ProtectedRoute>
+                  <UserDashboardRoute>
                     <>
                       <MyAssetsPage />
                       <MecBot />
                     </>
-                  </ProtectedRoute>
+                  </UserDashboardRoute>
                 } />
                 <Route path="/launchpad" element={
-                  <ProtectedRoute>
+                  <UserDashboardRoute>
                     <>
                       <LaunchpadPage />
                       <MecBot />
                     </>
-                  </ProtectedRoute>
+                  </UserDashboardRoute>
                 } />
                 <Route path="/contracts" element={<ContractsPage />} />
                 <Route path="/gold-mining" element={
-                  <ProtectedRoute>
+                  <UserDashboardRoute>
                     <>
                       <GoldMiningPage />
                       <MecBot />
                     </>
-                  </ProtectedRoute>
+                  </UserDashboardRoute>
                 } />
                 <Route path="/404" element={<NotFound />} />
                 <Route path="*" element={<Navigate to="/404" replace />} />

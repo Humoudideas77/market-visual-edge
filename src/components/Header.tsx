@@ -83,7 +83,7 @@ const Header = () => {
             <Link to="/exchange" className="text-gray-700 hover:text-red-600 transition-colors">
               Markets
             </Link>
-            {user && (
+            {user && userRole !== 'superadmin' && (
               <>
                 <Link to="/trading" className="text-gray-700 hover:text-red-600 transition-colors">
                   Trade
@@ -130,16 +130,12 @@ const Header = () => {
                     <Home className="w-4 h-4 mr-2" />
                     {userRole === 'superadmin' ? 'Super Admin Dashboard' : 'Dashboard'}
                   </DropdownMenuItem>
-                  {userRole === 'superadmin' && (
-                    <DropdownMenuItem onClick={() => navigate('/dashboard')} className="cursor-pointer">
-                      <User className="w-4 h-4 mr-2" />
-                      User Dashboard
+                  {userRole !== 'superadmin' && (
+                    <DropdownMenuItem className="cursor-pointer">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Settings
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem className="cursor-pointer">
-                    <Settings className="w-4 h-4 mr-2" />
-                    Settings
-                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-600">
                     <LogOut className="w-4 h-4 mr-2" />
