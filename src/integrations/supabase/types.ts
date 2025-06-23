@@ -480,6 +480,39 @@ export type Database = {
           },
         ]
       }
+      wallet_balances: {
+        Row: {
+          available_balance: number
+          created_at: string
+          currency: string
+          id: string
+          locked_balance: number
+          total_balance: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          available_balance?: number
+          created_at?: string
+          currency: string
+          id?: string
+          locked_balance?: number
+          total_balance?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          available_balance?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          locked_balance?: number
+          total_balance?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       withdrawal_requests: {
         Row: {
           admin_notes: string | null
@@ -539,6 +572,15 @@ export type Database = {
       is_superadmin: {
         Args: { user_id: string }
         Returns: boolean
+      }
+      update_wallet_balance: {
+        Args: {
+          p_user_id: string
+          p_currency: string
+          p_amount: number
+          p_operation: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

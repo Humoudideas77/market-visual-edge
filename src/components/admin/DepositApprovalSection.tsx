@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -59,7 +60,7 @@ const DepositApprovalSection = () => {
       if (status === 'approved') {
         const deposit = deposits?.find(d => d.id === id);
         if (deposit) {
-          const { error: walletError } = await supabase.rpc('update_wallet_balance', {
+          const { error: walletError } = await (supabase as any).rpc('update_wallet_balance', {
             p_user_id: deposit.user_id,
             p_currency: deposit.currency,
             p_amount: deposit.amount,
