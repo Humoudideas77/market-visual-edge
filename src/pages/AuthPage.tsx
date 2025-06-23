@@ -100,6 +100,7 @@ const AuthPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState('signin');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -137,7 +138,7 @@ const AuthPage = () => {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: `${window.location.origin}/auth`,
           data: {
             first_name: firstName,
             last_name: lastName
@@ -168,8 +169,15 @@ const AuthPage = () => {
         
         if (data.user && !data.session) {
           toast.success('MecCrypto account created! Please check your email for verification.');
+          setActiveTab('signin');
         } else {
-          toast.success('MecCrypto account created successfully!');
+          toast.success('MecCrypto account created successfully! Please sign in to continue.');
+          // Clear form and switch to sign in tab
+          setEmail('');
+          setPassword('');
+          setFirstName('');
+          setLastName('');
+          setActiveTab('signin');
         }
       }
     } catch (err) {
@@ -272,7 +280,7 @@ const AuthPage = () => {
             </CardHeader>
             
             <CardContent className="pt-0">
-              <Tabs defaultValue="signin" className="w-full">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-2 mb-8 bg-exchange-accent">
                   <TabsTrigger 
                     value="signin" 

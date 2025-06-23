@@ -1,4 +1,3 @@
-
 import { useState, useEffect, createContext, useContext } from 'react';
 import { useAuth } from './useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -53,9 +52,9 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   const createDefaultBalances = (): WalletBalance[] => {
     return DEFAULT_CURRENCIES.map(currency => ({
       currency,
-      available: currency === 'USDT' ? 10000 : 0,
+      available: 0, // Changed from 10000 to 0 for all currencies
       locked: 0,
-      total: currency === 'USDT' ? 10000 : 0,
+      total: 0, // Changed from 10000 to 0 for all currencies
     }));
   };
 
@@ -87,7 +86,7 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
       const defaultBalances = createDefaultBalances();
 
       if (dbBalances.length === 0) {
-        // Initialize with default balances
+        // Initialize with default balances (all zeros now)
         const { error } = await supabase.from('wallet_balances').insert(
           defaultBalances.map(balance => ({
             user_id: user.id,
