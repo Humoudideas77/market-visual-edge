@@ -14,13 +14,9 @@ const PublicRoute = ({ children }: PublicRouteProps) => {
   useEffect(() => {
     console.log('PublicRoute - Auth state:', { user: user?.email, userRole, loading });
     
-    if (!loading && user && userRole) {
-      // Clear any cached data when redirecting authenticated users
-      localStorage.clear();
-      
+    if (!loading && user && userRole !== null) {
       console.log('PublicRoute - Redirecting authenticated user with role:', userRole);
       
-      // Redirect based on user role - superadmin goes to admin dashboard only
       if (userRole === 'superadmin') {
         console.log('PublicRoute - Redirecting superadmin to /superadmin-dashboard');
         navigate('/superadmin-dashboard', { replace: true });
@@ -42,8 +38,8 @@ const PublicRoute = ({ children }: PublicRouteProps) => {
     );
   }
 
-  // Only render children if user is not authenticated
-  if (!user) {
+  // Only render children if user is not authenticated or role is not yet determined
+  if (!user || userRole === null) {
     return <>{children}</>;
   }
 

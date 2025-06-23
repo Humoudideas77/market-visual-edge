@@ -1,9 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
 import { 
   User, 
   Settings, 
@@ -21,35 +20,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const Header = () => {
-  const { user, signOut } = useAuth();
+  const { user, userRole, signOut } = useAuth();
   const navigate = useNavigate();
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      if (user) {
-        try {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single();
-
-          if (error) {
-            console.error('Error fetching user role:', error);
-          } else {
-            setUserRole(data?.role || 'user');
-          }
-        } catch (error) {
-          console.error('Error fetching user role:', error);
-        }
-      }
-      setLoading(false);
-    };
-
-    fetchUserRole();
-  }, [user]);
 
   const handleDashboardClick = () => {
     if (userRole === 'superadmin') {

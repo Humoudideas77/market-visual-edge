@@ -24,14 +24,11 @@ const SuperAdminPage = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  console.log('SuperAdminPage - Current URL:', window.location.pathname);
-  console.log('SuperAdminPage - User:', user?.email);
-  console.log('SuperAdminPage - User Role:', userRole);
+  console.log('SuperAdminPage - Current state:', { user: user?.email, userRole, authLoading });
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      // Force a page reload to refresh all data
       window.location.reload();
     } catch (error) {
       toast.error('Failed to refresh dashboard');
@@ -48,13 +45,6 @@ const SuperAdminPage = () => {
   const handleLandingPageRedirect = () => {
     window.location.href = '/';
   };
-
-  console.log('SuperAdminPage - Render state:', {
-    user: user?.email,
-    userRole,
-    authLoading,
-    currentPath: window.location.pathname
-  });
 
   // Show loading while checking authentication
   if (authLoading) {
@@ -234,7 +224,6 @@ const SuperAdminPage = () => {
         </Tabs>
       </div>
 
-      {/* MecBot Integration for SuperAdmin monitoring */}
       <MecBot />
     </div>
   );

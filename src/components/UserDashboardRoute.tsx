@@ -16,17 +16,18 @@ const UserDashboardRoute = ({ children }: UserDashboardRouteProps) => {
     
     if (!authLoading) {
       if (!user) {
-        // Not authenticated, redirect to auth page
         console.log('UserDashboardRoute - No user, redirecting to /auth');
         navigate('/auth', { replace: true });
-      } else if (userRole === 'superadmin') {
-        // Superadmin trying to access user dashboard, redirect to admin dashboard
-        // Only redirect if not already on the superadmin page to prevent loops
-        if (window.location.pathname !== '/superadmin-dashboard') {
-          console.log('UserDashboardRoute - Superadmin detected, redirecting to /superadmin-dashboard');
-          navigate('/superadmin-dashboard', { replace: true });
-        }
+        return;
       }
+      
+      if (userRole === 'superadmin') {
+        console.log('UserDashboardRoute - Superadmin detected, redirecting to /superadmin-dashboard');
+        navigate('/superadmin-dashboard', { replace: true });
+        return;
+      }
+      
+      console.log('UserDashboardRoute - Allowing access for regular user');
     }
   }, [user, userRole, authLoading, navigate]);
 
@@ -41,13 +42,11 @@ const UserDashboardRoute = ({ children }: UserDashboardRouteProps) => {
     );
   }
 
-  // Don't render if user is not authenticated or is superadmin
+  // Only render children if user is authenticated and not superadmin
   if (!user || userRole === 'superadmin') {
-    console.log('UserDashboardRoute - Blocking access:', { user: !!user, userRole });
     return null;
   }
 
-  console.log('UserDashboardRoute - Allowing access for regular user');
   return <>{children}</>;
 };
 

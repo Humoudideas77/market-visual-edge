@@ -33,24 +33,81 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
 
-  const fetchUserRole = async (userId: string) => {
+  const createProfileIfMissing = async (userId: string, email: string) => {
     try {
-      console.log('fetchUserRole - Fetching role for user:', userId);
+      console.log('createProfileIfMissing - Creating profile for user:', userId, email);
+      
+      // Check if profile exists
+      const { data: existingProfile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('id, role')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Error checking existing profile:', fetchError);
+        return 'user';
+      }
+
+      if (existingProfile) {
+        console.log('Profile exists with role:', existingProfile.role);
+        return existingProfile.role || 'user';
+      }
+
+      // Determine role based on email
+      const role = email === 'sabilkhattak77@gmail.com' ? 'superadmin' : 'user';
+      console.log('Creating new profile with role:', role);
+
+      // Create new profile
+      const { error: insertError } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          email: email,
+          role: role
+        });
+
+      if (insertError) {
+        console.error('Error creating profile:', insertError);
+        return 'user';
+      }
+
+      console.log('Profile created successfully with role:', role);
+      return role;
+    } catch (error) {
+      console.error('createProfileIfMissing - Exception:', error);
+      return 'user';
+    }
+  };
+
+  const fetchUserRole = async (userId: string, email: string) => {
+    try {
+      console.log('fetchUserRole - Fetching role for user:', userId, email);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
-      if (error) {
+      if (error && error.code !== 'PGRST116') {
         console.error('fetchUserRole - Error fetching user role:', error);
-        setUserRole('user');
-      } else {
-        console.log('fetchUserRole - Role data:', data);
-        const role = data?.role || 'user';
+        // Try to create profile if there's an error
+        const role = await createProfileIfMissing(userId, email);
         setUserRole(role);
-        console.log('fetchUserRole - Set role to:', role);
+        return;
       }
+
+      if (!data) {
+        console.log('fetchUserRole - No profile found, creating one');
+        const role = await createProfileIfMissing(userId, email);
+        setUserRole(role);
+        return;
+      }
+
+      const role = data.role || 'user';
+      console.log('fetchUserRole - Role found:', role);
+      setUserRole(role);
     } catch (error) {
       console.error('fetchUserRole - Exception:', error);
       setUserRole('user');
@@ -105,7 +162,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let mounted = true;
 
     const handleAuthStateChange = async (event: string, newSession: Session | null) => {
-      console.log('Auth state changed:', event);
+      console.log('Auth state changed:', event, newSession?.user?.email);
       
       if (!mounted) return;
 
@@ -114,8 +171,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         case 'TOKEN_REFRESHED':
           setSession(newSession);
           setUser(newSession?.user ?? null);
-          if (newSession?.user) {
-            await fetchUserRole(newSession.user.id);
+          if (newSession?.user?.email) {
+            // Use setTimeout to defer the database call
+            setTimeout(() => {
+              if (mounted) {
+                fetchUserRole(newSession.user.id, newSession.user.email!);
+              }
+            }, 0);
           }
           break;
         case 'SIGNED_OUT':
@@ -129,8 +191,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         default:
           setSession(newSession);
           setUser(newSession?.user ?? null);
-          if (newSession?.user) {
-            await fetchUserRole(newSession.user.id);
+          if (newSession?.user?.email) {
+            setTimeout(() => {
+              if (mounted) {
+                fetchUserRole(newSession.user.id, newSession.user.email!);
+              }
+            }, 0);
           } else {
             setUserRole(null);
           }
@@ -155,8 +221,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } else {
           setSession(session);
           setUser(session?.user ?? null);
-          if (session?.user) {
-            await fetchUserRole(session.user.id);
+          if (session?.user?.email) {
+            await fetchUserRole(session.user.id, session.user.email);
           }
         }
       } catch (err) {

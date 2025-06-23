@@ -45,7 +45,7 @@ export const useWallet = () => {
 };
 
 export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const [balances, setBalances] = useState<WalletBalance[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,9 +53,9 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   const createDefaultBalances = (): WalletBalance[] => {
     return DEFAULT_CURRENCIES.map(currency => ({
       currency,
-      available: 0, // Always start with zero
+      available: 0,
       locked: 0,
-      total: 0, // Always start with zero
+      total: 0,
     }));
   };
 
@@ -68,7 +68,10 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
         .select('*')
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching balances:', error);
+        return [];
+      }
       return data || [];
     } catch (error) {
       console.error('Error fetching balances:', error);
@@ -77,7 +80,15 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const initializeBalances = async () => {
-    if (!user) {
+    if (!user || !userRole) {
+      setLoading(false);
+      return;
+    }
+
+    // Skip wallet initialization for superadmin
+    if (userRole === 'superadmin') {
+      console.log('Skipping wallet initialization for superadmin');
+      setBalances(createDefaultBalances());
       setLoading(false);
       return;
     }
@@ -87,25 +98,44 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('Database balances for user:', user.id, dbBalances);
       
       if (dbBalances.length === 0) {
-        // No balances exist, create them with zero values
-        const defaultBalances = createDefaultBalances();
-        console.log('Creating default balances with zeros:', defaultBalances);
+        // No balances exist, create them with zero values using the RPC function
+        console.log('Creating default balances for regular user');
         
-        const { error } = await supabase.from('wallet_balances').insert(
-          defaultBalances.map(balance => ({
-            user_id: user.id,
-            currency: balance.currency,
-            available_balance: 0, // Explicitly set to 0
-            locked_balance: 0,
-            total_balance: 0, // Explicitly set to 0
-          }))
-        );
-
-        if (error) {
-          console.error('Error creating default balances:', error);
-          throw error;
+        // Use the secure RPC function to create balances
+        for (const currency of DEFAULT_CURRENCIES) {
+          try {
+            await supabase.rpc('update_wallet_balance', {
+              p_user_id: user.id,
+              p_currency: currency,
+              p_amount: 0,
+              p_operation: 'add'
+            });
+          } catch (rpcError) {
+            console.log('RPC error for currency', currency, ':', rpcError);
+            // Continue with other currencies even if one fails
+          }
         }
-        setBalances(defaultBalances);
+
+        // Fetch the created balances
+        const newDbBalances = await fetchBalancesFromDB();
+        const updatedBalances = DEFAULT_CURRENCIES.map(currency => {
+          const dbBalance = newDbBalances.find(db => db.currency === currency);
+          if (dbBalance) {
+            return {
+              currency: dbBalance.currency,
+              available: Number(dbBalance.available_balance) || 0,
+              locked: Number(dbBalance.locked_balance) || 0,
+              total: Number(dbBalance.total_balance) || 0,
+            };
+          }
+          return {
+            currency,
+            available: 0,
+            locked: 0,
+            total: 0,
+          };
+        });
+        setBalances(updatedBalances);
       } else {
         // Use existing balances from database
         const updatedBalances = DEFAULT_CURRENCIES.map(currency => {
@@ -118,7 +148,6 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
               total: Number(dbBalance.total_balance) || 0,
             };
           }
-          // If currency doesn't exist in DB, return zero balance
           return {
             currency,
             available: 0,
@@ -131,7 +160,6 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch (error) {
       console.error('Error initializing balances:', error);
-      // Fallback to zero balances
       setBalances(createDefaultBalances());
     } finally {
       setLoading(false);
@@ -139,7 +167,7 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const refreshBalances = async () => {
-    if (!user) return;
+    if (!user || userRole === 'superadmin') return;
 
     try {
       const dbBalances = await fetchBalancesFromDB();
@@ -167,7 +195,7 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const depositFunds = async (currency: string, amount: number): Promise<boolean> => {
-    if (!user || amount <= 0) return false;
+    if (!user || amount <= 0 || userRole === 'superadmin') return false;
 
     try {
       await supabase.rpc('update_wallet_balance', {
@@ -186,7 +214,7 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const executeTransaction = async (transactionData: Omit<Transaction, 'id' | 'timestamp' | 'status'>): Promise<boolean> => {
-    if (!user) return false;
+    if (!user || userRole === 'superadmin') return false;
 
     try {
       const operation = transactionData.type === 'trade_sell' ? 'subtract' : 'add';
@@ -210,9 +238,9 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     return balances.find(balance => balance.currency === currency) || null;
   };
 
-  // Set up real-time subscriptions
+  // Set up real-time subscriptions only for regular users
   useEffect(() => {
-    if (!user) return;
+    if (!user || userRole === 'superadmin') return;
 
     const walletChannel = supabase
       .channel('wallet-changes')
@@ -234,17 +262,17 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       supabase.removeChannel(walletChannel);
     };
-  }, [user]);
+  }, [user, userRole]);
 
   useEffect(() => {
-    if (user) {
+    if (user && userRole !== null) {
       initializeBalances();
     } else {
       setBalances([]);
       setTransactions([]);
       setLoading(false);
     }
-  }, [user]);
+  }, [user, userRole]);
 
   return (
     <WalletContext.Provider value={{
