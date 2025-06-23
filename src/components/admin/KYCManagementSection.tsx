@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,9 +37,9 @@ const KYCManagementSection = () => {
   const queryClient = useQueryClient();
 
   const { data: kycSubmissions, isLoading, error } = useQuery({
-    queryKey: ['admin-kyc'],
+    queryKey: ['admin-kyc-v2'], // Updated query key to force refetch
     queryFn: async () => {
-      console.log('Fetching KYC submissions...');
+      console.log('Fetching KYC submissions with updated RLS policies...');
       const { data, error } = await supabase
         .from('kyc_submissions')
         .select('*')
@@ -115,7 +114,7 @@ const KYCManagementSection = () => {
     },
     onSuccess: (data) => {
       // Invalidate multiple queries to ensure UI updates
-      queryClient.invalidateQueries({ queryKey: ['admin-kyc'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-kyc-v2'] });
       queryClient.invalidateQueries({ queryKey: ['kyc-status'] });
       queryClient.invalidateQueries({ queryKey: ['user-profile'] });
       

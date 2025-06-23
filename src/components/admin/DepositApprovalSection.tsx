@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,9 +30,9 @@ const DepositApprovalSection = () => {
   const queryClient = useQueryClient();
 
   const { data: deposits, isLoading, error } = useQuery({
-    queryKey: ['admin-deposits'],
+    queryKey: ['admin-deposits-v2'], // Updated query key to force refetch
     queryFn: async () => {
-      console.log('Fetching deposits...');
+      console.log('Fetching deposits with updated RLS policies...');
       const { data, error } = await supabase
         .from('deposit_requests')
         .select('*')
@@ -103,7 +102,7 @@ const DepositApprovalSection = () => {
       }
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-deposits'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-deposits-v2'] });
       
       if (variables.status === 'approved') {
         toast({ 
