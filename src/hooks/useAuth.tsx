@@ -7,12 +7,14 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   loading: true,
+  signOut: async () => {},
 });
 
 export const useAuth = () => {
@@ -28,16 +30,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const signOut = async () => {
+    try {
+      console.log('Starting sign out process');
+      
+      // Clear local state immediately
+      setSession(null);
+      setUser(null);
+      
+      // Clear localStorage
+      localStorage.clear();
+      
+      // Sign out from Supabase
+      await supabase.auth.signOut({ scope: 'global' });
+      
+      console.log('Sign out completed successfully');
+      
+      // Force reload to clear any cached state
+      window.location.href = '/auth';
+    } catch (error) {
+      console.error('Sign out error:', error);
+      // Even if there's an error, clear everything and redirect
+      localStorage.clear();
+      window.location.href = '/auth';
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
 
-    // Function to handle auth state changes
     const handleAuthStateChange = (event: string, newSession: Session | null) => {
-      console.log('Auth state changed:', event, newSession?.user?.email);
+      console.log('Auth state changed:', event);
       
       if (!mounted) return;
 
-      // Handle different auth events
       switch (event) {
         case 'SIGNED_IN':
         case 'TOKEN_REFRESHED':
@@ -45,50 +71,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUser(newSession?.user ?? null);
           break;
         case 'SIGNED_OUT':
-          // Clear all auth state
           setSession(null);
           setUser(null);
-          // Clear any remaining local storage
-          localStorage.removeItem('supabase.auth.token');
-          break;
-        case 'PASSWORD_RECOVERY':
-          // Handle password recovery if needed
+          localStorage.clear();
           break;
         default:
           setSession(newSession);
           setUser(newSession?.user ?? null);
       }
       
-      if (loading) {
-        setLoading(false);
-      }
+      setLoading(false);
     };
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);
 
-    // Check for existing session with error handling
+    // Check for existing session
     const checkSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Session check error:', error);
-          // If session is invalid, clear it
-          if (error.message.includes('session_not_found') || error.message.includes('Invalid')) {
-            await supabase.auth.signOut({ scope: 'local' });
-            setSession(null);
-            setUser(null);
-          }
+          setSession(null);
+          setUser(null);
         } else {
-          console.log('Initial session check:', session?.user?.email);
           setSession(session);
           setUser(session?.user ?? null);
         }
       } catch (err) {
         console.error('Unexpected session check error:', err);
-        // Clear potentially corrupted session
-        await supabase.auth.signOut({ scope: 'local' });
         setSession(null);
         setUser(null);
       } finally {
@@ -107,7 +119,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, session, loading }}>
+    <AuthContext.Provider value={{ user, session, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );

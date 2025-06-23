@@ -12,7 +12,7 @@ import { toast } from '@/hooks/use-toast';
 import { Check, X, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 
-type WithdrawalRequest = {
+interface WithdrawalRequest {
   id: string;
   user_id: string;
   amount: number;
@@ -23,7 +23,7 @@ type WithdrawalRequest = {
   admin_notes: string | null;
   created_at: string;
   updated_at: string;
-};
+}
 
 const WithdrawalApprovalSection = () => {
   const [selectedWithdrawal, setSelectedWithdrawal] = useState<WithdrawalRequest | null>(null);
@@ -56,34 +56,19 @@ const WithdrawalApprovalSection = () => {
 
       if (error) throw error;
 
-      // If approved, deduct from wallet balance automatically
+      // If approved, deduct from wallet balance
       if (status === 'approved') {
         const withdrawal = withdrawals?.find(w => w.id === id);
         if (withdrawal) {
-          const { error: walletError } = await (supabase as any).rpc('update_wallet_balance', {
+          const { error: walletError } = await supabase.rpc('update_wallet_balance', {
             p_user_id: withdrawal.user_id,
             p_currency: withdrawal.currency,
             p_amount: withdrawal.amount,
             p_operation: 'subtract'
           });
           
-          if (walletError) {
-            console.error('Error updating wallet balance:', walletError);
-            throw walletError;
-          }
+          if (walletError) throw walletError;
         }
-      }
-
-      // Log admin activity
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from('admin_activities').insert({
-          admin_id: user.id,
-          action_type: `withdrawal_${status}`,
-          target_table: 'withdrawal_requests',
-          target_record_id: id,
-          action_details: { status, notes },
-        });
       }
     },
     onSuccess: (_, variables) => {
@@ -233,18 +218,6 @@ const WithdrawalApprovalSection = () => {
                               <div>
                                 <span className="text-exchange-text-secondary">Network:</span>
                                 <span className="ml-2 text-exchange-text-primary">{withdrawal.network}</span>
-                              </div>
-                              <div className="col-span-2">
-                                <span className="text-exchange-text-secondary">User ID:</span>
-                                <span className="ml-2 font-mono text-sm text-exchange-text-primary">
-                                  {withdrawal.user_id}
-                                </span>
-                              </div>
-                              <div className="col-span-2">
-                                <span className="text-exchange-text-secondary">Bank Card ID:</span>
-                                <span className="ml-2 font-mono text-sm text-exchange-text-primary">
-                                  {withdrawal.bank_card_id}
-                                </span>
                               </div>
                             </div>
                             

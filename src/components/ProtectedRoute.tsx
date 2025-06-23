@@ -13,7 +13,6 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
   useEffect(() => {
     if (!loading && !user) {
-      console.log('ProtectedRoute - No user found, redirecting to auth');
       navigate('/auth', { replace: true });
     }
   }, [user, loading, navigate]);

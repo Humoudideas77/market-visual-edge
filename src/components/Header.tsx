@@ -3,15 +3,14 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Settings, User, ChevronDown, Globe, LogOut, Shield, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const Header = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
-  // Check if current user is superadmin
   const { data: userProfile } = useQuery({
     queryKey: ['user-profile', user?.id],
     queryFn: async () => {
@@ -23,7 +22,6 @@ const Header = () => {
         .eq('id', user.id)
         .single();
       
-      console.log('Header - User profile:', data);
       return data;
     },
     enabled: !!user,
@@ -31,48 +29,16 @@ const Header = () => {
 
   const handleSignOut = async () => {
     try {
-      console.log('Header - Starting sign out process');
-      
-      // Show loading toast
-      const loadingToast = toast.loading('Signing out...');
-      
-      // Always use global scope sign out to clear everything
-      const { error } = await supabase.auth.signOut({ scope: 'global' });
-      
-      if (error) {
-        console.error('Header - Sign out error:', error);
-        // Even if there's an error, still clear local state
-        await supabase.auth.signOut({ scope: 'local' });
-      }
-      
-      console.log('Header - Sign out completed');
-      
-      // Clear additional local storage items
-      localStorage.removeItem('supabase.auth.token');
-      
-      // Dismiss loading toast and show success
-      toast.dismiss(loadingToast);
-      toast.success('Successfully signed out');
-      
-      // Navigate to auth page
-      navigate('/auth', { replace: true });
-      
-    } catch (err) {
-      console.error('Header - Unexpected error during sign out:', err);
-      
-      // Force clear everything in case of error
-      await supabase.auth.signOut({ scope: 'local' });
-      localStorage.clear();
-      
-      toast.success('Signed out successfully');
-      navigate('/auth', { replace: true });
+      toast.loading('Signing out...');
+      await signOut();
+    } catch (error) {
+      console.error('Sign out error:', error);
+      toast.error('Error signing out');
     }
   };
 
   const handleProfileClick = () => {
-    // Redirect based on user role
     if (userProfile?.role === 'superadmin') {
-      console.log('Header - Navigating to superadmin dashboard');
       navigate('/superadmin-dashboard');
     } else {
       navigate('/dashboard');
@@ -81,7 +47,6 @@ const Header = () => {
 
   const handleSuperAdminClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    console.log('Header - Super Admin link clicked, navigating to /superadmin-dashboard');
     navigate('/superadmin-dashboard');
   };
 
@@ -95,7 +60,6 @@ const Header = () => {
 
   const handleSupportClick = () => {
     navigate('/');
-    // Small delay to ensure navigation completes before scrolling
     setTimeout(() => {
       const contactSection = document.querySelector('.contact-form-section');
       if (contactSection) {
@@ -126,7 +90,6 @@ const Header = () => {
               <Link to="/launchpad" className="text-gray-300 hover:text-red-400 transition-colors font-medium">Launchpad</Link>
               <Link to="/dashboard" className="text-gray-300 hover:text-red-400 transition-colors font-medium">Assets</Link>
               
-              {/* Super Admin Dashboard Link */}
               {userProfile?.role === 'superadmin' && (
                 <button 
                   onClick={handleSuperAdminClick}
@@ -146,7 +109,6 @@ const Header = () => {
             </>
           )}
           
-          {/* Customer Support Button */}
           <button 
             onClick={handleSupportClick}
             className="text-gray-300 hover:text-blue-400 transition-colors flex items-center space-x-1 font-medium"
@@ -169,19 +131,17 @@ const Header = () => {
         {user ? (
           <>
             {/* Notifications */}
-            <div className="relative">
-              <button onClick={handleNotificationClick} className="hover:bg-gray-800 p-2 rounded-lg transition-colors">
-                <Bell className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
-              </button>
-            </div>
+            <button onClick={handleNotificationClick} className="hover:bg-gray-800 p-2 rounded-lg transition-colors">
+              <Bell className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
+              <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+            </button>
 
             {/* Settings */}
             <button onClick={handleSettingsClick} className="hover:bg-gray-800 p-2 rounded-lg transition-colors">
               <Settings className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
             </button>
 
-            {/* User Profile - Updated to handle role-based navigation */}
+            {/* User Profile */}
             <button 
               onClick={handleProfileClick}
               className="flex items-center space-x-2 bg-gray-800 border border-gray-600 px-3 py-2 rounded-lg cursor-pointer hover:bg-gray-700 transition-all duration-200"
@@ -207,21 +167,18 @@ const Header = () => {
             </button>
           </>
         ) : (
-          <>
-            {/* Login/Register Buttons for unauthenticated users */}
-            <div className="flex items-center space-x-2">
-              <Link to="/auth">
-                <button className="px-4 py-2 text-white border border-gray-600 rounded-md hover:bg-gray-800 transition-colors">
-                  Log In
-                </button>
-              </Link>
-              <Link to="/auth">
-                <button className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
-                  Sign Up
-                </button>
-              </Link>
-            </div>
-          </>
+          <div className="flex items-center space-x-2">
+            <Link to="/auth">
+              <button className="px-4 py-2 text-white border border-gray-600 rounded-md hover:bg-gray-800 transition-colors">
+                Log In
+              </button>
+            </Link>
+            <Link to="/auth">
+              <button className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
+                Sign Up
+              </button>
+            </Link>
+          </div>
         )}
       </div>
     </header>

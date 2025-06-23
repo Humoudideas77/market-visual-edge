@@ -103,53 +103,28 @@ const AuthPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if user is already authenticated
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        console.log('AuthPage - User already authenticated:', session.user.email);
-        // Check if user is superadmin
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role, email')
-          .eq('id', session.user.id)
-          .single();
-        
-        console.log('AuthPage - User profile:', profile);
-        
-        if (profile?.role === 'superadmin') {
-          console.log('AuthPage - Redirecting to superadmin dashboard');
-          navigate('/superadmin-dashboard');
-        } else {
-          navigate('/dashboard');
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profile?.role === 'superadmin') {
+            navigate('/superadmin-dashboard');
+          } else {
+            navigate('/dashboard');
+          }
         }
+      } catch (error) {
+        console.error('Auth check error:', error);
       }
     };
+
     checkAuth();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('AuthPage - Auth event:', event, 'Session:', session);
-      if (session) {
-        // Check user role and redirect accordingly
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role, email')
-          .eq('id', session.user.id)
-          .single();
-        
-        console.log('AuthPage - User profile after auth change:', profile);
-        
-        if (profile?.role === 'superadmin') {
-          console.log('AuthPage - Redirecting to superadmin dashboard');
-          navigate('/superadmin-dashboard');
-        } else {
-          navigate('/dashboard');
-        }
-      }
-    });
-
-    return () => subscription.unsubscribe();
   }, [navigate]);
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -158,14 +133,11 @@ const AuthPage = () => {
     setError('');
 
     try {
-      console.log('AuthPage - Attempting sign up with:', email);
-      const redirectUrl = `${window.location.origin}/dashboard`;
-      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: redirectUrl,
+          emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
             first_name: firstName,
             last_name: lastName
@@ -173,32 +145,21 @@ const AuthPage = () => {
         }
       });
 
-      console.log('AuthPage - Sign up response:', { data, error });
-
       if (error) {
-        console.error('AuthPage - Sign up error:', error);
         if (error.message.includes('User already registered')) {
           setError('This email is already registered. Please sign in instead.');
         } else {
           setError(error.message);
         }
       } else {
-        console.log('AuthPage - Sign up successful:', data);
-        
-        // Special handling for creating superadmin
+        // Handle superadmin creation
         if (email === 'sabilkhattak77@gmail.com' && data.user && data.session) {
-          console.log('AuthPage - Creating superadmin profile');
-          
-          // Update profile to superadmin role
           const { error: profileError } = await supabase
             .from('profiles')
             .update({ role: 'superadmin' })
             .eq('id', data.user.id);
           
-          if (profileError) {
-            console.error('AuthPage - Error updating to superadmin:', profileError);
-          } else {
-            console.log('AuthPage - Successfully updated to superadmin');
+          if (!profileError) {
             toast.success('MecCrypto superadmin account created successfully!');
             navigate('/superadmin-dashboard');
             return;
@@ -206,13 +167,13 @@ const AuthPage = () => {
         }
         
         if (data.user && !data.session) {
-          toast.success('MecCrypto account created! Please check your email for verification, or try signing in if email confirmation is disabled.');
+          toast.success('MecCrypto account created! Please check your email for verification.');
         } else {
           toast.success('MecCrypto account created successfully!');
         }
       }
     } catch (err) {
-      console.error('AuthPage - Unexpected sign up error:', err);
+      console.error('Sign up error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -225,29 +186,22 @@ const AuthPage = () => {
     setError('');
 
     try {
-      console.log('AuthPage - Attempting sign in with:', email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
-      console.log('AuthPage - Sign in response:', { data, error });
-
       if (error) {
-        console.error('AuthPage - Sign in error:', error);
         if (error.message.includes('Invalid login credentials')) {
-          setError('Invalid email or password. Please check your credentials or try signing up first.');
-        } else if (error.message.includes('Email not confirmed')) {
-          setError('Please check your email and click the confirmation link, or contact support if email confirmation is disabled.');
+          setError('Invalid email or password. Please check your credentials.');
         } else {
           setError(error.message);
         }
       } else {
-        console.log('AuthPage - Sign in successful:', data);
         toast.success('Signed in to MecCrypto successfully!');
       }
     } catch (err) {
-      console.error('AuthPage - Unexpected sign in error:', err);
+      console.error('Sign in error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
