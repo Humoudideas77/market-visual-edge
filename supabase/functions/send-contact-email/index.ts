@@ -30,7 +30,7 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const { firstName, lastName, email, message, userId }: ContactEmailRequest = await req.json();
     
-    console.log('Processing contact form submission:', { firstName, lastName, email });
+    console.log('Processing contact form submission:', { firstName, lastName, email, hasUserId: !!userId });
 
     // Create Supabase client
     const supabaseClient = createClient(
@@ -38,22 +38,28 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
-    // Store in customer_messages table
-    const { error: dbError } = await supabaseClient
+    // Store in customer_messages table - now works for both authenticated and anonymous users
+    const messageData = {
+      user_id: userId || null, // Allow null for anonymous users
+      subject: `Contact Form Inquiry from ${firstName} ${lastName}`,
+      message: `Name: ${firstName} ${lastName}\nEmail: ${email}\n\nMessage:\n${message}`,
+      status: 'open'
+    };
+
+    console.log('Inserting message with data:', messageData);
+
+    const { data: insertData, error: dbError } = await supabaseClient
       .from('customer_messages')
-      .insert({
-        user_id: userId || null,
-        subject: `Contact Form Inquiry from ${firstName} ${lastName}`,
-        message: `Name: ${firstName} ${lastName}\nEmail: ${email}\n\nMessage:\n${message}`,
-        status: 'open'
-      });
+      .insert(messageData)
+      .select()
+      .single();
 
     if (dbError) {
       console.error('Database error:', dbError);
-      throw new Error('Failed to store message in database');
+      throw new Error(`Failed to store message in database: ${dbError.message}`);
     }
 
-    console.log('Message stored in database successfully');
+    console.log('Message stored in database successfully:', insertData);
 
     // Send email to admin
     const adminEmailResponse = await resend.emails.send({
@@ -80,6 +86,7 @@ const handler = async (req: Request): Promise<Response> => {
           
           <div style="margin-top: 20px; padding: 15px; background: #f3f4f6; border-radius: 8px; font-size: 12px; color: #6b7280;">
             <p>This email was sent automatically from the MecCrypto contact form.</p>
+            <p>Message ID: ${insertData.id}</p>
             <p>Timestamp: ${new Date().toISOString()}</p>
           </div>
         </div>
@@ -123,6 +130,11 @@ const handler = async (req: Request): Promise<Response> => {
                 Visit MecCrypto Platform
               </a>
             </div>
+            
+            <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; font-size: 12px; color: #6b7280; margin-top: 20px;">
+              <p>Reference ID: ${insertData.id}</p>
+              <p>Please keep this reference ID for your records.</p>
+            </div>
           </div>
           
           <div style="background: #1f2937; color: #9ca3af; padding: 20px; text-align: center; font-size: 12px;">
@@ -139,6 +151,7 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({
         success: true,
         message: "Email sent successfully and message stored",
+        messageId: insertData.id,
         adminEmailId: adminEmailResponse.data?.id,
         userEmailId: userEmailResponse.data?.id
       }),
@@ -155,7 +168,8 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ 
         success: false,
-        error: error.message || "Failed to send email"
+        error: error.message || "Failed to send email",
+        details: error.toString()
       }),
       {
         status: 500,
