@@ -37,15 +37,20 @@ const KYCManagementSection = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: kycSubmissions, isLoading } = useQuery({
+  const { data: kycSubmissions, isLoading, error } = useQuery({
     queryKey: ['admin-kyc'],
     queryFn: async () => {
+      console.log('Fetching KYC submissions...');
       const { data, error } = await supabase
         .from('kyc_submissions')
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching KYC submissions:', error);
+        throw error;
+      }
+      console.log('KYC submissions fetched successfully:', data?.length || 0, 'records');
       return data as KYCSubmission[];
     },
   });
@@ -92,6 +97,7 @@ const KYCManagementSection = () => {
 
       // Log admin activity
       if (user) {
+        console.log('Logging admin activity for KYC update');
         const { error: activityError } = await supabase.from('admin_activities').insert({
           admin_id: user.id,
           action_type: `kyc_${status}`,
@@ -206,6 +212,19 @@ const KYCManagementSection = () => {
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="h-12 bg-exchange-border rounded"></div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    console.error('KYC fetch error:', error);
+    return (
+      <Card className="bg-exchange-card-bg border-exchange-border">
+        <CardContent className="p-6">
+          <div className="text-center py-8 text-red-500">
+            Error loading KYC submissions: {error.message}
           </div>
         </CardContent>
       </Card>

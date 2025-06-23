@@ -30,21 +30,28 @@ const DepositApprovalSection = () => {
   const [adminNotes, setAdminNotes] = useState('');
   const queryClient = useQueryClient();
 
-  const { data: deposits, isLoading } = useQuery({
+  const { data: deposits, isLoading, error } = useQuery({
     queryKey: ['admin-deposits'],
     queryFn: async () => {
+      console.log('Fetching deposits...');
       const { data, error } = await supabase
         .from('deposit_requests')
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching deposits:', error);
+        throw error;
+      }
+      console.log('Deposits fetched successfully:', data?.length || 0, 'records');
       return data as DepositRequest[];
     },
   });
 
   const updateDepositMutation = useMutation({
     mutationFn: async ({ id, status, notes }: { id: string; status: string; notes?: string }) => {
+      console.log('Updating deposit:', { id, status, notes });
+      
       const { error } = await supabase
         .from('deposit_requests')
         .update({
@@ -54,13 +61,17 @@ const DepositApprovalSection = () => {
         })
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating deposit:', error);
+        throw error;
+      }
 
       // If approved, update wallet balance automatically
       if (status === 'approved') {
         const deposit = deposits?.find(d => d.id === id);
         if (deposit) {
-          const { error: walletError } = await (supabase as any).rpc('update_wallet_balance', {
+          console.log('Updating wallet balance for approved deposit:', deposit);
+          const { error: walletError } = await supabase.rpc('update_wallet_balance', {
             p_user_id: deposit.user_id,
             p_currency: deposit.currency,
             p_amount: deposit.amount,
@@ -77,13 +88,18 @@ const DepositApprovalSection = () => {
       // Log admin activity
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase.from('admin_activities').insert({
+        console.log('Logging admin activity for deposit update');
+        const { error: activityError } = await supabase.from('admin_activities').insert({
           admin_id: user.id,
           action_type: `deposit_${status}`,
           target_table: 'deposit_requests',
           target_record_id: id,
           action_details: { status, notes },
         });
+        
+        if (activityError) {
+          console.error('Error logging admin activity:', activityError);
+        }
       }
     },
     onSuccess: (_, variables) => {
@@ -155,6 +171,19 @@ const DepositApprovalSection = () => {
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="h-12 bg-exchange-border rounded"></div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    console.error('Deposit fetch error:', error);
+    return (
+      <Card className="bg-exchange-card-bg border-exchange-border">
+        <CardContent className="p-6">
+          <div className="text-center py-8 text-red-500">
+            Error loading deposits: {error.message}
           </div>
         </CardContent>
       </Card>

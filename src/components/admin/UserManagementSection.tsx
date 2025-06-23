@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,9 +32,10 @@ const UserManagementSection = () => {
   const [newRole, setNewRole] = useState<UserRole>('user');
   const queryClient = useQueryClient();
 
-  const { data: users, isLoading } = useQuery({
+  const { data: users, isLoading, error } = useQuery({
     queryKey: ['admin-users', searchTerm],
     queryFn: async () => {
+      console.log('Fetching users with search term:', searchTerm);
       let query = supabase
         .from('profiles')
         .select('*')
@@ -44,24 +46,34 @@ const UserManagementSection = () => {
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching users:', error);
+        throw error;
+      }
+      console.log('Users fetched successfully:', data?.length || 0, 'records');
       return data as UserProfile[];
     },
   });
 
   const updateUserRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: UserRole }) => {
+      console.log('Updating user role:', { userId, role });
+      
       const { error } = await supabase
         .from('profiles')
         .update({ role, updated_at: new Date().toISOString() })
         .eq('id', userId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating user role:', error);
+        throw error;
+      }
 
       // Log admin activity
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase.from('admin_activities').insert({
+        console.log('Logging admin activity for role update');
+        const { error: activityError } = await supabase.from('admin_activities').insert({
           admin_id: user.id,
           action_type: 'user_role_updated',
           target_user_id: userId,
@@ -69,6 +81,10 @@ const UserManagementSection = () => {
           target_record_id: userId,
           action_details: { new_role: role },
         });
+        
+        if (activityError) {
+          console.error('Error logging admin activity:', activityError);
+        }
       }
     },
     onSuccess: () => {
@@ -77,7 +93,8 @@ const UserManagementSection = () => {
       setSelectedUser(null);
       setNewRole('user');
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('User role update error:', error);
       toast({ title: 'Failed to update user role', variant: 'destructive' });
     },
   });
@@ -130,6 +147,19 @@ const UserManagementSection = () => {
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="h-12 bg-exchange-border rounded"></div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    console.error('User fetch error:', error);
+    return (
+      <Card className="bg-exchange-card-bg border-exchange-border">
+        <CardContent className="p-6">
+          <div className="text-center py-8 text-red-500">
+            Error loading users: {error.message}
           </div>
         </CardContent>
       </Card>
