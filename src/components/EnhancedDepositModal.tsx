@@ -24,11 +24,11 @@ interface EnhancedDepositModalProps {
 }
 
 const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [loading, setLoading] = useState(false);
   const [cryptoAddresses, setCryptoAddresses] = useState<CryptoAddress[]>([]);
   const [currency, setCurrency] = useState('USDT');
-  const [network, setNetwork] = useState('ERC20');
+  const [network, setNetwork] = useState('TRC20');
   const [amount, setAmount] = useState('');
   const [screenshot, setScreenshot] = useState<File | null>(null);
   const [screenshotUrl, setScreenshotUrl] = useState('');
@@ -135,11 +135,22 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
   };
 
   const handleDeposit = async () => {
-    if (!user) {
-      toast.error('You must be logged in to make a deposit');
+    console.log('=== DEPOSIT SUBMISSION DEBUG ===');
+    console.log('User:', user?.email);
+    console.log('Session exists:', !!session);
+    console.log('User ID:', user?.id);
+    console.log('Amount:', amount);
+    console.log('Currency:', currency);
+    console.log('Network:', network);
+
+    // Check authentication first
+    if (!user || !session) {
+      console.error('No user or session found');
+      toast.error('You must be logged in to make a deposit. Please refresh and try again.');
       return;
     }
 
+    // Validate amount
     if (!amount || parseFloat(amount) <= 0) {
       toast.error('Please enter a valid amount');
       return;
@@ -150,6 +161,7 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
       return;
     }
 
+    // Check if address is available
     if (!selectedAddress) {
       toast.error('Selected currency/network combination is not available');
       return;
@@ -158,22 +170,13 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
     setLoading(true);
 
     try {
-      console.log('Starting deposit submission for user:', user.email);
-      
-      // Get fresh session to ensure we have valid auth
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session) {
-        console.error('Session error:', sessionError);
-        toast.error('Authentication session expired. Please login again.');
-        setLoading(false);
-        return;
-      }
-
-      console.log('Valid session confirmed for user:', session.user.id);
+      // Use the current session instead of getting a new one
+      console.log('Using current session for deposit submission');
+      console.log('Session user ID:', session.user.id);
+      console.log('Auth user ID:', user.id);
 
       const depositData = {
-        user_id: session.user.id,
+        user_id: user.id, // Use the user.id from auth context
         currency,
         network,
         amount: parseFloat(amount),
@@ -181,7 +184,7 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
         status: 'pending'
       };
 
-      console.log('Submitting deposit request:', depositData);
+      console.log('Submitting deposit request with data:', depositData);
 
       const { data, error } = await supabase
         .from('deposit_requests')
@@ -190,7 +193,12 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
         .single();
 
       if (error) {
-        console.error('Deposit submission error:', error);
+        console.error('Deposit submission error details:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
         throw error;
       }
 
@@ -206,8 +214,10 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
       console.error('Failed to submit deposit request:', error);
       
       // Provide more specific error messages
-      if (error.message?.includes('row-level security')) {
-        toast.error('Permission denied. Please log out and log back in, then try again.');
+      if (error.message?.includes('JWT expired') || error.message?.includes('session')) {
+        toast.error('Your session has expired. Please refresh the page and login again.');
+      } else if (error.message?.includes('row-level security')) {
+        toast.error('Permission denied. Please refresh the page and try again.');
       } else if (error.message?.includes('violates check constraint')) {
         toast.error('Invalid deposit data. Please check your input and try again.');
       } else {
@@ -217,6 +227,11 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
       setLoading(false);
     }
   };
+
+  // Don't render if user is not authenticated
+  if (!user || !session) {
+    return null;
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
