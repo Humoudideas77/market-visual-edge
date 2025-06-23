@@ -7,6 +7,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  userRole: string | null;
   signOut: () => Promise<void>;
 }
 
@@ -14,6 +15,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   loading: true,
+  userRole: null,
   signOut: async () => {},
 });
 
@@ -29,6 +31,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  const fetchUserRole = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user role:', error);
+        setUserRole('user');
+      } else {
+        setUserRole(data?.role || 'user');
+      }
+    } catch (error) {
+      console.error('Error fetching user role:', error);
+      setUserRole('user');
+    }
+  };
 
   const signOut = async () => {
     try {
@@ -37,6 +60,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Clear local state immediately
       setSession(null);
       setUser(null);
+      setUserRole(null);
       
       // Clear localStorage
       localStorage.clear();
@@ -69,15 +93,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         case 'TOKEN_REFRESHED':
           setSession(newSession);
           setUser(newSession?.user ?? null);
+          if (newSession?.user) {
+            fetchUserRole(newSession.user.id);
+          }
           break;
         case 'SIGNED_OUT':
           setSession(null);
           setUser(null);
+          setUserRole(null);
           localStorage.clear();
           break;
         default:
           setSession(newSession);
           setUser(newSession?.user ?? null);
+          if (newSession?.user) {
+            fetchUserRole(newSession.user.id);
+          } else {
+            setUserRole(null);
+          }
       }
       
       setLoading(false);
@@ -95,14 +128,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.error('Session check error:', error);
           setSession(null);
           setUser(null);
+          setUserRole(null);
         } else {
           setSession(session);
           setUser(session?.user ?? null);
+          if (session?.user) {
+            await fetchUserRole(session.user.id);
+          }
         }
       } catch (err) {
         console.error('Unexpected session check error:', err);
         setSession(null);
         setUser(null);
+        setUserRole(null);
       } finally {
         if (mounted) {
           setLoading(false);
@@ -119,7 +157,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, userRole, signOut }}>
       {children}
     </AuthContext.Provider>
   );

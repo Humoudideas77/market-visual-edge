@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import KYCSection from '../components/KYCSection';
 import { useAuth } from '@/hooks/useAuth';
@@ -28,13 +29,39 @@ import {
 } from 'lucide-react';
 
 const DashboardPage = () => {
-  const { user } = useAuth();
+  const { user, userRole, loading: authLoading } = useAuth();
   const { balances, transactions } = useWallet();
   const { investments, getTotalEarnings } = useMiningInvestments();
   const { prices } = useCryptoPrices();
+  const navigate = useNavigate();
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [hideBalances, setHideBalances] = useState(false);
+
+  // Redirect super admin to their dashboard
+  useEffect(() => {
+    if (!authLoading && userRole === 'superadmin') {
+      console.log('Super admin detected, redirecting to super admin dashboard');
+      navigate('/superadmin-dashboard', { replace: true });
+    }
+  }, [userRole, authLoading, navigate]);
+
+  // Show loading while checking user role
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500 mx-auto"></div>
+          <div className="text-gray-600">Loading dashboard...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if user is super admin (will be redirected)
+  if (userRole === 'superadmin') {
+    return null;
+  }
 
   // Calculate total portfolio value in USD
   const totalPortfolioValue = balances.reduce((total, balance) => {

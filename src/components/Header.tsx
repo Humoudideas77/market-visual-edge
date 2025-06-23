@@ -1,185 +1,168 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, Settings, User, ChevronDown, Globe, LogOut, Shield, MessageCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { 
+  User, 
+  Settings, 
+  LogOut, 
+  ChevronDown,
+  Shield,
+  Home
+} from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const Header = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const { data: userProfile } = useQuery({
-    queryKey: ['user-profile', user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      
-      const { data } = await supabase
-        .from('profiles')
-        .select('role, email')
-        .eq('id', user.id)
-        .single();
-      
-      return data;
-    },
-    enabled: !!user,
-  });
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (user) {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
 
-  const handleSignOut = async () => {
-    try {
-      toast.loading('Signing out...');
-      await signOut();
-    } catch (error) {
-      console.error('Sign out error:', error);
-      toast.error('Error signing out');
-    }
-  };
+          if (error) {
+            console.error('Error fetching user role:', error);
+          } else {
+            setUserRole(data?.role || 'user');
+          }
+        } catch (error) {
+          console.error('Error fetching user role:', error);
+        }
+      }
+      setLoading(false);
+    };
 
-  const handleProfileClick = () => {
-    if (userProfile?.role === 'superadmin') {
+    fetchUserRole();
+  }, [user]);
+
+  const handleDashboardClick = () => {
+    if (userRole === 'superadmin') {
       navigate('/superadmin-dashboard');
     } else {
       navigate('/dashboard');
     }
   };
 
-  const handleSuperAdminClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    navigate('/superadmin-dashboard');
-  };
-
-  const handleNotificationClick = () => {
-    toast.info('Notifications feature coming soon!');
-  };
-
-  const handleSettingsClick = () => {
-    toast.info('Settings panel coming soon!');
-  };
-
-  const handleSupportClick = () => {
-    navigate('/');
-    setTimeout(() => {
-      const contactSection = document.querySelector('.contact-form-section');
-      if (contactSection) {
-        contactSection.scrollIntoView({ behavior: 'smooth' });
-      }
-    }, 100);
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/');
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
   };
 
   return (
-    <header className="bg-gray-900 border-b border-gray-700 px-6 py-4 flex items-center justify-between shadow-xl">
-      {/* Logo and Main Navigation */}
-      <div className="flex items-center space-x-8">
-        <Link to="/" className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-red-500 rounded-lg flex items-center justify-center shadow-lg">
-            <span className="text-white font-bold text-sm">MP</span>
-          </div>
-          <span className="text-xl font-bold text-white">Mexc PRO</span>
-        </Link>
-        
-        <nav className="hidden md:flex items-center space-x-6">
-          <Link to="/exchange" className="text-white hover:text-red-400 transition-colors font-medium">Markets</Link>
-          
-          {user ? (
-            <>
-              <Link to="/trading" className="text-white hover:text-red-400 transition-colors font-medium">Trade</Link>
-              <Link to="/contracts" className="text-gray-300 hover:text-red-400 transition-colors font-medium">Contracts</Link>
-              <Link to="/gold-mining" className="text-gray-300 hover:text-red-400 transition-colors font-medium">Gold Mining</Link>
-              <Link to="/launchpad" className="text-gray-300 hover:text-red-400 transition-colors font-medium">Launchpad</Link>
-              <Link to="/dashboard" className="text-gray-300 hover:text-red-400 transition-colors font-medium">Assets</Link>
-              
-              {userProfile?.role === 'superadmin' && (
-                <button 
-                  onClick={handleSuperAdminClick}
-                  className="text-red-400 hover:text-red-300 transition-colors flex items-center space-x-1 font-medium"
-                >
-                  <Shield className="w-4 h-4" />
-                  <span>Super Admin</span>
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              <span className="text-gray-600 cursor-not-allowed">Trade</span>
-              <span className="text-gray-600 cursor-not-allowed">Contracts</span>
-              <span className="text-gray-600 cursor-not-allowed">Gold Mining</span>
-              <span className="text-gray-600 cursor-not-allowed">Launchpad</span>
-            </>
-          )}
-          
-          <button 
-            onClick={handleSupportClick}
-            className="text-gray-300 hover:text-blue-400 transition-colors flex items-center space-x-1 font-medium"
-          >
-            <MessageCircle className="w-4 h-4" />
-            <span>Customer Support</span>
-          </button>
-        </nav>
-      </div>
+    <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <div className="container mx-auto px-6">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <Link to="/" className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-red-600 to-red-700 rounded"></div>
+            <span className="text-xl font-bold text-gray-900">MecCrypto</span>
+          </Link>
 
-      {/* Right Side Controls */}
-      <div className="flex items-center space-x-4">
-        {/* Language Selector */}
-        <div className="flex items-center space-x-1 text-gray-400 hover:text-white cursor-pointer transition-colors">
-          <Globe className="w-4 h-4" />
-          <span className="text-sm">EN</span>
-          <ChevronDown className="w-3 h-3" />
+          {/* Navigation Links */}
+          <nav className="hidden md:flex items-center space-x-8">
+            <Link to="/exchange" className="text-gray-700 hover:text-red-600 transition-colors">
+              Markets
+            </Link>
+            {user && (
+              <>
+                <Link to="/trading" className="text-gray-700 hover:text-red-600 transition-colors">
+                  Trade
+                </Link>
+                <Link to="/contracts" className="text-gray-700 hover:text-red-600 transition-colors">
+                  Contracts
+                </Link>
+                <Link to="/gold-mining" className="text-gray-700 hover:text-red-600 transition-colors">
+                  Gold Mining
+                </Link>
+                <Link to="/launchpad" className="text-gray-700 hover:text-red-600 transition-colors">
+                  Launchpad
+                </Link>
+                <Link to="/my-assets" className="text-gray-700 hover:text-red-600 transition-colors">
+                  Assets
+                </Link>
+              </>
+            )}
+          </nav>
+
+          {/* User Menu */}
+          <div className="flex items-center space-x-4">
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="flex items-center space-x-2 text-gray-700 hover:text-red-600">
+                    <User className="w-4 h-4" />
+                    <span className="hidden sm:inline">{user.email?.split('@')[0]}</span>
+                    {userRole === 'superadmin' && (
+                      <Shield className="w-4 h-4 text-red-600" />
+                    )}
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <div className="px-2 py-1.5 text-sm text-gray-500">
+                    {user.email}
+                    {userRole === 'superadmin' && (
+                      <div className="text-xs text-red-600 font-semibold">Super Admin</div>
+                    )}
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleDashboardClick} className="cursor-pointer">
+                    <Home className="w-4 h-4 mr-2" />
+                    {userRole === 'superadmin' ? 'Super Admin Dashboard' : 'Dashboard'}
+                  </DropdownMenuItem>
+                  {userRole === 'superadmin' && (
+                    <DropdownMenuItem onClick={() => navigate('/dashboard')} className="cursor-pointer">
+                      <User className="w-4 h-4 mr-2" />
+                      User Dashboard
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem className="cursor-pointer">
+                    <Settings className="w-4 h-4 mr-2" />
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-600">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <Link to="/auth">
+                  <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/auth">
+                  <Button className="bg-red-600 hover:bg-red-700 text-white">
+                    Get Started
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
-
-        {user ? (
-          <>
-            {/* Notifications */}
-            <button onClick={handleNotificationClick} className="hover:bg-gray-800 p-2 rounded-lg transition-colors">
-              <Bell className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
-              <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
-            </button>
-
-            {/* Settings */}
-            <button onClick={handleSettingsClick} className="hover:bg-gray-800 p-2 rounded-lg transition-colors">
-              <Settings className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
-            </button>
-
-            {/* User Profile */}
-            <button 
-              onClick={handleProfileClick}
-              className="flex items-center space-x-2 bg-gray-800 border border-gray-600 px-3 py-2 rounded-lg cursor-pointer hover:bg-gray-700 transition-all duration-200"
-            >
-              {userProfile?.role === 'superadmin' ? (
-                <Shield className="w-4 h-4 text-red-400" />
-              ) : (
-                <User className="w-4 h-4 text-white" />
-              )}
-              <span className="text-sm text-white font-medium">
-                {userProfile?.role === 'superadmin' ? 'Super Admin' : 'Profile'}
-              </span>
-              <ChevronDown className="w-3 h-3 text-gray-400" />
-            </button>
-
-            {/* Sign Out Button */}
-            <button
-              onClick={handleSignOut}
-              className="flex items-center space-x-2 px-3 py-2 text-gray-400 hover:text-red-400 transition-colors border border-gray-600 rounded-lg hover:border-red-500 hover:bg-gray-800"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="text-sm font-medium">Sign Out</span>
-            </button>
-          </>
-        ) : (
-          <div className="flex items-center space-x-2">
-            <Link to="/auth">
-              <button className="px-4 py-2 text-white border border-gray-600 rounded-md hover:bg-gray-800 transition-colors">
-                Log In
-              </button>
-            </Link>
-            <Link to="/auth">
-              <button className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
-                Sign Up
-              </button>
-            </Link>
-          </div>
-        )}
       </div>
     </header>
   );
