@@ -1,3 +1,4 @@
+
 import { useState, useEffect, createContext, useContext } from 'react';
 import { useAuth } from './useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -52,9 +53,9 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   const createDefaultBalances = (): WalletBalance[] => {
     return DEFAULT_CURRENCIES.map(currency => ({
       currency,
-      available: 0, // Changed from 10000 to 0 for all currencies
+      available: 0, // Always start with zero
       locked: 0,
-      total: 0, // Changed from 10000 to 0 for all currencies
+      total: 0, // Always start with zero
     }));
   };
 
@@ -83,40 +84,54 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       const dbBalances = await fetchBalancesFromDB();
-      const defaultBalances = createDefaultBalances();
-
+      console.log('Database balances for user:', user.id, dbBalances);
+      
       if (dbBalances.length === 0) {
-        // Initialize with default balances (all zeros now)
+        // No balances exist, create them with zero values
+        const defaultBalances = createDefaultBalances();
+        console.log('Creating default balances with zeros:', defaultBalances);
+        
         const { error } = await supabase.from('wallet_balances').insert(
           defaultBalances.map(balance => ({
             user_id: user.id,
             currency: balance.currency,
-            available_balance: balance.available,
-            locked_balance: balance.locked,
-            total_balance: balance.total,
+            available_balance: 0, // Explicitly set to 0
+            locked_balance: 0,
+            total_balance: 0, // Explicitly set to 0
           }))
         );
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error creating default balances:', error);
+          throw error;
+        }
         setBalances(defaultBalances);
       } else {
-        // Update balances with database values
-        const updatedBalances = defaultBalances.map(defaultBalance => {
-          const dbBalance = dbBalances.find(db => db.currency === defaultBalance.currency);
+        // Use existing balances from database
+        const updatedBalances = DEFAULT_CURRENCIES.map(currency => {
+          const dbBalance = dbBalances.find(db => db.currency === currency);
           if (dbBalance) {
             return {
               currency: dbBalance.currency,
-              available: Number(dbBalance.available_balance),
-              locked: Number(dbBalance.locked_balance),
-              total: Number(dbBalance.total_balance),
+              available: Number(dbBalance.available_balance) || 0,
+              locked: Number(dbBalance.locked_balance) || 0,
+              total: Number(dbBalance.total_balance) || 0,
             };
           }
-          return defaultBalance;
+          // If currency doesn't exist in DB, return zero balance
+          return {
+            currency,
+            available: 0,
+            locked: 0,
+            total: 0,
+          };
         });
+        console.log('Updated balances from DB:', updatedBalances);
         setBalances(updatedBalances);
       }
     } catch (error) {
       console.error('Error initializing balances:', error);
+      // Fallback to zero balances
       setBalances(createDefaultBalances());
     } finally {
       setLoading(false);
@@ -128,17 +143,22 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       const dbBalances = await fetchBalancesFromDB();
-      const updatedBalances = balances.map(balance => {
-        const dbBalance = dbBalances.find(db => db.currency === balance.currency);
+      const updatedBalances = DEFAULT_CURRENCIES.map(currency => {
+        const dbBalance = dbBalances.find(db => db.currency === currency);
         if (dbBalance) {
           return {
             currency: dbBalance.currency,
-            available: Number(dbBalance.available_balance),
-            locked: Number(dbBalance.locked_balance),
-            total: Number(dbBalance.total_balance),
+            available: Number(dbBalance.available_balance) || 0,
+            locked: Number(dbBalance.locked_balance) || 0,
+            total: Number(dbBalance.total_balance) || 0,
           };
         }
-        return balance;
+        return {
+          currency,
+          available: 0,
+          locked: 0,
+          total: 0,
+        };
       });
       setBalances(updatedBalances);
     } catch (error) {
