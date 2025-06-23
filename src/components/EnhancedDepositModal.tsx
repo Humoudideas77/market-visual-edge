@@ -99,21 +99,34 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
   };
 
   const uploadScreenshot = async (file: File): Promise<string | null> => {
+    if (!user) return null;
+    
     setUploadingScreenshot(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      
+      console.log('Uploading screenshot to:', fileName);
       
       const { data, error } = await supabase.storage
         .from('deposit-screenshots')
-        .upload(fileName, file);
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Upload error:', error);
+        throw error;
+      }
+
+      console.log('Upload successful:', data);
 
       const { data: urlData } = supabase.storage
         .from('deposit-screenshots')
         .getPublicUrl(data.path);
 
+      console.log('Public URL:', urlData.publicUrl);
       return urlData.publicUrl;
     } catch (error) {
       console.error('Error uploading screenshot:', error);
@@ -155,7 +168,11 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
     try {
       // Upload screenshot first
       const screenshotUrl = await uploadScreenshot(screenshot);
-      if (!screenshotUrl) return;
+      if (!screenshotUrl) {
+        throw new Error('Failed to upload screenshot');
+      }
+
+      console.log('Creating deposit request with screenshot URL:', screenshotUrl);
 
       // Create deposit request
       const { error } = await supabase
@@ -169,7 +186,10 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
           status: 'pending'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
 
       toast.success('Deposit request submitted successfully. We will review and process it within 24 hours.');
       
@@ -179,7 +199,7 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
       onClose();
     } catch (error: any) {
       console.error('Error submitting deposit:', error);
-      toast.error('Failed to submit deposit request');
+      toast.error(error.message || 'Failed to submit deposit request');
     } finally {
       setLoading(false);
     }

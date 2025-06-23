@@ -27,6 +27,7 @@ interface WalletContextType {
   depositFunds: (currency: string, amount: number) => Promise<boolean>;
   getBalance: (currency: string) => WalletBalance | null;
   executeTransaction: (transaction: Omit<Transaction, 'id' | 'timestamp' | 'status'>) => Promise<boolean>;
+  refreshBalances: () => Promise<void>;
 }
 
 const WalletContext = createContext<WalletContextType | null>(null);
@@ -46,47 +47,81 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   // Initialize default balances with all supported currencies
+  const initializeBalances = async () => {
+    if (!user) return;
+
+    const defaultBalances: WalletBalance[] = [
+      { currency: 'USDT', available: 10000, locked: 0, total: 10000 },
+      { currency: 'BTC', available: 0, locked: 0, total: 0 },
+      { currency: 'ETH', available: 0, locked: 0, total: 0 },
+      { currency: 'BNB', available: 0, locked: 0, total: 0 },
+      { currency: 'SOL', available: 0, locked: 0, total: 0 },
+      { currency: 'XRP', available: 0, locked: 0, total: 0 },
+      { currency: 'LTC', available: 0, locked: 0, total: 0 },
+      { currency: 'BCH', available: 0, locked: 0, total: 0 },
+      { currency: 'ADA', available: 0, locked: 0, total: 0 },
+      { currency: 'DOT', available: 0, locked: 0, total: 0 },
+      { currency: 'LINK', available: 0, locked: 0, total: 0 },
+      { currency: 'DOGE', available: 0, locked: 0, total: 0 },
+      { currency: 'AVAX', available: 0, locked: 0, total: 0 },
+    ];
+    
+    // Check for approved deposits and add them to balances
+    try {
+      const { data: approvedDeposits } = await supabase
+        .from('deposit_requests')
+        .select('currency, amount')
+        .eq('user_id', user.id)
+        .eq('status', 'approved');
+
+      if (approvedDeposits) {
+        approvedDeposits.forEach(deposit => {
+          const balanceIndex = defaultBalances.findIndex(b => b.currency === deposit.currency);
+          if (balanceIndex !== -1) {
+            defaultBalances[balanceIndex].available += deposit.amount;
+            defaultBalances[balanceIndex].total += deposit.amount;
+          } else {
+            defaultBalances.push({
+              currency: deposit.currency,
+              available: deposit.amount,
+              locked: 0,
+              total: deposit.amount,
+            });
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching approved deposits:', error);
+    }
+    
+    const savedBalances = localStorage.getItem(`wallet_balances_${user.id}`);
+    if (savedBalances) {
+      const parsedBalances = JSON.parse(savedBalances);
+      // Merge with default balances to ensure all currencies are present
+      const mergedBalances = defaultBalances.map(defaultBalance => {
+        const existingBalance = parsedBalances.find((b: WalletBalance) => b.currency === defaultBalance.currency);
+        return existingBalance || defaultBalance;
+      });
+      setBalances(mergedBalances);
+    } else {
+      setBalances(defaultBalances);
+      localStorage.setItem(`wallet_balances_${user.id}`, JSON.stringify(defaultBalances));
+    }
+    
+    const savedTransactions = localStorage.getItem(`wallet_transactions_${user.id}`);
+    if (savedTransactions) {
+      setTransactions(JSON.parse(savedTransactions).map((t: any) => ({
+        ...t,
+        timestamp: new Date(t.timestamp)
+      })));
+    }
+    
+    setLoading(false);
+  };
+
   useEffect(() => {
     if (user) {
-      const defaultBalances: WalletBalance[] = [
-        { currency: 'USDT', available: 10000, locked: 0, total: 10000 },
-        { currency: 'BTC', available: 0, locked: 0, total: 0 },
-        { currency: 'ETH', available: 0, locked: 0, total: 0 },
-        { currency: 'BNB', available: 0, locked: 0, total: 0 },
-        { currency: 'SOL', available: 0, locked: 0, total: 0 },
-        { currency: 'XRP', available: 0, locked: 0, total: 0 },
-        { currency: 'LTC', available: 0, locked: 0, total: 0 },
-        { currency: 'BCH', available: 0, locked: 0, total: 0 },
-        { currency: 'ADA', available: 0, locked: 0, total: 0 },
-        { currency: 'DOT', available: 0, locked: 0, total: 0 },
-        { currency: 'LINK', available: 0, locked: 0, total: 0 },
-        { currency: 'DOGE', available: 0, locked: 0, total: 0 },
-        { currency: 'AVAX', available: 0, locked: 0, total: 0 },
-      ];
-      
-      const savedBalances = localStorage.getItem(`wallet_balances_${user.id}`);
-      if (savedBalances) {
-        const parsedBalances = JSON.parse(savedBalances);
-        // Merge with default balances to ensure all currencies are present
-        const mergedBalances = defaultBalances.map(defaultBalance => {
-          const existingBalance = parsedBalances.find((b: WalletBalance) => b.currency === defaultBalance.currency);
-          return existingBalance || defaultBalance;
-        });
-        setBalances(mergedBalances);
-      } else {
-        setBalances(defaultBalances);
-        localStorage.setItem(`wallet_balances_${user.id}`, JSON.stringify(defaultBalances));
-      }
-      
-      const savedTransactions = localStorage.getItem(`wallet_transactions_${user.id}`);
-      if (savedTransactions) {
-        setTransactions(JSON.parse(savedTransactions).map((t: any) => ({
-          ...t,
-          timestamp: new Date(t.timestamp)
-        })));
-      }
-      
-      setLoading(false);
+      initializeBalances();
     }
   }, [user]);
 
@@ -105,6 +140,12 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const refreshBalances = async () => {
+    if (user) {
+      await initializeBalances();
+    }
+  };
+
   const depositFunds = async (currency: string, amount: number): Promise<boolean> => {
     if (!user || amount <= 0) return false;
 
@@ -118,6 +159,7 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     try {
+      // This is for demo/test deposits only - real deposits go through the EnhancedDepositModal
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       const newBalances = balances.map(balance => {
@@ -198,6 +240,7 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
       depositFunds,
       getBalance,
       executeTransaction,
+      refreshBalances,
     }}>
       {children}
     </WalletContext.Provider>

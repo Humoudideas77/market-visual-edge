@@ -68,9 +68,18 @@ const DepositApprovalSection = () => {
         });
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['admin-deposits'] });
-      toast({ title: 'Deposit request updated successfully' });
+      
+      if (variables.status === 'approved') {
+        toast({ 
+          title: 'Deposit approved successfully', 
+          description: 'Funds will be credited to user wallet immediately' 
+        });
+      } else {
+        toast({ title: 'Deposit request updated successfully' });
+      }
+      
       setSelectedDeposit(null);
       setAdminNotes('');
     },
@@ -111,6 +120,12 @@ const DepositApprovalSection = () => {
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
+  };
+
+  const handleViewScreenshot = (url: string) => {
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
   };
 
   if (isLoading) {
@@ -178,7 +193,7 @@ const DepositApprovalSection = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => window.open(deposit.transaction_screenshot_url!, '_blank')}
+                        onClick={() => handleViewScreenshot(deposit.transaction_screenshot_url!)}
                       >
                         <ExternalLink className="w-4 h-4" />
                       </Button>
@@ -227,6 +242,26 @@ const DepositApprovalSection = () => {
                                 </span>
                               </div>
                             </div>
+
+                            {/* Screenshot Preview */}
+                            {deposit.transaction_screenshot_url && (
+                              <div>
+                                <label className="text-sm font-medium text-exchange-text-secondary mb-2 block">
+                                  Transaction Screenshot
+                                </label>
+                                <div className="border border-exchange-border rounded-lg p-2">
+                                  <img 
+                                    src={deposit.transaction_screenshot_url}
+                                    alt="Transaction Screenshot"
+                                    className="max-w-full h-auto max-h-64 mx-auto rounded cursor-pointer"
+                                    onClick={() => handleViewScreenshot(deposit.transaction_screenshot_url!)}
+                                  />
+                                  <p className="text-xs text-exchange-text-secondary mt-1 text-center">
+                                    Click to view full size
+                                  </p>
+                                </div>
+                              </div>
+                            )}
                             
                             <div>
                               <label className="text-sm font-medium text-exchange-text-secondary">
