@@ -6,15 +6,16 @@ import { useCryptoPrices, formatPrice, formatVolume, SUPPORTED_PAIRS, CRYPTO_ID_
 import Header from '../components/Header';
 import MarketTicker from '../components/MarketTicker';
 import { Button } from '@/components/ui/button';
-import { Search, TrendingUp, TrendingDown, Star, Lock, Wifi, WifiOff, AlertCircle } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, Star, Lock, Wifi, WifiOff, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 const ExchangePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { prices, loading, error, lastUpdated } = useCryptoPrices(10000);
+  const { prices, loading, error, lastUpdated, refetch } = useCryptoPrices(5000); // Faster updates - every 5 seconds
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'favorites' | 'gainers' | 'losers'>('all');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Filter to show only supported trading pairs
   const supportedCryptos = prices.filter(crypto => {
@@ -35,6 +36,18 @@ const ExchangePage = () => {
         return matchesSearch;
     }
   });
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refetch();
+      toast.success('Market data refreshed successfully');
+    } catch (error) {
+      toast.error('Failed to refresh market data');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const handleTradeClick = (symbol: string) => {
     const tradingPair = `${symbol.toUpperCase()}/USDT`;
@@ -93,35 +106,47 @@ const ExchangePage = () => {
       <MarketTicker />
       
       <div className="container mx-auto px-6 py-8">
-        {/* Page Header */}
+        {/* Enhanced Page Header with Live Indicator */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-3xl font-bold text-exchange-text-primary mb-2">
-                Cryptocurrency Markets
+                Live Cryptocurrency Markets
               </h1>
               <p className="text-exchange-text-secondary">
                 Real-time cryptocurrency prices and market data - {supportedCryptos.length} supported pairs
               </p>
             </div>
             
-            {/* Live Status Indicator */}
-            <div className="flex items-center space-x-2 bg-exchange-panel border border-exchange-border rounded-lg px-4 py-2">
-              {error && !prices.length ? (
-                <WifiOff className="w-4 h-4 text-exchange-red" />
-              ) : error ? (
-                <AlertCircle className="w-4 h-4 text-yellow-500" />
-              ) : (
-                <Wifi className="w-4 h-4 text-exchange-green" />
-              )}
-              <div className="text-sm">
-                <div className="text-exchange-text-primary font-medium">
-                  {error && !prices.length ? 'Offline' : error ? 'Limited' : 'Live'}
-                </div>
-                <div className="text-xs text-exchange-text-secondary">
-                  {lastUpdated ? lastUpdated.toLocaleTimeString() : 'Loading...'}
+            {/* Enhanced Live Status Indicator */}
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2 bg-exchange-panel border border-exchange-border rounded-lg px-4 py-2">
+                {error && !prices.length ? (
+                  <WifiOff className="w-4 h-4 text-exchange-red" />
+                ) : error ? (
+                  <AlertCircle className="w-4 h-4 text-yellow-500" />
+                ) : (
+                  <Wifi className="w-4 h-4 text-exchange-green animate-pulse" />
+                )}
+                <div className="text-sm">
+                  <div className="text-exchange-text-primary font-medium">
+                    {error && !prices.length ? 'Offline' : error ? 'Limited' : 'Live Market'}
+                  </div>
+                  <div className="text-xs text-exchange-text-secondary">
+                    {lastUpdated ? `Updated: ${lastUpdated.toLocaleTimeString()}` : 'Loading...'}
+                  </div>
                 </div>
               </div>
+              
+              <Button 
+                onClick={handleManualRefresh} 
+                disabled={isRefreshing}
+                size="sm"
+                className="bg-exchange-blue hover:bg-exchange-blue/90"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
             </div>
           </div>
           
@@ -129,7 +154,7 @@ const ExchangePage = () => {
             <div className="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
               <p className="text-yellow-600 text-sm">
                 <AlertCircle className="w-4 h-4 inline-block mr-2" />
-                {error} - {prices.length > 0 ? 'Showing cached data' : 'Please refresh to try again'}
+                {error} - {prices.length > 0 ? 'Showing cached data with auto-refresh' : 'Please refresh to try again'}
               </p>
             </div>
           )}
@@ -138,7 +163,7 @@ const ExchangePage = () => {
             <div className="mt-4 p-4 bg-exchange-accent/30 border border-exchange-border rounded-lg">
               <p className="text-exchange-text-secondary text-sm">
                 <Lock className="w-4 h-4 inline-block mr-2" />
-                You're viewing in read-only mode. <span className="text-exchange-blue cursor-pointer hover:underline" onClick={() => navigate('/auth')}>Sign in</span> to start trading.
+                You're viewing live prices in read-only mode. <span className="text-exchange-blue cursor-pointer hover:underline" onClick={() => navigate('/auth')}>Sign in</span> to start trading.
               </p>
             </div>
           )}
@@ -202,7 +227,8 @@ const ExchangePage = () => {
         {/* Loading State */}
         {loading && supportedCryptos.length === 0 && (
           <div className="bg-exchange-panel rounded-xl border border-exchange-border p-12 text-center">
-            <div className="text-exchange-text-secondary">Loading real-time market data...</div>
+            <RefreshCw className="w-8 h-8 text-exchange-blue mx-auto mb-4 animate-spin" />
+            <div className="text-exchange-text-secondary">Loading live market data...</div>
           </div>
         )}
 
@@ -211,17 +237,19 @@ const ExchangePage = () => {
           <div className="bg-exchange-panel rounded-xl border border-exchange-border p-12 text-center">
             <WifiOff className="w-8 h-8 text-exchange-red mx-auto mb-4" />
             <div className="text-exchange-red mb-2">Unable to load live market data</div>
-            <div className="text-exchange-text-secondary text-sm mb-4">Using offline mode with sample data</div>
+            <div className="text-exchange-text-secondary text-sm mb-4">Connection to market data failed</div>
             <button 
-              onClick={() => window.location.reload()} 
-              className="px-4 py-2 bg-exchange-blue text-white rounded-lg hover:bg-exchange-blue/90"
+              onClick={handleManualRefresh} 
+              disabled={isRefreshing}
+              className="px-4 py-2 bg-exchange-blue text-white rounded-lg hover:bg-exchange-blue/90 disabled:opacity-50"
             >
+              <RefreshCw className={`w-4 h-4 mr-2 inline-block ${isRefreshing ? 'animate-spin' : ''}`} />
               Retry Connection
             </button>
           </div>
         )}
 
-        {/* Enhanced Markets Table with Quick Actions */}
+        {/* Enhanced Markets Table with Real-time Updates */}
         {supportedCryptos.length > 0 && (
           <div className="bg-exchange-panel rounded-xl border border-exchange-border overflow-hidden">
             <div className="overflow-x-auto">
@@ -229,7 +257,12 @@ const ExchangePage = () => {
                 <thead className="bg-exchange-accent border-b border-exchange-border">
                   <tr>
                     <th className="text-left p-4 text-exchange-text-secondary font-medium">Market</th>
-                    <th className="text-right p-4 text-exchange-text-secondary font-medium">Price</th>
+                    <th className="text-right p-4 text-exchange-text-secondary font-medium">
+                      <div className="flex items-center justify-end space-x-1">
+                        <span>Live Price</span>
+                        {!error && <Wifi className="w-3 h-3 text-exchange-green" />}
+                      </div>
+                    </th>
                     <th className="text-right p-4 text-exchange-text-secondary font-medium">24h Change</th>
                     <th className="text-right p-4 text-exchange-text-secondary font-medium">24h Volume</th>
                     <th className="text-right p-4 text-exchange-text-secondary font-medium">Market Cap</th>

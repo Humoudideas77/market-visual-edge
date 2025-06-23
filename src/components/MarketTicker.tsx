@@ -1,16 +1,22 @@
 
 import React from 'react';
 import { useCryptoPrices, formatPrice } from '@/hooks/useCryptoPrices';
-import { TrendingUp, TrendingDown, Wifi, WifiOff } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 
 const MarketTicker = () => {
-  const { prices, loading, error, lastUpdated } = useCryptoPrices(6000); // Update every 6 seconds
+  const { prices, loading, error, lastUpdated, refetch } = useCryptoPrices(6000); // Update every 6 seconds
+
+  const handleRefresh = () => {
+    console.log('[MarketTicker] Manual refresh triggered');
+    refetch();
+  };
 
   if (loading && prices.length === 0) {
     return (
       <div className="bg-exchange-panel border-b border-exchange-border">
         <div className="flex items-center justify-center py-4">
-          <div className="text-exchange-text-secondary">Loading market data...</div>
+          <RefreshCw className="w-4 h-4 text-exchange-blue animate-spin mr-2" />
+          <div className="text-exchange-text-secondary">Loading live market data...</div>
         </div>
       </div>
     );
@@ -21,7 +27,13 @@ const MarketTicker = () => {
       <div className="bg-exchange-panel border-b border-exchange-border">
         <div className="flex items-center justify-center py-3 px-6">
           <WifiOff className="w-4 h-4 text-exchange-red mr-2" />
-          <div className="text-exchange-red text-sm">Market data unavailable</div>
+          <div className="text-exchange-red text-sm">Live market data unavailable</div>
+          <button 
+            onClick={handleRefresh}
+            className="ml-2 text-exchange-blue hover:text-exchange-blue/80 text-sm"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -30,14 +42,28 @@ const MarketTicker = () => {
   return (
     <div className="bg-exchange-panel border-b border-exchange-border">
       <div className="flex overflow-x-auto py-3 px-6 space-x-8">
-        {/* Connection status indicator */}
-        <div className="flex-shrink-0 flex items-center space-x-2 min-w-[120px]">
+        {/* Enhanced connection status indicator */}
+        <div className="flex-shrink-0 flex items-center space-x-3 min-w-[140px]">
           <div className="flex items-center space-x-1">
-            <Wifi className={`w-3 h-3 ${error ? 'text-exchange-red' : 'text-exchange-green'}`} />
+            {error ? (
+              <WifiOff className="w-3 h-3 text-exchange-red" />
+            ) : (
+              <Wifi className="w-3 h-3 text-exchange-green" />
+            )}
             <span className="text-xs text-exchange-text-secondary">
-              {lastUpdated ? `${lastUpdated.toLocaleTimeString()}` : 'Loading...'}
+              {error ? 'Offline' : 'Live'}
             </span>
           </div>
+          <div className="text-xs text-exchange-text-secondary">
+            {lastUpdated ? lastUpdated.toLocaleTimeString() : 'Loading...'}
+          </div>
+          <button 
+            onClick={handleRefresh}
+            className="text-exchange-blue hover:text-exchange-blue/80 transition-colors"
+            title="Refresh prices"
+          >
+            <RefreshCw className="w-3 h-3" />
+          </button>
         </div>
 
         {prices.slice(0, 6).map((crypto) => {

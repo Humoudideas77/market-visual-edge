@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export interface CryptoPrice {
   id: string;
@@ -19,6 +19,7 @@ interface UseCryptoPricesReturn {
   loading: boolean;
   error: string | null;
   lastUpdated: Date | null;
+  refetch: () => Promise<void>;
 }
 
 // Expanded list of supported cryptocurrencies
@@ -63,97 +64,97 @@ const getMockPrices = (): CryptoPrice[] => [
     id: 'bitcoin',
     symbol: 'btc',
     name: 'Bitcoin',
-    current_price: 43250.00,
-    price_change_24h: 1250.50,
-    price_change_percentage_24h: 2.98,
-    market_cap: 850000000000,
-    total_volume: 28500000000,
-    high_24h: 43800.00,
-    low_24h: 41900.00,
+    current_price: 101188.00,
+    price_change_24h: -305.09,
+    price_change_percentage_24h: -0.30,
+    market_cap: 2012819572604,
+    total_volume: 49002153325,
+    high_24h: 102001.00,
+    low_24h: 98467.00,
   },
   {
     id: 'ethereum',
     symbol: 'eth',
     name: 'Ethereum',
-    current_price: 2650.75,
-    price_change_24h: -85.25,
-    price_change_percentage_24h: -3.12,
-    market_cap: 320000000000,
-    total_volume: 15200000000,
-    high_24h: 2750.00,
-    low_24h: 2580.00,
+    current_price: 2249.69,
+    price_change_24h: 31.16,
+    price_change_percentage_24h: 1.40,
+    market_cap: 271728378746,
+    total_volume: 22532659495,
+    high_24h: 2265.67,
+    low_24h: 2134.88,
   },
   {
     id: 'solana',
     symbol: 'sol',
     name: 'Solana',
-    current_price: 98.45,
-    price_change_24h: 4.25,
-    price_change_percentage_24h: 4.51,
-    market_cap: 45000000000,
-    total_volume: 2500000000,
-    high_24h: 102.00,
-    low_24h: 94.20,
+    current_price: 134.07,
+    price_change_24h: 4.02,
+    price_change_percentage_24h: 3.09,
+    market_cap: 71249671095,
+    total_volume: 5520957137,
+    high_24h: 135.23,
+    low_24h: 127.01,
   },
   {
     id: 'ripple',
     symbol: 'xrp',
     name: 'XRP',
-    current_price: 0.52,
-    price_change_24h: 0.03,
-    price_change_percentage_24h: 6.12,
-    market_cap: 28000000000,
-    total_volume: 1200000000,
-    high_24h: 0.55,
-    low_24h: 0.49,
+    current_price: 2.00,
+    price_change_24h: 0.024,
+    price_change_percentage_24h: 1.24,
+    market_cap: 117938197746,
+    total_volume: 4100861140,
+    high_24h: 2.03,
+    low_24h: 1.92,
   },
   {
     id: 'binancecoin',
     symbol: 'bnb',
     name: 'BNB',
-    current_price: 315.20,
-    price_change_24h: -12.80,
-    price_change_percentage_24h: -3.90,
-    market_cap: 47000000000,
-    total_volume: 1800000000,
-    high_24h: 328.00,
-    low_24h: 312.50,
+    current_price: 617.73,
+    price_change_24h: -5.25,
+    price_change_percentage_24h: -0.84,
+    market_cap: 90121676246,
+    total_volume: 1044631697,
+    high_24h: 624.67,
+    low_24h: 602.75,
   },
   {
     id: 'litecoin',
     symbol: 'ltc',
     name: 'Litecoin',
-    current_price: 72.15,
-    price_change_24h: 2.35,
-    price_change_percentage_24h: 3.37,
-    market_cap: 5400000000,
-    total_volume: 450000000,
-    high_24h: 75.00,
-    low_24h: 69.80,
+    current_price: 81.15,
+    price_change_24h: 1.44,
+    price_change_percentage_24h: 1.81,
+    market_cap: 6166843382,
+    total_volume: 409228421,
+    high_24h: 81.52,
+    low_24h: 76.59,
   },
   {
     id: 'bitcoin-cash',
     symbol: 'bch',
     name: 'Bitcoin Cash',
-    current_price: 245.80,
-    price_change_24h: -8.20,
-    price_change_percentage_24h: -3.23,
-    market_cap: 4900000000,
-    total_volume: 380000000,
-    high_24h: 255.00,
-    low_24h: 242.50,
+    current_price: 451.93,
+    price_change_24h: -6.09,
+    price_change_percentage_24h: -1.33,
+    market_cap: 8988110862,
+    total_volume: 612136694,
+    high_24h: 458.02,
+    low_24h: 438.49,
   },
   {
     id: 'cardano',
     symbol: 'ada',
     name: 'Cardano',
-    current_price: 0.38,
-    price_change_24h: 0.02,
-    price_change_percentage_24h: 5.56,
-    market_cap: 13500000000,
-    total_volume: 650000000,
-    high_24h: 0.40,
-    low_24h: 0.36,
+    current_price: 0.542051,
+    price_change_24h: 0.00783,
+    price_change_percentage_24h: 1.47,
+    market_cap: 19572878757,
+    total_volume: 889426644,
+    high_24h: 0.550507,
+    low_24h: 0.513977,
   },
   {
     id: 'polkadot',
@@ -171,56 +172,69 @@ const getMockPrices = (): CryptoPrice[] => [
     id: 'chainlink',
     symbol: 'link',
     name: 'Chainlink',
-    current_price: 14.25,
-    price_change_24h: -0.75,
-    price_change_percentage_24h: -5.00,
-    market_cap: 8800000000,
-    total_volume: 420000000,
-    high_24h: 15.20,
-    low_24h: 14.00,
+    current_price: 11.82,
+    price_change_24h: 0.24,
+    price_change_percentage_24h: 2.10,
+    market_cap: 8019849804,
+    total_volume: 570733300,
+    high_24h: 11.94,
+    low_24h: 11.02,
   },
   {
     id: 'dogecoin',
     symbol: 'doge',
     name: 'Dogecoin',
-    current_price: 0.085,
-    price_change_24h: 0.008,
-    price_change_percentage_24h: 10.39,
-    market_cap: 12200000000,
-    total_volume: 890000000,
-    high_24h: 0.092,
-    low_24h: 0.077,
+    current_price: 0.15285,
+    price_change_24h: 0.00192,
+    price_change_percentage_24h: 1.27,
+    market_cap: 22912230216,
+    total_volume: 1972244890,
+    high_24h: 0.154695,
+    low_24h: 0.144442,
   },
   {
     id: 'avalanche-2',
     symbol: 'avax',
     name: 'Avalanche',
-    current_price: 26.80,
-    price_change_24h: 1.20,
-    price_change_percentage_24h: 4.69,
-    market_cap: 11000000000,
-    total_volume: 520000000,
-    high_24h: 28.50,
-    low_24h: 25.60,
+    current_price: 16.89,
+    price_change_24h: 0.56,
+    price_change_percentage_24h: 3.41,
+    market_cap: 7138682786,
+    total_volume: 440621813,
+    high_24h: 17.13,
+    low_24h: 15.73,
   }
 ];
 
-export const useCryptoPrices = (refreshInterval: number = 10000): UseCryptoPricesReturn => {
+export const useCryptoPrices = (refreshInterval: number = 6000): UseCryptoPricesReturn => {
   const [prices, setPrices] = useState<CryptoPrice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
+  const retryCountRef = useRef(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const fetchPrices = async () => {
+  const fetchPrices = useCallback(async () => {
+    // Cancel any ongoing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
-      console.log('Fetching crypto prices...');
+      console.log('[CryptoPrices] Fetching live crypto prices...');
+      
       const response = await fetch(
-        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${CRYPTO_IDS}&order=market_cap_desc&per_page=15&page=1&sparkline=false&price_change_percentage=24h`,
+        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${CRYPTO_IDS}&order=market_cap_desc&per_page=15&page=1&sparkline=false&price_change_percentage=24h&_=${Date.now()}`,
         {
           headers: {
             'Accept': 'application/json',
+            'Cache-Control': 'no-cache',
           },
+          signal: controller.signal,
         }
       );
       
@@ -229,39 +243,72 @@ export const useCryptoPrices = (refreshInterval: number = 10000): UseCryptoPrice
       }
       
       const data: CryptoPrice[] = await response.json();
-      console.log('Successfully fetched crypto prices:', data.length, 'items');
-      setPrices(data);
-      setLastUpdated(new Date());
-      setError(null);
-      setRetryCount(0);
+      
+      if (data && data.length > 0) {
+        console.log('[CryptoPrices] Successfully fetched live data:', data.length, 'items');
+        console.log('[CryptoPrices] Sample price - BTC:', data.find(p => p.id === 'bitcoin')?.current_price);
+        
+        setPrices(data);
+        setLastUpdated(new Date());
+        setError(null);
+        retryCountRef.current = 0;
+      } else {
+        throw new Error('No data received from API');
+      }
     } catch (err) {
-      console.error('Error fetching crypto prices:', err);
-      setRetryCount(prev => prev + 1);
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.log('[CryptoPrices] Request aborted');
+        return;
+      }
+
+      console.error('[CryptoPrices] Error fetching prices:', err);
+      retryCountRef.current += 1;
       
       // Use mock data as fallback after 3 failed attempts
-      if (retryCount >= 2) {
-        console.log('Using mock data as fallback');
+      if (retryCountRef.current >= 3) {
+        console.log('[CryptoPrices] Using mock data as fallback');
         const mockData = getMockPrices();
         setPrices(mockData);
         setLastUpdated(new Date());
-        setError('Using offline data - live prices unavailable');
+        setError('Live data unavailable - using offline mode');
       } else {
-        setError(err instanceof Error ? err.message : 'Failed to fetch prices');
+        setError(err instanceof Error ? err.message : 'Failed to fetch live prices');
       }
     } finally {
       setLoading(false);
+      abortControllerRef.current = null;
     }
-  };
+  }, []);
+
+  const refetch = useCallback(async () => {
+    setLoading(true);
+    await fetchPrices();
+  }, [fetchPrices]);
 
   useEffect(() => {
     // Initial fetch
     fetchPrices();
 
-    const interval = setInterval(fetchPrices, refreshInterval);
-    return () => clearInterval(interval);
-  }, [refreshInterval, retryCount]);
+    // Set up interval for continuous updates
+    intervalRef.current = setInterval(() => {
+      console.log('[CryptoPrices] Auto-refreshing prices...');
+      fetchPrices();
+    }, refreshInterval);
 
-  return { prices, loading, error, lastUpdated };
+    // Cleanup function
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
+  }, [fetchPrices, refreshInterval]);
+
+  return { prices, loading, error, lastUpdated, refetch };
 };
 
 // Helper function to get price by symbol
