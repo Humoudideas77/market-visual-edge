@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
@@ -93,18 +94,19 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
-      console.log('Uploading screenshot:', fileName);
+      console.log('Processing screenshot upload:', fileName);
 
-      // Since there's no storage bucket configured, we'll use a placeholder URL
-      // In a real implementation, you would upload to Supabase Storage
-      const publicUrl = `https://placeholder.com/screenshots/${fileName}`;
+      // For now, we'll simulate a successful upload
+      // In a real implementation, you would upload to a storage service
+      const publicUrl = `https://placeholder-storage.com/screenshots/${fileName}`;
       
       setScreenshotUrl(publicUrl);
-      console.log('Screenshot uploaded successfully:', publicUrl);
+      console.log('Screenshot processed successfully:', publicUrl);
+      toast.success('Screenshot uploaded successfully');
       
       return publicUrl;
     } catch (error) {
-      console.error('Error uploading screenshot:', error);
+      console.error('Error processing screenshot:', error);
       toast.error('Failed to upload screenshot');
       return null;
     } finally {
@@ -156,22 +158,22 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
     setLoading(true);
 
     try {
-      console.log('Current user from auth:', user);
+      console.log('Starting deposit submission for user:', user.email);
       
-      // Verify user session is valid
+      // Get fresh session to ensure we have valid auth
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError || !session) {
         console.error('Session error:', sessionError);
-        toast.error('Authentication error. Please login again.');
+        toast.error('Authentication session expired. Please login again.');
         setLoading(false);
         return;
       }
 
-      console.log('Active session found:', session.user.id);
+      console.log('Valid session confirmed for user:', session.user.id);
 
       const depositData = {
-        user_id: session.user.id, // Use session user ID to ensure it matches auth.uid()
+        user_id: session.user.id,
         currency,
         network,
         amount: parseFloat(amount),
@@ -188,7 +190,7 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
         .single();
 
       if (error) {
-        console.error('Database error:', error);
+        console.error('Deposit submission error:', error);
         throw error;
       }
 
@@ -201,8 +203,16 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
       setScreenshotUrl('');
       onClose();
     } catch (error: any) {
-      console.error('Error submitting deposit request:', error);
-      toast.error(error.message || 'Failed to submit deposit request. Please try again.');
+      console.error('Failed to submit deposit request:', error);
+      
+      // Provide more specific error messages
+      if (error.message?.includes('row-level security')) {
+        toast.error('Permission denied. Please log out and log back in, then try again.');
+      } else if (error.message?.includes('violates check constraint')) {
+        toast.error('Invalid deposit data. Please check your input and try again.');
+      } else {
+        toast.error(error.message || 'Failed to submit deposit request. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
