@@ -49,7 +49,7 @@ export const useUserActivities = () => {
         .insert({
           user_id: user.id,
           activity_type: activityType,
-          ip_address: null, // Will be handled by backend if needed
+          ip_address: null,
           user_agent: navigator.userAgent,
           device_info: {
             platform: navigator.platform,
@@ -75,27 +75,35 @@ export const useUserActivities = () => {
   useEffect(() => {
     if (!user) return;
 
-    const channel = supabase
-      .channel('user-activities-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'user_activities',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          console.log('User activity change detected, refreshing...');
-          queryClient.invalidateQueries({ queryKey: ['user-activities'] });
-        }
-      )
-      .subscribe();
+    let channel: any = null;
+
+    const setupChannel = () => {
+      channel = supabase
+        .channel(`user-activities-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'user_activities',
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            console.log('User activity change detected, refreshing...');
+            queryClient.invalidateQueries({ queryKey: ['user-activities'] });
+          }
+        )
+        .subscribe();
+    };
+
+    setupChannel();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
-  }, [user, queryClient]);
+  }, [user?.id, queryClient]);
 
   const logActivity = (activityType: string) => {
     logActivityMutation.mutate(activityType);

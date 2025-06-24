@@ -87,7 +87,6 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
       const defaultBalances = createDefaultBalances();
 
       if (dbBalances.length === 0) {
-        // Initialize with default balances
         const { error } = await supabase.from('wallet_balances').insert(
           defaultBalances.map(balance => ({
             user_id: user.id,
@@ -101,7 +100,6 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
         if (error) throw error;
         setBalances(defaultBalances);
       } else {
-        // Update balances with database values
         const updatedBalances = defaultBalances.map(defaultBalance => {
           const dbBalance = dbBalances.find(db => db.currency === defaultBalance.currency);
           if (dbBalance) {
@@ -195,27 +193,35 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (!user) return;
 
-    const walletChannel = supabase
-      .channel('wallet-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'wallet_balances',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          console.log('Wallet balance changed, refreshing...');
-          refreshBalances();
-        }
-      )
-      .subscribe();
+    let walletChannel: any = null;
+
+    const setupWalletChannel = () => {
+      walletChannel = supabase
+        .channel(`wallet-changes-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'wallet_balances',
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            console.log('Wallet balance changed, refreshing...');
+            refreshBalances();
+          }
+        )
+        .subscribe();
+    };
+
+    setupWalletChannel();
 
     return () => {
-      supabase.removeChannel(walletChannel);
+      if (walletChannel) {
+        supabase.removeChannel(walletChannel);
+      }
     };
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (user) {
