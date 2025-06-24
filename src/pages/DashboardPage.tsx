@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Header from '../components/Header';
 import KYCSection from '../components/KYCSection';
@@ -5,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useWallet } from '@/hooks/useWallet';
 import { useMiningInvestments } from '@/hooks/useMiningInvestments';
 import { useCryptoPrices, formatPrice, formatVolume } from '@/hooks/useCryptoPrices';
+import { useUserActivities } from '@/hooks/useUserActivities';
 import EnhancedDepositModal from '@/components/EnhancedDepositModal';
 import WithdrawModal from '@/components/WithdrawModal';
 import CountdownTimer from '@/components/CountdownTimer';
@@ -24,13 +26,19 @@ import {
   DollarSign,
   Pickaxe,
   User,
-  Shield
+  Shield,
+  FileCheck,
+  Upload,
+  CheckCircle,
+  XCircle,
+  Clock
 } from 'lucide-react';
 
 const DashboardPage = () => {
   const { user } = useAuth();
   const { balances, transactions } = useWallet();
   const { investments, getTotalEarnings } = useMiningInvestments();
+  const { activities: userActivities, isLoading: activitiesLoading } = useUserActivities();
   const { prices } = useCryptoPrices();
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
@@ -61,6 +69,50 @@ const DashboardPage = () => {
         new Date(current.next_payout_date) < new Date(earliest.next_payout_date) ? current : earliest
       )
     : null;
+
+  const getActivityIcon = (activityType: string) => {
+    switch (activityType) {
+      case 'kyc_process_started':
+      case 'kyc_documents_submitted':
+        return <Upload className="w-4 h-4 text-blue-600" />;
+      case 'kyc_approved':
+        return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case 'kyc_rejected':
+        return <XCircle className="w-4 h-4 text-red-600" />;
+      case 'withdrawal_requested':
+        return <ArrowUpRight className="w-4 h-4 text-red-600" />;
+      case 'deposit_requested':
+        return <ArrowDownLeft className="w-4 h-4 text-green-600" />;
+      case 'login':
+        return <User className="w-4 h-4 text-blue-600" />;
+      case 'mining_investment':
+        return <Pickaxe className="w-4 h-4 text-yellow-600" />;
+      default:
+        return <Clock className="w-4 h-4 text-gray-500" />;
+    }
+  };
+
+  const getActivityLabel = (activityType: string) => {
+    const labels: Record<string, string> = {
+      'kyc_process_started': 'Started KYC Process',
+      'kyc_documents_submitted': 'Submitted KYC Documents',
+      'kyc_approved': 'KYC Approved',
+      'kyc_rejected': 'KYC Rejected',
+      'withdrawal_requested': 'Withdrawal Requested',
+      'deposit_requested': 'Deposit Requested',
+      'login': 'Logged In',
+      'mining_investment': 'Mining Investment',
+    };
+    return labels[activityType] || activityType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const getActivityColor = (activityType: string) => {
+    if (activityType.includes('kyc_approved') || activityType.includes('deposit')) return 'text-green-600';
+    if (activityType.includes('kyc_rejected') || activityType.includes('withdrawal')) return 'text-red-600';
+    if (activityType.includes('kyc') || activityType.includes('login')) return 'text-blue-600';
+    if (activityType.includes('mining')) return 'text-yellow-600';
+    return 'text-gray-600';
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -318,64 +370,40 @@ const DashboardPage = () => {
                 </CardContent>
               </Card>
 
-              {/* Recent Transactions */}
+              {/* Recent User Activities */}
               <Card className="bg-white border border-gray-200 shadow-sm">
                 <CardHeader>
                   <CardTitle className="text-gray-900">Recent Activity</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {recentTransactions.map((transaction) => (
-                      <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            transaction.type === 'deposit' ? 'bg-green-100' :
-                            transaction.type === 'trade_buy' ? 'bg-blue-100' :
-                            transaction.type === 'trade_sell' ? 'bg-red-100' :
-                            'bg-gray-100'
-                          }`}>
-                            {transaction.type === 'deposit' ? (
-                              <ArrowDownLeft className="w-4 h-4 text-green-600" />
-                            ) : transaction.type === 'trade_buy' ? (
-                              <TrendingUp className="w-4 h-4 text-blue-600" />
-                            ) : transaction.type === 'trade_sell' ? (
-                              <TrendingDown className="w-4 h-4 text-red-600" />
-                            ) : (
-                              <ArrowUpRight className="w-4 h-4 text-gray-500" />
-                            )}
-                          </div>
-                          <div>
-                            <div className="font-medium text-gray-900 capitalize text-sm">
-                              {transaction.type.replace('_', ' ')}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {transaction.timestamp.toLocaleString()}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className={`font-mono text-sm ${
-                            transaction.type === 'deposit' || transaction.type === 'trade_buy' 
-                              ? 'text-green-600' 
-                              : 'text-red-600'
-                          }`}>
-                            {transaction.type === 'deposit' || transaction.type === 'trade_buy' ? '+' : '-'}
-                            {transaction.amount.toFixed(4)} {transaction.currency}
-                          </div>
-                          <div className={`text-xs px-2 py-1 rounded ${
-                            transaction.status === 'completed' ? 'bg-green-100 text-green-600' :
-                            transaction.status === 'pending' ? 'bg-yellow-100 text-yellow-600' :
-                            'bg-red-100 text-red-600'
-                          }`}>
-                            {transaction.status}
-                          </div>
-                        </div>
+                    {activitiesLoading ? (
+                      <div className="animate-pulse space-y-3">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <div key={i} className="h-12 bg-gray-100 rounded"></div>
+                        ))}
                       </div>
-                    ))}
-                    
-                    {recentTransactions.length === 0 && (
+                    ) : userActivities.length > 0 ? (
+                      userActivities.slice(0, 8).map((activity) => (
+                        <div key={activity.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100">
+                              {getActivityIcon(activity.activity_type)}
+                            </div>
+                            <div>
+                              <div className={`font-medium text-sm ${getActivityColor(activity.activity_type)}`}>
+                                {getActivityLabel(activity.activity_type)}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {new Date(activity.created_at).toLocaleString()}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
                       <div className="text-center py-8 text-gray-500">
-                        <ArrowUpRight className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
                         <p>No recent activity</p>
                       </div>
                     )}
@@ -427,62 +455,41 @@ const DashboardPage = () => {
           <TabsContent value="activity">
             <Card className="bg-white border border-gray-200 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-gray-900">Transaction History</CardTitle>
+                <CardTitle className="text-gray-900">Complete Activity History</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {transactions.map((transaction) => (
-                    <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          transaction.type === 'deposit' ? 'bg-green-100' :
-                          transaction.type === 'trade_buy' ? 'bg-blue-100' :
-                          transaction.type === 'trade_sell' ? 'bg-red-100' :
-                          'bg-gray-100'
-                        }`}>
-                          {transaction.type === 'deposit' ? (
-                            <ArrowDownLeft className="w-4 h-4 text-green-600" />
-                          ) : transaction.type === 'trade_buy' ? (
-                            <TrendingUp className="w-4 h-4 text-blue-600" />
-                          ) : transaction.type === 'trade_sell' ? (
-                            <TrendingDown className="w-4 h-4 text-red-600" />
-                          ) : (
-                            <ArrowUpRight className="w-4 h-4 text-gray-500" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="font-medium text-gray-900 capitalize text-sm">
-                            {transaction.type.replace('_', ' ')}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {transaction.timestamp.toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className={`font-mono text-sm ${
-                          transaction.type === 'deposit' || transaction.type === 'trade_buy' 
-                            ? 'text-green-600' 
-                            : 'text-red-600'
-                        }`}>
-                          {transaction.type === 'deposit' || transaction.type === 'trade_buy' ? '+' : '-'}
-                          {transaction.amount.toFixed(4)} {transaction.currency}
-                        </div>
-                        <div className={`text-xs px-2 py-1 rounded ${
-                          transaction.status === 'completed' ? 'bg-green-100 text-green-600' :
-                          transaction.status === 'pending' ? 'bg-yellow-100 text-yellow-600' :
-                          'bg-red-100 text-red-600'
-                        }`}>
-                          {transaction.status}
-                        </div>
-                      </div>
+                  {activitiesLoading ? (
+                    <div className="animate-pulse space-y-3">
+                      {Array.from({ length: 10 }).map((_, i) => (
+                        <div key={i} className="h-12 bg-gray-100 rounded"></div>
+                      ))}
                     </div>
-                  ))}
-                  
-                  {transactions.length === 0 && (
+                  ) : userActivities.length > 0 ? (
+                    userActivities.map((activity) => (
+                      <div key={activity.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100">
+                            {getActivityIcon(activity.activity_type)}
+                          </div>
+                          <div>
+                            <div className={`font-medium text-sm ${getActivityColor(activity.activity_type)}`}>
+                              {getActivityLabel(activity.activity_type)}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {new Date(activity.created_at).toLocaleString()}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {activity.ip_address && `IP: ${activity.ip_address}`}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
                     <div className="text-center py-8 text-gray-500">
-                      <ArrowUpRight className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>No transactions yet</p>
+                      <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>No activities found</p>
                     </div>
                   )}
                 </div>
