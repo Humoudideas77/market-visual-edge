@@ -65,7 +65,7 @@ const KYCManagementSection = () => {
         throw new Error('KYC submission not found');
       }
 
-      // Update KYC submission
+      // Update KYC submission with proper admin_id field name
       const { error: kycError } = await supabase
         .from('kyc_submissions')
         .update({
