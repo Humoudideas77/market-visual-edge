@@ -31,9 +31,9 @@ const WithdrawalApprovalSection = () => {
   const queryClient = useQueryClient();
 
   const { data: withdrawals, isLoading, refetch } = useQuery({
-    queryKey: ['admin-withdrawals-v3'], // Updated query key
+    queryKey: ['admin-withdrawals-v4'],
     queryFn: async () => {
-      console.log('Fetching withdrawals for super admin dashboard...');
+      console.log('Fetching withdrawals for admin dashboard...');
       const { data, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
@@ -44,18 +44,16 @@ const WithdrawalApprovalSection = () => {
         throw error;
       }
       console.log('Withdrawals fetched successfully:', data?.length || 0, 'records');
-      console.log('Withdrawal data:', data);
       return data as WithdrawalRequest[];
     },
-    refetchInterval: 5000, // Refetch every 5 seconds
+    refetchInterval: 5000,
   });
 
-  // Set up real-time subscription for withdrawal requests
   useEffect(() => {
     console.log('Setting up real-time subscription for withdrawals...');
     
     const channel = supabase
-      .channel('withdrawal-changes-v2')
+      .channel('withdrawal-changes-v3')
       .on(
         'postgres_changes',
         {
@@ -65,7 +63,7 @@ const WithdrawalApprovalSection = () => {
         },
         (payload) => {
           console.log('Real-time withdrawal update received:', payload);
-          queryClient.invalidateQueries({ queryKey: ['admin-withdrawals-v3'] });
+          queryClient.invalidateQueries({ queryKey: ['admin-withdrawals-v4'] });
           queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
         }
       )
@@ -95,7 +93,6 @@ const WithdrawalApprovalSection = () => {
         throw error;
       }
 
-      // If approved, deduct from wallet balance
       if (status === 'approved') {
         const withdrawal = withdrawals?.find(w => w.id === id);
         if (withdrawal) {
@@ -114,7 +111,6 @@ const WithdrawalApprovalSection = () => {
         }
       }
 
-      // Log admin activity
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         const { error: activityError } = await supabase.from('admin_activities').insert({
@@ -131,7 +127,7 @@ const WithdrawalApprovalSection = () => {
       }
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-withdrawals-v3'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-withdrawals-v4'] });
       queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
       
       if (variables.status === 'approved') {
@@ -328,7 +324,7 @@ const WithdrawalApprovalSection = () => {
                       </Dialog>
                     ) : (
                       <span className="text-exchange-text-secondary text-sm">
-                        {withdrawal.status === 'approved' ? 'Approved' : 'Rejected'}
+                        {withdrawal.status === 'approved' ? '✅ Approved' : '❌ Rejected'}
                       </span>
                     )}
                   </TableCell>

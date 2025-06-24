@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,9 +38,9 @@ const KYCManagementSection = () => {
   const queryClient = useQueryClient();
 
   const { data: kycSubmissions, isLoading, error } = useQuery({
-    queryKey: ['admin-kyc-v2'], // Updated query key to force refetch
+    queryKey: ['admin-kyc-v3'],
     queryFn: async () => {
-      console.log('Fetching KYC submissions with updated RLS policies...');
+      console.log('Fetching KYC submissions...');
       const { data, error } = await supabase
         .from('kyc_submissions')
         .select('*')
@@ -60,7 +61,6 @@ const KYCManagementSection = () => {
       
       console.log('Updating KYC submission:', { id, status, notes });
       
-      // Update KYC submission
       const { error: kycError } = await supabase
         .from('kyc_submissions')
         .update({
@@ -77,7 +77,6 @@ const KYCManagementSection = () => {
         throw kycError;
       }
 
-      // Update user's kyc_status in profiles
       const kycSubmission = kycSubmissions?.find(k => k.id === id);
       if (kycSubmission) {
         const { error: profileError } = await supabase
@@ -94,7 +93,6 @@ const KYCManagementSection = () => {
         }
       }
 
-      // Log admin activity
       if (user) {
         console.log('Logging admin activity for KYC update');
         const { error: activityError } = await supabase.from('admin_activities').insert({
@@ -113,8 +111,7 @@ const KYCManagementSection = () => {
       return { status, notes };
     },
     onSuccess: (data) => {
-      // Invalidate multiple queries to ensure UI updates
-      queryClient.invalidateQueries({ queryKey: ['admin-kyc-v2'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-kyc-v3'] });
       queryClient.invalidateQueries({ queryKey: ['kyc-status'] });
       queryClient.invalidateQueries({ queryKey: ['user-profile'] });
       
@@ -449,8 +446,8 @@ const KYCManagementSection = () => {
                       </Dialog>
                     ) : (
                       <span className="text-exchange-text-secondary text-sm">
-                        {kyc.status === 'approved' ? 'Approved' : 
-                         kyc.status === 'rejected' ? 'Rejected' : 'Resubmission Required'}
+                        {kyc.status === 'approved' ? '✅ Approved' : 
+                         kyc.status === 'rejected' ? '❌ Rejected' : '⚠️ Resubmission Required'}
                       </span>
                     )}
                   </TableCell>

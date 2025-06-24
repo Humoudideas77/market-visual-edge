@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Shield, CheckCircle, Clock, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import KYCUploadForm from './KYCUploadForm';
+import KYCForm from './KYCForm';
 
 const KYCSection = () => {
   const { user } = useAuth();
@@ -19,9 +19,8 @@ const KYCSection = () => {
     if (user) {
       checkKYCStatus();
       
-      // Set up real-time subscription for KYC status changes
       const channel = supabase
-        .channel('kyc-status-changes')
+        .channel('kyc-status-changes-v2')
         .on(
           'postgres_changes',
           {
@@ -62,7 +61,6 @@ const KYCSection = () => {
     try {
       setLoading(true);
       
-      // First check the user's profile for kyc_status
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('kyc_status')
@@ -73,7 +71,6 @@ const KYCSection = () => {
         console.error('Profile fetch error:', profileError);
       }
 
-      // Then check for KYC submissions
       const { data: submissionData, error: submissionError } = await supabase
         .from('kyc_submissions')
         .select('id, status, admin_notes')
@@ -93,7 +90,6 @@ const KYCSection = () => {
         hasSubmission: !!submissionData
       });
 
-      // Use the most recent submission status if available, otherwise use profile status
       const currentStatus = submissionData?.status || profileData?.kyc_status || 'pending';
       
       setKycStatus(currentStatus);
@@ -222,7 +218,7 @@ const KYCSection = () => {
       </Card>
 
       {((kycStatus === 'pending' && !hasSubmission) || kycStatus === 'rejected' || kycStatus === 'resubmission_required') && (
-        <KYCUploadForm onSubmissionComplete={checkKYCStatus} />
+        <KYCForm />
       )}
     </div>
   );

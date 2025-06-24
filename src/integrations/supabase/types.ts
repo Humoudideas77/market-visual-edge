@@ -59,46 +59,43 @@ export type Database = {
       }
       bank_cards: {
         Row: {
-          bank_address: string
+          account_holder_name: string
+          account_number: string
+          bank_address: string | null
           bank_name: string
-          bank_number: string
-          created_at: string
+          created_at: string | null
           id: string
           is_default: boolean | null
-          payee_address: string
-          payee_name: string
-          swift_code: string
-          updated_at: string
+          routing_number: string | null
+          swift_code: string | null
+          updated_at: string | null
           user_id: string
-          zip_code: string
         }
         Insert: {
-          bank_address: string
+          account_holder_name: string
+          account_number: string
+          bank_address?: string | null
           bank_name: string
-          bank_number: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           is_default?: boolean | null
-          payee_address: string
-          payee_name: string
-          swift_code: string
-          updated_at?: string
+          routing_number?: string | null
+          swift_code?: string | null
+          updated_at?: string | null
           user_id: string
-          zip_code: string
         }
         Update: {
-          bank_address?: string
+          account_holder_name?: string
+          account_number?: string
+          bank_address?: string | null
           bank_name?: string
-          bank_number?: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           is_default?: boolean | null
-          payee_address?: string
-          payee_name?: string
-          swift_code?: string
-          updated_at?: string
+          routing_number?: string | null
+          swift_code?: string | null
+          updated_at?: string | null
           user_id?: string
-          zip_code?: string
         }
         Relationships: []
       }
@@ -170,39 +167,42 @@ export type Database = {
       }
       deposit_requests: {
         Row: {
+          admin_id: string | null
           admin_notes: string | null
           amount: number
-          created_at: string
+          created_at: string | null
           currency: string
           id: string
           network: string
+          screenshot_url: string | null
           status: string
-          transaction_screenshot_url: string | null
-          updated_at: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
+          admin_id?: string | null
           admin_notes?: string | null
           amount: number
-          created_at?: string
-          currency: string
+          created_at?: string | null
+          currency?: string
           id?: string
           network: string
+          screenshot_url?: string | null
           status?: string
-          transaction_screenshot_url?: string | null
-          updated_at?: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
+          admin_id?: string | null
           admin_notes?: string | null
           amount?: number
-          created_at?: string
+          created_at?: string | null
           currency?: string
           id?: string
           network?: string
+          screenshot_url?: string | null
           status?: string
-          transaction_screenshot_url?: string | null
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
@@ -210,83 +210,59 @@ export type Database = {
       kyc_submissions: {
         Row: {
           address: string
+          admin_id: string | null
           admin_notes: string | null
           back_document_url: string | null
-          created_at: string
+          created_at: string | null
           date_of_birth: string
           front_document_url: string | null
           full_name: string
           id: string
-          id_card_url: string | null
           nationality: string
-          passport_url: string | null
-          personal_id_number: string | null
+          phone_number: string | null
           reviewed_at: string | null
-          reviewed_by: string | null
-          selfie_with_id_url: string | null
+          selfie_url: string | null
           status: string
-          updated_at: string
+          updated_at: string | null
           user_id: string
-          utility_bill_url: string | null
         }
         Insert: {
           address: string
+          admin_id?: string | null
           admin_notes?: string | null
           back_document_url?: string | null
-          created_at?: string
+          created_at?: string | null
           date_of_birth: string
           front_document_url?: string | null
           full_name: string
           id?: string
-          id_card_url?: string | null
           nationality: string
-          passport_url?: string | null
-          personal_id_number?: string | null
+          phone_number?: string | null
           reviewed_at?: string | null
-          reviewed_by?: string | null
-          selfie_with_id_url?: string | null
+          selfie_url?: string | null
           status?: string
-          updated_at?: string
+          updated_at?: string | null
           user_id: string
-          utility_bill_url?: string | null
         }
         Update: {
           address?: string
+          admin_id?: string | null
           admin_notes?: string | null
           back_document_url?: string | null
-          created_at?: string
+          created_at?: string | null
           date_of_birth?: string
           front_document_url?: string | null
           full_name?: string
           id?: string
-          id_card_url?: string | null
           nationality?: string
-          passport_url?: string | null
-          personal_id_number?: string | null
+          phone_number?: string | null
           reviewed_at?: string | null
-          reviewed_by?: string | null
-          selfie_with_id_url?: string | null
+          selfie_url?: string | null
           status?: string
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
-          utility_bill_url?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "kyc_submissions_reviewed_by_fkey"
-            columns: ["reviewed_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "kyc_submissions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       mining_investments: {
         Row: {
@@ -408,15 +384,7 @@ export type Database = {
           trading_enabled?: boolean | null
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_kyc_submission_id_fkey"
-            columns: ["kyc_submission_id"]
-            isOneToOne: false
-            referencedRelation: "kyc_submissions"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       trading_chat_messages: {
         Row: {
@@ -515,39 +483,42 @@ export type Database = {
       }
       withdrawal_requests: {
         Row: {
+          admin_id: string | null
           admin_notes: string | null
           amount: number
-          bank_card_id: string
-          created_at: string
+          bank_card_id: string | null
+          created_at: string | null
           currency: string
           id: string
           network: string
           status: string
-          updated_at: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
+          admin_id?: string | null
           admin_notes?: string | null
           amount: number
-          bank_card_id: string
-          created_at?: string
-          currency: string
+          bank_card_id?: string | null
+          created_at?: string | null
+          currency?: string
           id?: string
           network: string
           status?: string
-          updated_at?: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
+          admin_id?: string | null
           admin_notes?: string | null
           amount?: number
-          bank_card_id?: string
-          created_at?: string
+          bank_card_id?: string | null
+          created_at?: string | null
           currency?: string
           id?: string
           network?: string
           status?: string
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [

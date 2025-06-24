@@ -32,9 +32,9 @@ const DepositApprovalSection = () => {
   const queryClient = useQueryClient();
 
   const { data: deposits, isLoading, error, refetch } = useQuery({
-    queryKey: ['admin-deposits-v5'], // Updated query key for fresh data
+    queryKey: ['admin-deposits-v6'],
     queryFn: async () => {
-      console.log('Fetching deposits for super admin dashboard...');
+      console.log('Fetching deposits for admin dashboard...');
       
       const { data, error } = await supabase
         .from('deposit_requests')
@@ -47,20 +47,18 @@ const DepositApprovalSection = () => {
       }
       
       console.log('Deposits fetched successfully:', data?.length || 0, 'records');
-      console.log('Deposit data:', data);
       return data as DepositRequest[];
     },
-    refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
+    refetchInterval: 5000,
     retry: 3,
     retryDelay: 1000,
   });
 
-  // Set up real-time subscription for deposit requests
   useEffect(() => {
     console.log('Setting up real-time subscription for deposits...');
     
     const channel = supabase
-      .channel('deposit-changes-v2')
+      .channel('deposit-changes-v3')
       .on(
         'postgres_changes',
         {
@@ -70,7 +68,7 @@ const DepositApprovalSection = () => {
         },
         (payload) => {
           console.log('Real-time deposit update received:', payload);
-          queryClient.invalidateQueries({ queryKey: ['admin-deposits-v5'] });
+          queryClient.invalidateQueries({ queryKey: ['admin-deposits-v6'] });
           queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
         }
       )
@@ -100,7 +98,6 @@ const DepositApprovalSection = () => {
         throw error;
       }
 
-      // If approved, update wallet balance automatically
       if (status === 'approved') {
         const deposit = deposits?.find(d => d.id === id);
         if (deposit) {
@@ -119,7 +116,6 @@ const DepositApprovalSection = () => {
         }
       }
 
-      // Log admin activity
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         console.log('Logging admin activity for deposit update');
@@ -137,7 +133,7 @@ const DepositApprovalSection = () => {
       }
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-deposits-v5'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-deposits-v6'] });
       queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
       
       if (variables.status === 'approved') {
