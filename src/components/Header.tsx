@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Settings, User, ChevronDown, Globe, LogOut, Shield, MessageCircle } from 'lucide-react';
@@ -39,7 +38,7 @@ const Header = () => {
 
   const handleProfileClick = () => {
     if (userProfile?.role === 'superadmin') {
-      navigate('/superadmin-dashboard');
+      navigate('/superadmin');
     } else {
       navigate('/dashboard');
     }
@@ -47,7 +46,7 @@ const Header = () => {
 
   const handleSuperAdminClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    navigate('/superadmin-dashboard');
+    navigate('/superadmin');
   };
 
   const handleNotificationClick = () => {
