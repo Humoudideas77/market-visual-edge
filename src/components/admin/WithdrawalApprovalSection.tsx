@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Check, X, Eye } from 'lucide-react';
+import { Check, X, Eye, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface WithdrawalRequest {
@@ -30,21 +29,56 @@ const WithdrawalApprovalSection = () => {
   const [adminNotes, setAdminNotes] = useState('');
   const queryClient = useQueryClient();
 
-  const { data: withdrawals, isLoading } = useQuery({
-    queryKey: ['admin-withdrawals'],
+  const { data: withdrawals, isLoading, refetch } = useQuery({
+    queryKey: ['admin-withdrawals-v2'], // Updated query key
     queryFn: async () => {
+      console.log('Fetching withdrawals with updated RLS policies...');
       const { data, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching withdrawals:', error);
+        throw error;
+      }
+      console.log('Withdrawals fetched successfully:', data?.length || 0, 'records');
       return data as WithdrawalRequest[];
     },
+    refetchInterval: 10000, // Refetch every 10 seconds
   });
+
+  // Set up real-time subscription for withdrawal requests
+  useEffect(() => {
+    console.log('Setting up real-time subscription for withdrawals...');
+    
+    const channel = supabase
+      .channel('withdrawal-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'withdrawal_requests',
+        },
+        (payload) => {
+          console.log('Real-time withdrawal update received:', payload);
+          queryClient.invalidateQueries({ queryKey: ['admin-withdrawals-v2'] });
+          queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('Cleaning up withdrawal subscription...');
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const updateWithdrawalMutation = useMutation({
     mutationFn: async ({ id, status, notes }: { id: string; status: string; notes?: string }) => {
+      console.log('Updating withdrawal:', { id, status, notes });
+      
       const { error } = await supabase
         .from('withdrawal_requests')
         .update({
@@ -54,12 +88,16 @@ const WithdrawalApprovalSection = () => {
         })
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating withdrawal:', error);
+        throw error;
+      }
 
       // If approved, deduct from wallet balance
       if (status === 'approved') {
         const withdrawal = withdrawals?.find(w => w.id === id);
         if (withdrawal) {
+          console.log('Updating wallet balance for approved withdrawal:', withdrawal);
           const { error: walletError } = await supabase.rpc('update_wallet_balance', {
             p_user_id: withdrawal.user_id,
             p_currency: withdrawal.currency,
@@ -67,12 +105,32 @@ const WithdrawalApprovalSection = () => {
             p_operation: 'subtract'
           });
           
-          if (walletError) throw walletError;
+          if (walletError) {
+            console.error('Error updating wallet balance:', walletError);
+            throw walletError;
+          }
+        }
+      }
+
+      // Log admin activity
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { error: activityError } = await supabase.from('admin_activities').insert({
+          admin_id: session.user.id,
+          action_type: `withdrawal_${status}`,
+          target_table: 'withdrawal_requests',
+          target_record_id: id,
+          action_details: { status, notes },
+        });
+        
+        if (activityError) {
+          console.error('Error logging admin activity:', activityError);
         }
       }
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-withdrawals'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-withdrawals-v2'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
       
       if (variables.status === 'approved') {
         toast({ 
@@ -126,6 +184,12 @@ const WithdrawalApprovalSection = () => {
     );
   };
 
+  const handleRefresh = () => {
+    console.log('Manually refreshing withdrawals...');
+    refetch();
+    toast({ title: 'Refreshing withdrawals...', description: 'Latest data will be loaded shortly' });
+  };
+
   if (isLoading) {
     return (
       <Card className="bg-exchange-card-bg border-exchange-border">
@@ -145,14 +209,20 @@ const WithdrawalApprovalSection = () => {
   return (
     <Card className="bg-exchange-card-bg border-exchange-border">
       <CardHeader>
-        <CardTitle className="text-exchange-text-primary">
-          Withdrawal Approvals
-          {pendingWithdrawals.length > 0 && (
-            <Badge variant="destructive" className="ml-2">
-              {pendingWithdrawals.length} Pending
-            </Badge>
-          )}
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-exchange-text-primary">
+            Withdrawal Approvals
+            {pendingWithdrawals.length > 0 && (
+              <Badge variant="destructive" className="ml-2">
+                {pendingWithdrawals.length} Pending
+              </Badge>
+            )}
+          </CardTitle>
+          <Button onClick={handleRefresh} variant="outline" size="sm">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">

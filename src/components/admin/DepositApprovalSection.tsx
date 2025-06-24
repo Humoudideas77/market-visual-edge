@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Check, X, Eye, ExternalLink, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
+import { useEffect } from 'react';
 
 type DepositRequest = {
   id: string;
@@ -31,9 +31,9 @@ const DepositApprovalSection = () => {
   const queryClient = useQueryClient();
 
   const { data: deposits, isLoading, error, refetch } = useQuery({
-    queryKey: ['admin-deposits-v3'], // Updated query key
+    queryKey: ['admin-deposits-v4'], // Updated query key for fresh data
     queryFn: async () => {
-      console.log('Fetching deposits with full access policies...');
+      console.log('Fetching deposits with updated RLS policies...');
       
       // Get current user session to ensure we're authenticated
       const { data: { session } } = await supabase.auth.getSession();
@@ -54,13 +54,39 @@ const DepositApprovalSection = () => {
       }
       
       console.log('Deposits fetched successfully:', data?.length || 0, 'records');
-      console.log('Sample deposit data:', data?.[0]);
       return data as DepositRequest[];
     },
-    refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
+    refetchInterval: 10000, // Refetch every 10 seconds for real-time updates
     retry: 3,
     retryDelay: 1000,
   });
+
+  // Set up real-time subscription for deposit requests
+  useEffect(() => {
+    console.log('Setting up real-time subscription for deposits...');
+    
+    const channel = supabase
+      .channel('deposit-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'deposit_requests',
+        },
+        (payload) => {
+          console.log('Real-time deposit update received:', payload);
+          queryClient.invalidateQueries({ queryKey: ['admin-deposits-v4'] });
+          queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('Cleaning up deposit subscription...');
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const updateDepositMutation = useMutation({
     mutationFn: async ({ id, status, notes }: { id: string; status: string; notes?: string }) => {
@@ -122,7 +148,7 @@ const DepositApprovalSection = () => {
       }
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-deposits-v3'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-deposits-v4'] });
       queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
       
       if (variables.status === 'approved') {
