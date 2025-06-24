@@ -59,6 +59,12 @@ const KYCManagementSection = () => {
 
       console.log('Starting KYC update:', { id, status, notes, adminId: user.id });
       
+      // Get the KYC submission to find the user_id before updating
+      const kycSubmission = kycSubmissions?.find(k => k.id === id);
+      if (!kycSubmission) {
+        throw new Error('KYC submission not found');
+      }
+
       // Update KYC submission
       const { error: kycError } = await supabase
         .from('kyc_submissions')
@@ -74,12 +80,6 @@ const KYCManagementSection = () => {
       if (kycError) {
         console.error('KYC submission update error:', kycError);
         throw kycError;
-      }
-
-      // Get the KYC submission to find the user_id
-      const kycSubmission = kycSubmissions?.find(k => k.id === id);
-      if (!kycSubmission) {
-        throw new Error('KYC submission not found');
       }
 
       // Update user's kyc_status in profiles table
@@ -127,9 +127,6 @@ const KYCManagementSection = () => {
         case 'rejected':
           message = 'KYC submission rejected successfully. User has been notified.';
           break;
-        case 'resubmission_required':
-          message = 'Resubmission requested successfully. User has been notified.';
-          break;
         default:
           message = 'KYC submission updated successfully';
       }
@@ -163,19 +160,6 @@ const KYCManagementSection = () => {
     updateKYCMutation.mutate({
       id: kyc.id,
       status: 'rejected',
-      notes: adminNotes,
-    });
-  };
-
-  const handleRequireResubmission = (kyc: KYCSubmission) => {
-    if (!adminNotes.trim()) {
-      toast.error('Please provide instructions for resubmission');
-      return;
-    }
-    console.log('Requiring resubmission for KYC:', kyc.id);
-    updateKYCMutation.mutate({
-      id: kyc.id,
-      status: 'resubmission_required',
       notes: adminNotes,
     });
   };
@@ -395,7 +379,7 @@ const KYCManagementSection = () => {
                                 <Textarea
                                   value={adminNotes}
                                   onChange={(e) => setAdminNotes(e.target.value)}
-                                  placeholder="Add notes (required for rejection/resubmission)"
+                                  placeholder="Add notes (required for rejection)"
                                   className="mt-1 bg-exchange-bg border-exchange-border text-exchange-text-primary"
                                 />
                               </div>
@@ -417,14 +401,6 @@ const KYCManagementSection = () => {
                                   <X className="w-4 h-4 mr-1" />
                                   {updateKYCMutation.isPending ? 'Processing...' : 'Reject'}
                                 </Button>
-                                <Button
-                                  onClick={() => handleRequireResubmission(selectedKYC)}
-                                  disabled={updateKYCMutation.isPending || !adminNotes.trim()}
-                                  variant="outline"
-                                  className="border-yellow-600 text-yellow-600 hover:bg-yellow-600 hover:text-white"
-                                >
-                                  {updateKYCMutation.isPending ? 'Processing...' : 'Request Resubmission'}
-                                </Button>
                               </div>
                             </div>
                           )}
@@ -432,8 +408,7 @@ const KYCManagementSection = () => {
                       </Dialog>
                     ) : (
                       <span className="text-exchange-text-secondary text-sm">
-                        {kyc.status === 'approved' ? 'Approved' : 
-                         kyc.status === 'rejected' ? 'Rejected' : 'Resubmission Required'}
+                        {kyc.status === 'approved' ? 'Approved' : 'Rejected'}
                       </span>
                     )}
                   </TableCell>

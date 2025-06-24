@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -6,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { Activity, Users, LogIn, FileCheck, DollarSign, CreditCard } from 'lucide-react';
+import { useEffect } from 'react';
 
 type ActivityLog = {
   id: string;
@@ -19,7 +19,7 @@ type ActivityLog = {
 };
 
 const SuperAdminActivityLogs = () => {
-  const { data: activities, isLoading } = useQuery({
+  const { data: activities, isLoading, refetch } = useQuery({
     queryKey: ['superadmin-activities'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -33,7 +33,7 @@ const SuperAdminActivityLogs = () => {
     },
   });
 
-  const { data: userActivities, isLoading: userActivitiesLoading } = useQuery({
+  const { data: userActivities, isLoading: userActivitiesLoading, refetch: refetchUserActivities } = useQuery({
     queryKey: ['user-activities'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -46,6 +46,80 @@ const SuperAdminActivityLogs = () => {
       return data;
     },
   });
+
+  // Set up real-time subscriptions for activity updates
+  useEffect(() => {
+    const adminActivityChannel = supabase
+      .channel('admin-activities-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'admin_activities',
+        },
+        () => {
+          console.log('New admin activity detected, refreshing...');
+          refetch();
+        }
+      )
+      .subscribe();
+
+    const userActivityChannel = supabase
+      .channel('user-activities-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'user_activities',
+        },
+        () => {
+          console.log('New user activity detected, refreshing...');
+          refetchUserActivities();
+        }
+      )
+      .subscribe();
+
+    const kycSubmissionChannel = supabase
+      .channel('kyc-submission-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'kyc_submissions',
+        },
+        () => {
+          console.log('KYC submission change detected, refreshing activities...');
+          refetch();
+        }
+      )
+      .subscribe();
+
+    const withdrawalRequestChannel = supabase
+      .channel('withdrawal-request-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'withdrawal_requests',
+        },
+        () => {
+          console.log('Withdrawal request change detected, refreshing activities...');
+          refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(adminActivityChannel);
+      supabase.removeChannel(userActivityChannel);
+      supabase.removeChannel(kycSubmissionChannel);
+      supabase.removeChannel(withdrawalRequestChannel);
+    };
+  }, [refetch, refetchUserActivities]);
 
   const getActivityIcon = (actionType: string) => {
     if (actionType.includes('user')) return Users;
