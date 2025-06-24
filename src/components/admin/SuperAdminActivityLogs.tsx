@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -50,84 +49,75 @@ const SuperAdminActivityLogs = () => {
 
   // Set up real-time subscriptions for activity updates
   useEffect(() => {
-    let adminActivityChannel: any = null;
-    let userActivityChannel: any = null;
-    let kycSubmissionChannel: any = null;
-    let withdrawalRequestChannel: any = null;
+    const adminActivityChannel = supabase
+      .channel('admin-activities-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'admin_activities',
+        },
+        () => {
+          console.log('New admin activity detected, refreshing...');
+          refetch();
+        }
+      )
+      .subscribe();
 
-    const setupChannels = () => {
-      adminActivityChannel = supabase
-        .channel('admin-activities-superadmin')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'admin_activities',
-          },
-          () => {
-            console.log('New admin activity detected, refreshing...');
-            refetch();
-          }
-        )
-        .subscribe();
+    const userActivityChannel = supabase
+      .channel('user-activities-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'user_activities',
+        },
+        () => {
+          console.log('New user activity detected, refreshing...');
+          refetchUserActivities();
+        }
+      )
+      .subscribe();
 
-      userActivityChannel = supabase
-        .channel('user-activities-superadmin')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'user_activities',
-          },
-          () => {
-            console.log('New user activity detected, refreshing...');
-            refetchUserActivities();
-          }
-        )
-        .subscribe();
+    const kycSubmissionChannel = supabase
+      .channel('kyc-submission-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'kyc_submissions',
+        },
+        () => {
+          console.log('KYC submission change detected, refreshing activities...');
+          refetch();
+        }
+      )
+      .subscribe();
 
-      kycSubmissionChannel = supabase
-        .channel('kyc-submission-superadmin')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'kyc_submissions',
-          },
-          () => {
-            console.log('KYC submission change detected, refreshing activities...');
-            refetch();
-          }
-        )
-        .subscribe();
-
-      withdrawalRequestChannel = supabase
-        .channel('withdrawal-request-superadmin')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'withdrawal_requests',
-          },
-          () => {
-            console.log('Withdrawal request change detected, refreshing activities...');
-            refetch();
-          }
-        )
-        .subscribe();
-    };
-
-    setupChannels();
+    const withdrawalRequestChannel = supabase
+      .channel('withdrawal-request-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'withdrawal_requests',
+        },
+        () => {
+          console.log('Withdrawal request change detected, refreshing activities...');
+          refetch();
+        }
+      )
+      .subscribe();
 
     return () => {
-      if (adminActivityChannel) supabase.removeChannel(adminActivityChannel);
-      if (userActivityChannel) supabase.removeChannel(userActivityChannel);
-      if (kycSubmissionChannel) supabase.removeChannel(kycSubmissionChannel);
-      if (withdrawalRequestChannel) supabase.removeChannel(withdrawalRequestChannel);
+      supabase.removeChannel(adminActivityChannel);
+      supabase.removeChannel(userActivityChannel);
+      supabase.removeChannel(kycSubmissionChannel);
+      supabase.removeChannel(withdrawalRequestChannel);
     };
   }, [refetch, refetchUserActivities]);
 

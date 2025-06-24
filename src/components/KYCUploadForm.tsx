@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,12 +9,7 @@ import { Upload, FileText, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import BackButton from './BackButton';
 
-interface KYCUploadFormProps {
-  onSubmitted: () => void;
-  onCancel: () => void;
-}
-
-const KYCUploadForm: React.FC<KYCUploadFormProps> = ({ onSubmitted, onCancel }) => {
+const KYCUploadForm = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [kycData, setKycData] = useState({
@@ -92,9 +86,19 @@ const KYCUploadForm: React.FC<KYCUploadFormProps> = ({ onSubmitted, onCancel }) 
       if (error) throw error;
 
       toast.success('KYC submission successful! MecCrypto will review your documents within 24-48 hours.');
-      
-      // Call the onSubmitted callback
-      onSubmitted();
+      setKycData({
+        full_name: '',
+        date_of_birth: '',
+        nationality: '',
+        address: '',
+        personal_id_number: '',
+        front_document: null,
+        back_document: null
+      });
+
+      // Reset file inputs
+      const fileInputs = document.querySelectorAll('input[type="file"]') as NodeListOf<HTMLInputElement>;
+      fileInputs.forEach(input => input.value = '');
       
     } catch (error) {
       console.error('KYC submission error:', error);
@@ -112,9 +116,7 @@ const KYCUploadForm: React.FC<KYCUploadFormProps> = ({ onSubmitted, onCancel }) 
             <FileText className="w-5 h-5" />
             MecCrypto KYC Document Upload
           </CardTitle>
-          <Button variant="outline" onClick={onCancel}>
-            ← Back
-          </Button>
+          <BackButton fallbackPath="/dashboard" label="← Back" />
         </div>
       </CardHeader>
       <CardContent className="space-y-8">
