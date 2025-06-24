@@ -7,12 +7,19 @@ import TradingInterface from '../components/TradingInterface';
 import { SUPPORTED_PAIRS } from '@/hooks/useCryptoPrices';
 
 const TradingPage = () => {
-  const { pair } = useParams();
+  const { baseAsset, quoteAsset } = useParams();
   
-  console.log('TradingPage - URL pair parameter:', pair);
+  console.log('TradingPage - URL parameters:', { baseAsset, quoteAsset });
 
-  // Validate and set default pair if needed
-  const validPair = pair && SUPPORTED_PAIRS.includes(pair) ? pair : 'BTC/USDT';
+  // Construct pair from URL parameters or use default
+  let validPair = 'BTC/USDT';
+  
+  if (baseAsset && quoteAsset) {
+    const constructedPair = `${baseAsset.toUpperCase()}/${quoteAsset.toUpperCase()}`;
+    if (SUPPORTED_PAIRS.includes(constructedPair)) {
+      validPair = constructedPair;
+    }
+  }
   
   console.log('TradingPage - Using valid pair:', validPair);
 

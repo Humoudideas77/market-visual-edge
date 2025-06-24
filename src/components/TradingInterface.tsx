@@ -16,11 +16,14 @@ interface TradingInterfaceProps {
 type ActiveViewType = 'standard' | 'kindle';
 
 const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) => {
-  const { pair: urlPair } = useParams();
+  const { baseAsset, quoteAsset } = useParams();
   const [selectedPair, setSelectedPair] = useState(() => {
-    // Priority: URL param > initial prop > default
-    if (urlPair && SUPPORTED_PAIRS.includes(urlPair)) {
-      return urlPair;
+    // Priority: URL params > initial prop > default
+    if (baseAsset && quoteAsset) {
+      const constructedPair = `${baseAsset.toUpperCase()}/${quoteAsset.toUpperCase()}`;
+      if (SUPPORTED_PAIRS.includes(constructedPair)) {
+        return constructedPair;
+      }
     }
     return initialPair;
   });
@@ -31,19 +34,23 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
 
   // Update selected pair when URL changes
   useEffect(() => {
-    if (urlPair && SUPPORTED_PAIRS.includes(urlPair) && urlPair !== selectedPair) {
-      console.log('TradingInterface - Updating pair from URL:', urlPair);
-      setSelectedPair(urlPair);
+    if (baseAsset && quoteAsset) {
+      const constructedPair = `${baseAsset.toUpperCase()}/${quoteAsset.toUpperCase()}`;
+      if (SUPPORTED_PAIRS.includes(constructedPair) && constructedPair !== selectedPair) {
+        console.log('TradingInterface - Updating pair from URL:', constructedPair);
+        setSelectedPair(constructedPair);
+      }
     }
-  }, [urlPair, selectedPair]);
+  }, [baseAsset, quoteAsset, selectedPair]);
 
   const handlePairChange = (newPair: string) => {
     console.log('Trading Interface - Switching to pair:', newPair);
     setSelectedPair(newPair);
     
     // Update URL without page reload
+    const [newBaseAsset, newQuoteAsset] = newPair.split('/');
     if (window.history && window.history.replaceState) {
-      window.history.replaceState(null, '', `/trading/${newPair}`);
+      window.history.replaceState(null, '', `/trading/${newBaseAsset}/${newQuoteAsset}`);
     }
   };
 

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -50,12 +49,13 @@ const ExchangePage = () => {
   };
 
   const handleTradeClick = (symbol: string) => {
-    const tradingPair = `${symbol.toUpperCase()}/USDT`;
-    console.log('ExchangePage - Navigating to trading pair:', tradingPair);
+    const baseAsset = symbol.toUpperCase();
+    const quoteAsset = 'USDT';
+    console.log('ExchangePage - Navigating to trading pair:', `${baseAsset}/${quoteAsset}`);
     
     if (user) {
-      navigate(`/trading/${tradingPair}`);
-      toast.success(`Opening ${tradingPair} trading interface`);
+      navigate(`/trading/${baseAsset}/${quoteAsset}`);
+      toast.success(`Opening ${baseAsset}/${quoteAsset} trading interface`);
     } else {
       toast.error('Please sign in to start trading');
       navigate('/auth');
@@ -63,11 +63,12 @@ const ExchangePage = () => {
   };
 
   const handleQuickBuy = (symbol: string) => {
-    const tradingPair = `${symbol.toUpperCase()}/USDT`;
-    console.log('ExchangePage - Quick buy for:', tradingPair);
+    const baseAsset = symbol.toUpperCase();
+    const quoteAsset = 'USDT';
+    console.log('ExchangePage - Quick buy for:', `${baseAsset}/${quoteAsset}`);
     
     if (user) {
-      navigate(`/trading/${tradingPair}?action=buy`);
+      navigate(`/trading/${baseAsset}/${quoteAsset}?action=buy`);
       toast.success(`Quick buy for ${symbol} - redirecting to trading interface`);
     } else {
       toast.error('Please sign in to trade');
@@ -76,11 +77,12 @@ const ExchangePage = () => {
   };
 
   const handleQuickSell = (symbol: string) => {
-    const tradingPair = `${symbol.toUpperCase()}/USDT`;
-    console.log('ExchangePage - Quick sell for:', tradingPair);
+    const baseAsset = symbol.toUpperCase();
+    const quoteAsset = 'USDT';
+    console.log('ExchangePage - Quick sell for:', `${baseAsset}/${quoteAsset}`);
     
     if (user) {
-      navigate(`/trading/${tradingPair}?action=sell`);
+      navigate(`/trading/${baseAsset}/${quoteAsset}?action=sell`);
       toast.success(`Quick sell for ${symbol} - redirecting to trading interface`);
     } else {
       toast.error('Please sign in to trade');

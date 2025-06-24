@@ -37,7 +37,7 @@ function App() {
                   <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
                   <Route path="/exchange" element={<ExchangePage />} />
                   <Route path="/trading" element={<TradingPage />} />
-                  <Route path="/trading/:pair" element={<TradingPage />} />
+                  <Route path="/trading/:baseAsset/:quoteAsset" element={<TradingPage />} />
                   <Route path="/my-assets" element={<ProtectedRoute><MyAssetsPage /></ProtectedRoute>} />
                   <Route path="/gold-mining" element={<ProtectedRoute><GoldMiningPage /></ProtectedRoute>} />
                   <Route path="/contracts" element={<ProtectedRoute><ContractsPage /></ProtectedRoute>} />
