@@ -41,7 +41,7 @@ const KYCManagementSection = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kyc_submissions')
-        .select('*')
+        .select('*, reviewed_by')
         .order('created_at', { ascending: false });
       
       if (error) throw error;

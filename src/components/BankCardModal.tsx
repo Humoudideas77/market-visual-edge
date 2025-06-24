@@ -12,12 +12,10 @@ import { Loader2, CreditCard, Plus, Edit } from 'lucide-react';
 interface BankCard {
   id: string;
   bank_name: string;
-  bank_number: string;
+  account_number: string;
   bank_address: string;
   swift_code: string;
-  payee_name: string;
-  zip_code: string;
-  payee_address: string;
+  account_holder_name: string;
   is_default: boolean;
 }
 
@@ -33,12 +31,10 @@ const BankCardModal = ({ isOpen, onClose, editCard, onSuccess }: BankCardModalPr
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     bank_name: editCard?.bank_name || '',
-    bank_number: editCard?.bank_number || '',
+    account_number: editCard?.account_number || '',
     bank_address: editCard?.bank_address || '',
     swift_code: editCard?.swift_code || '',
-    payee_name: editCard?.payee_name || '',
-    zip_code: editCard?.zip_code || '',
-    payee_address: editCard?.payee_address || '',
+    account_holder_name: editCard?.account_holder_name || '',
     is_default: editCard?.is_default || false,
   });
 
@@ -58,7 +54,7 @@ const BankCardModal = ({ isOpen, onClose, editCard, onSuccess }: BankCardModalPr
     }
 
     // Validate required fields
-    const requiredFields = ['bank_name', 'bank_number', 'bank_address', 'swift_code', 'payee_name', 'zip_code', 'payee_address'];
+    const requiredFields = ['bank_name', 'account_number', 'bank_address', 'swift_code', 'account_holder_name'];
     for (const field of requiredFields) {
       if (!formData[field as keyof typeof formData]) {
         toast.error(`${field.replace('_', ' ')} is required`);
@@ -101,12 +97,10 @@ const BankCardModal = ({ isOpen, onClose, editCard, onSuccess }: BankCardModalPr
       // Reset form
       setFormData({
         bank_name: '',
-        bank_number: '',
+        account_number: '',
         bank_address: '',
         swift_code: '',
-        payee_name: '',
-        zip_code: '',
-        payee_address: '',
+        account_holder_name: '',
         is_default: false,
       });
     } catch (error: any) {
@@ -144,15 +138,15 @@ const BankCardModal = ({ isOpen, onClose, editCard, onSuccess }: BankCardModalPr
           </div>
 
           <div>
-            <Label htmlFor="bank_number" className="text-sm font-medium">
+            <Label htmlFor="account_number" className="text-sm font-medium">
               Account Number *
             </Label>
             <Input
-              id="bank_number"
+              id="account_number"
               type="text"
               placeholder="Account number"
-              value={formData.bank_number}
-              onChange={(e) => handleInputChange('bank_number', e.target.value)}
+              value={formData.account_number}
+              onChange={(e) => handleInputChange('account_number', e.target.value)}
               className="exchange-input mt-1"
               required
             />
@@ -174,15 +168,15 @@ const BankCardModal = ({ isOpen, onClose, editCard, onSuccess }: BankCardModalPr
           </div>
 
           <div>
-            <Label htmlFor="payee_name" className="text-sm font-medium">
+            <Label htmlFor="account_holder_name" className="text-sm font-medium">
               Account Holder Name *
             </Label>
             <Input
-              id="payee_name"
+              id="account_holder_name"
               type="text"
               placeholder="Full name as on bank account"
-              value={formData.payee_name}
-              onChange={(e) => handleInputChange('payee_name', e.target.value)}
+              value={formData.account_holder_name}
+              onChange={(e) => handleInputChange('account_holder_name', e.target.value)}
               className="exchange-input mt-1"
               required
             />
@@ -198,36 +192,6 @@ const BankCardModal = ({ isOpen, onClose, editCard, onSuccess }: BankCardModalPr
               placeholder="Bank branch address"
               value={formData.bank_address}
               onChange={(e) => handleInputChange('bank_address', e.target.value)}
-              className="exchange-input mt-1"
-              required
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="payee_address" className="text-sm font-medium">
-              Account Holder Address *
-            </Label>
-            <Input
-              id="payee_address"
-              type="text"
-              placeholder="Your address"
-              value={formData.payee_address}
-              onChange={(e) => handleInputChange('payee_address', e.target.value)}
-              className="exchange-input mt-1"
-              required
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="zip_code" className="text-sm font-medium">
-              ZIP Code *
-            </Label>
-            <Input
-              id="zip_code"
-              type="text"
-              placeholder="ZIP/Postal code"
-              value={formData.zip_code}
-              onChange={(e) => handleInputChange('zip_code', e.target.value)}
               className="exchange-input mt-1"
               required
             />
