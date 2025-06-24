@@ -53,9 +53,9 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   const createDefaultBalances = (): WalletBalance[] => {
     return DEFAULT_CURRENCIES.map(currency => ({
       currency,
-      available: currency === 'USDT' ? 10000 : 0,
+      available: 0, // All balances start at zero
       locked: 0,
-      total: currency === 'USDT' ? 10000 : 0,
+      total: 0,
     }));
   };
 
@@ -87,21 +87,21 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
       const defaultBalances = createDefaultBalances();
 
       if (dbBalances.length === 0) {
-        // Initialize with default balances
+        // Initialize with zero balances for all currencies
         const { error } = await supabase.from('wallet_balances').insert(
           defaultBalances.map(balance => ({
             user_id: user.id,
             currency: balance.currency,
-            available_balance: balance.available,
-            locked_balance: balance.locked,
-            total_balance: balance.total,
+            available_balance: 0, // Start with zero
+            locked_balance: 0,
+            total_balance: 0,
           }))
         );
 
         if (error) throw error;
         setBalances(defaultBalances);
       } else {
-        // Update balances with database values
+        // Update balances with database values, ensuring missing currencies are added with zero balance
         const updatedBalances = defaultBalances.map(defaultBalance => {
           const dbBalance = dbBalances.find(db => db.currency === defaultBalance.currency);
           if (dbBalance) {
@@ -112,8 +112,26 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
               total: Number(dbBalance.total_balance),
             };
           }
-          return defaultBalance;
+          return defaultBalance; // Return zero balance for missing currencies
         });
+
+        // Add any missing currencies to database with zero balance
+        const missingCurrencies = defaultBalances.filter(
+          defaultBalance => !dbBalances.find(db => db.currency === defaultBalance.currency)
+        );
+
+        if (missingCurrencies.length > 0) {
+          await supabase.from('wallet_balances').insert(
+            missingCurrencies.map(balance => ({
+              user_id: user.id,
+              currency: balance.currency,
+              available_balance: 0,
+              locked_balance: 0,
+              total_balance: 0,
+            }))
+          );
+        }
+
         setBalances(updatedBalances);
       }
     } catch (error) {

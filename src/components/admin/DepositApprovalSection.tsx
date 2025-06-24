@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { Check, X, Eye, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -45,22 +44,41 @@ const DepositApprovalSection = () => {
 
   const updateDepositMutation = useMutation({
     mutationFn: async ({ id, status, notes }: { id: string; status: string; notes?: string }) => {
-      const { error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('No authenticated admin user found');
+      }
+
+      console.log('Starting deposit approval process:', { id, status, notes, adminId: user.id });
+
+      // Update deposit request status
+      const { error: depositError } = await supabase
         .from('deposit_requests')
         .update({
           status,
           admin_notes: notes,
+          admin_id: user.id,
           updated_at: new Date().toISOString(),
         })
         .eq('id', id);
 
-      if (error) throw error;
+      if (depositError) {
+        console.error('Deposit request update error:', depositError);
+        throw depositError;
+      }
 
-      // If approved, update wallet balance automatically
+      // Only credit wallet balance if deposit is approved
       if (status === 'approved') {
         const deposit = deposits?.find(d => d.id === id);
         if (deposit) {
-          const { error: walletError } = await (supabase as any).rpc('update_wallet_balance', {
+          console.log('Crediting wallet balance for approved deposit:', {
+            userId: deposit.user_id,
+            currency: deposit.currency,
+            amount: deposit.amount
+          });
+
+          const { error: walletError } = await supabase.rpc('update_wallet_balance', {
             p_user_id: deposit.user_id,
             p_currency: deposit.currency,
             p_amount: deposit.amount,
@@ -71,55 +89,64 @@ const DepositApprovalSection = () => {
             console.error('Error updating wallet balance:', walletError);
             throw walletError;
           }
+
+          console.log('Successfully credited wallet balance');
         }
       }
 
       // Log admin activity
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from('admin_activities').insert({
+      const { error: activityError } = await supabase
+        .from('admin_activities')
+        .insert({
           admin_id: user.id,
           action_type: `deposit_${status}`,
           target_table: 'deposit_requests',
           target_record_id: id,
-          action_details: { status, notes },
+          action_details: { status, notes, amount: deposits?.find(d => d.id === id)?.amount },
         });
+        
+      if (activityError) {
+        console.error('Activity log error:', activityError);
+        // Don't throw here, just log the error
       }
+      
+      return { status, notes };
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['admin-deposits'] });
       
-      if (variables.status === 'approved') {
-        toast({ 
-          title: 'Deposit approved successfully', 
-          description: 'Funds have been credited to user wallet immediately' 
-        });
+      if (data.status === 'approved') {
+        toast.success('Deposit approved successfully! Funds have been credited to user wallet.');
+      } else if (data.status === 'rejected') {
+        toast.success('Deposit rejected successfully. User has been notified.');
       } else {
-        toast({ title: 'Deposit request updated successfully' });
+        toast.success('Deposit request updated successfully');
       }
       
       setSelectedDeposit(null);
       setAdminNotes('');
     },
-    onError: (error) => {
-      console.error('Deposit approval error:', error);
-      toast({ title: 'Failed to update deposit request', variant: 'destructive' });
+    onError: (error: any) => {
+      console.error('Deposit approval failed:', error);
+      toast.error(`Failed to update deposit request: ${error.message}`);
     },
   });
 
   const handleApprove = (deposit: DepositRequest) => {
+    console.log('Approving deposit:', deposit.id);
     updateDepositMutation.mutate({
       id: deposit.id,
       status: 'approved',
-      notes: adminNotes || 'Approved by admin',
+      notes: adminNotes || 'Deposit approved by admin - funds credited to wallet',
     });
   };
 
   const handleReject = (deposit: DepositRequest) => {
     if (!adminNotes.trim()) {
-      toast({ title: 'Please provide a reason for rejection', variant: 'destructive' });
+      toast.error('Please provide a reason for rejection');
       return;
     }
+    console.log('Rejecting deposit:', deposit.id);
     updateDepositMutation.mutate({
       id: deposit.id,
       status: 'rejected',
@@ -300,7 +327,7 @@ const DepositApprovalSection = () => {
                                 className="bg-green-600 hover:bg-green-700"
                               >
                                 <Check className="w-4 h-4 mr-1" />
-                                Approve
+                                {updateDepositMutation.isPending ? 'Processing...' : 'Approve & Credit Wallet'}
                               </Button>
                               <Button
                                 onClick={() => handleReject(deposit)}
@@ -308,7 +335,7 @@ const DepositApprovalSection = () => {
                                 variant="destructive"
                               >
                                 <X className="w-4 h-4 mr-1" />
-                                Reject
+                                {updateDepositMutation.isPending ? 'Processing...' : 'Reject'}
                               </Button>
                             </div>
                           </div>
