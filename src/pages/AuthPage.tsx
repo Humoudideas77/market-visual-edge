@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -246,19 +245,7 @@ const AuthPage = () => {
             </div>
           </div>
 
-          {/* Superadmin Instructions */}
-          <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4 text-center">
-            <div className="flex items-center justify-center space-x-2 mb-2">
-              <Shield className="w-5 h-5 text-red-400" />
-              <span className="text-red-400 font-semibold">Create MecCrypto Superadmin Account</span>
-            </div>
-            <p className="text-sm text-red-300">
-              To create a superadmin account, sign up with:<br />
-              <span className="font-mono bg-red-900/40 px-2 py-1 rounded">xgroup7509@gmail.com</span>
-              <br />
-              Use password: <span className="font-mono bg-red-900/40 px-2 py-1 rounded">Xgroup88889999</span>
-            </p>
-          </div>
+          
         </div>
 
         {/* Right side - Auth Forms */}
