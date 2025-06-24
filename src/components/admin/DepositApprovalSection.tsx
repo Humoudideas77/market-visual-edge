@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,18 +32,10 @@ const DepositApprovalSection = () => {
   const queryClient = useQueryClient();
 
   const { data: deposits, isLoading, error, refetch } = useQuery({
-    queryKey: ['admin-deposits-v4'], // Updated query key for fresh data
+    queryKey: ['admin-deposits-v5'], // Updated query key for fresh data
     queryFn: async () => {
-      console.log('Fetching deposits with updated RLS policies...');
+      console.log('Fetching deposits for super admin dashboard...');
       
-      // Get current user session to ensure we're authenticated
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        console.error('No active session found');
-        throw new Error('Authentication required');
-      }
-      
-      console.log('Session confirmed, fetching deposits...');
       const { data, error } = await supabase
         .from('deposit_requests')
         .select('*')
@@ -54,9 +47,10 @@ const DepositApprovalSection = () => {
       }
       
       console.log('Deposits fetched successfully:', data?.length || 0, 'records');
+      console.log('Deposit data:', data);
       return data as DepositRequest[];
     },
-    refetchInterval: 10000, // Refetch every 10 seconds for real-time updates
+    refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
     retry: 3,
     retryDelay: 1000,
   });
@@ -66,7 +60,7 @@ const DepositApprovalSection = () => {
     console.log('Setting up real-time subscription for deposits...');
     
     const channel = supabase
-      .channel('deposit-changes')
+      .channel('deposit-changes-v2')
       .on(
         'postgres_changes',
         {
@@ -76,7 +70,7 @@ const DepositApprovalSection = () => {
         },
         (payload) => {
           console.log('Real-time deposit update received:', payload);
-          queryClient.invalidateQueries({ queryKey: ['admin-deposits-v4'] });
+          queryClient.invalidateQueries({ queryKey: ['admin-deposits-v5'] });
           queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
         }
       )
@@ -91,12 +85,6 @@ const DepositApprovalSection = () => {
   const updateDepositMutation = useMutation({
     mutationFn: async ({ id, status, notes }: { id: string; status: string; notes?: string }) => {
       console.log('Updating deposit:', { id, status, notes });
-      
-      // Verify session before making update
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('Authentication required');
-      }
       
       const { error } = await supabase
         .from('deposit_requests')
@@ -132,7 +120,8 @@ const DepositApprovalSection = () => {
       }
 
       // Log admin activity
-      if (session.user) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
         console.log('Logging admin activity for deposit update');
         const { error: activityError } = await supabase.from('admin_activities').insert({
           admin_id: session.user.id,
@@ -148,7 +137,7 @@ const DepositApprovalSection = () => {
       }
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-deposits-v4'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-deposits-v5'] });
       queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
       
       if (variables.status === 'approved') {
@@ -255,7 +244,7 @@ const DepositApprovalSection = () => {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-exchange-text-primary">
-            Deposit Approvals
+            Deposit Approvals ({deposits?.length || 0} total)
             {pendingDeposits.length > 0 && (
               <Badge variant="destructive" className="ml-2">
                 {pendingDeposits.length} Pending

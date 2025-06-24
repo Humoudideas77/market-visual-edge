@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,9 +31,9 @@ const WithdrawalApprovalSection = () => {
   const queryClient = useQueryClient();
 
   const { data: withdrawals, isLoading, refetch } = useQuery({
-    queryKey: ['admin-withdrawals-v2'], // Updated query key
+    queryKey: ['admin-withdrawals-v3'], // Updated query key
     queryFn: async () => {
-      console.log('Fetching withdrawals with updated RLS policies...');
+      console.log('Fetching withdrawals for super admin dashboard...');
       const { data, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
@@ -43,9 +44,10 @@ const WithdrawalApprovalSection = () => {
         throw error;
       }
       console.log('Withdrawals fetched successfully:', data?.length || 0, 'records');
+      console.log('Withdrawal data:', data);
       return data as WithdrawalRequest[];
     },
-    refetchInterval: 10000, // Refetch every 10 seconds
+    refetchInterval: 5000, // Refetch every 5 seconds
   });
 
   // Set up real-time subscription for withdrawal requests
@@ -53,7 +55,7 @@ const WithdrawalApprovalSection = () => {
     console.log('Setting up real-time subscription for withdrawals...');
     
     const channel = supabase
-      .channel('withdrawal-changes')
+      .channel('withdrawal-changes-v2')
       .on(
         'postgres_changes',
         {
@@ -63,7 +65,7 @@ const WithdrawalApprovalSection = () => {
         },
         (payload) => {
           console.log('Real-time withdrawal update received:', payload);
-          queryClient.invalidateQueries({ queryKey: ['admin-withdrawals-v2'] });
+          queryClient.invalidateQueries({ queryKey: ['admin-withdrawals-v3'] });
           queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
         }
       )
@@ -129,7 +131,7 @@ const WithdrawalApprovalSection = () => {
       }
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-withdrawals-v2'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-withdrawals-v3'] });
       queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
       
       if (variables.status === 'approved') {
@@ -211,7 +213,7 @@ const WithdrawalApprovalSection = () => {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-exchange-text-primary">
-            Withdrawal Approvals
+            Withdrawal Approvals ({withdrawals?.length || 0} total)
             {pendingWithdrawals.length > 0 && (
               <Badge variant="destructive" className="ml-2">
                 {pendingWithdrawals.length} Pending
