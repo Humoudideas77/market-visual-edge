@@ -24,7 +24,7 @@ type KYCSubmission = {
   selfie_with_id_url: string | null;
   status: string;
   admin_notes: string | null;
-  reviewed_by: string | null;
+  admin_id: string | null;
   reviewed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -41,7 +41,7 @@ const KYCManagementSection = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kyc_submissions')
-        .select('*, reviewed_by')
+        .select('*')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -65,7 +65,7 @@ const KYCManagementSection = () => {
         .update({
           status,
           admin_notes: notes,
-          reviewed_by: user.id,
+          admin_id: user.id,
           reviewed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
