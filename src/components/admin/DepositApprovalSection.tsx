@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,8 +19,9 @@ type DepositRequest = {
   currency: string;
   network: string;
   status: string;
-  transaction_screenshot_url: string | null;
+  screenshot_url: string | null;
   admin_notes: string | null;
+  admin_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -286,11 +286,11 @@ const DepositApprovalSection = () => {
                     {getStatusBadge(deposit.status)}
                   </TableCell>
                   <TableCell>
-                    {deposit.transaction_screenshot_url ? (
+                    {deposit.screenshot_url ? (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleViewScreenshot(deposit.transaction_screenshot_url!)}
+                        onClick={() => handleViewScreenshot(deposit.screenshot_url!)}
                       >
                         <ExternalLink className="w-4 h-4" />
                       </Button>
@@ -340,17 +340,17 @@ const DepositApprovalSection = () => {
                               </div>
                             </div>
 
-                            {deposit.transaction_screenshot_url && (
+                            {deposit.screenshot_url && (
                               <div>
                                 <label className="text-sm font-medium text-exchange-text-secondary mb-2 block">
                                   Transaction Screenshot
                                 </label>
                                 <div className="border border-exchange-border rounded-lg p-2">
                                   <img 
-                                    src={deposit.transaction_screenshot_url}
+                                    src={deposit.screenshot_url}
                                     alt="Transaction Screenshot"
                                     className="max-w-full h-auto max-h-64 mx-auto rounded cursor-pointer"
-                                    onClick={() => handleViewScreenshot(deposit.transaction_screenshot_url!)}
+                                    onClick={() => handleViewScreenshot(deposit.screenshot_url!)}
                                   />
                                   <p className="text-xs text-exchange-text-secondary mt-1 text-center">
                                     Click to view full size

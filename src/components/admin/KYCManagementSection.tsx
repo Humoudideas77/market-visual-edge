@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,13 +18,13 @@ type KYCSubmission = {
   address: string;
   nationality: string;
   date_of_birth: string;
-  id_card_url: string | null;
-  passport_url: string | null;
-  utility_bill_url: string | null;
-  selfie_with_id_url: string | null;
+  front_document_url: string | null;
+  back_document_url: string | null;
+  selfie_url: string | null;
+  phone_number: string | null;
   status: string;
   admin_notes: string | null;
-  reviewed_by: string | null;
+  admin_id: string | null;
   reviewed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -66,7 +65,7 @@ const KYCManagementSection = () => {
         .update({
           status,
           admin_notes: notes,
-          reviewed_by: user?.id,
+          admin_id: user?.id,
           reviewed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -278,40 +277,30 @@ const KYCManagementSection = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => viewDocument(kyc.id_card_url, 'ID Card')}
-                        disabled={!kyc.id_card_url}
-                        title="ID Card"
-                        className={kyc.id_card_url ? "text-blue-400 hover:text-blue-300" : "text-gray-500"}
+                        onClick={() => viewDocument(kyc.front_document_url, 'Front Document')}
+                        disabled={!kyc.front_document_url}
+                        title="Front Document"
+                        className={kyc.front_document_url ? "text-blue-400 hover:text-blue-300" : "text-gray-500"}
                       >
                         <FileImage className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => viewDocument(kyc.passport_url, 'Passport')}
-                        disabled={!kyc.passport_url}
-                        title="Passport"
-                        className={kyc.passport_url ? "text-blue-400 hover:text-blue-300" : "text-gray-500"}
+                        onClick={() => viewDocument(kyc.back_document_url, 'Back Document')}
+                        disabled={!kyc.back_document_url}
+                        title="Back Document"
+                        className={kyc.back_document_url ? "text-blue-400 hover:text-blue-300" : "text-gray-500"}
                       >
                         <FileImage className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => viewDocument(kyc.utility_bill_url, 'Utility Bill')}
-                        disabled={!kyc.utility_bill_url}
-                        title="Utility Bill"
-                        className={kyc.utility_bill_url ? "text-blue-400 hover:text-blue-300" : "text-gray-500"}
-                      >
-                        <FileImage className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => viewDocument(kyc.selfie_with_id_url, 'Selfie with ID')}
-                        disabled={!kyc.selfie_with_id_url}
-                        title="Selfie with ID"
-                        className={kyc.selfie_with_id_url ? "text-blue-400 hover:text-blue-300" : "text-gray-500"}
+                        onClick={() => viewDocument(kyc.selfie_url, 'Selfie')}
+                        disabled={!kyc.selfie_url}
+                        title="Selfie"
+                        className={kyc.selfie_url ? "text-blue-400 hover:text-blue-300" : "text-gray-500"}
                       >
                         <FileImage className="w-4 h-4" />
                       </Button>
@@ -381,10 +370,9 @@ const KYCManagementSection = () => {
                                 <h4 className="font-medium text-exchange-text-primary mb-2">Documents</h4>
                                 <div className="grid grid-cols-2 gap-2">
                                   {[
-                                    { url: selectedKYC.id_card_url, label: 'ID Card' },
-                                    { url: selectedKYC.passport_url, label: 'Passport' },
-                                    { url: selectedKYC.utility_bill_url, label: 'Utility Bill' },
-                                    { url: selectedKYC.selfie_with_id_url, label: 'Selfie with ID' },
+                                    { url: selectedKYC.front_document_url, label: 'Front Document' },
+                                    { url: selectedKYC.back_document_url, label: 'Back Document' },
+                                    { url: selectedKYC.selfie_url, label: 'Selfie' },
                                   ].map((doc, index) => (
                                     <Button
                                       key={index}
