@@ -16,12 +16,11 @@ const BankCardForm: React.FC<BankCardFormProps> = ({ onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     bankName: '',
-    payeeName: '',
-    bankNumber: '',
+    accountHolderName: '',
+    accountNumber: '',
     bankAddress: '',
-    payeeAddress: '',
-    zipCode: '',
     swiftCode: '',
+    routingNumber: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,12 +35,11 @@ const BankCardForm: React.FC<BankCardFormProps> = ({ onSuccess }) => {
         .insert({
           user_id: user.id,
           bank_name: formData.bankName,
-          payee_name: formData.payeeName,
-          bank_number: formData.bankNumber,
+          account_holder_name: formData.accountHolderName,
+          account_number: formData.accountNumber,
           bank_address: formData.bankAddress,
-          payee_address: formData.payeeAddress,
-          zip_code: formData.zipCode,
           swift_code: formData.swiftCode,
+          routing_number: formData.routingNumber,
         });
 
       if (error) throw error;
@@ -73,28 +71,28 @@ const BankCardForm: React.FC<BankCardFormProps> = ({ onSuccess }) => {
       </div>
 
       <div>
-        <Label htmlFor="payeeName" className="text-exchange-text-secondary">
+        <Label htmlFor="accountHolderName" className="text-exchange-text-secondary">
           Account Holder Name
         </Label>
         <Input
-          id="payeeName"
+          id="accountHolderName"
           placeholder="Enter account holder name"
-          value={formData.payeeName}
-          onChange={(e) => setFormData({ ...formData, payeeName: e.target.value })}
+          value={formData.accountHolderName}
+          onChange={(e) => setFormData({ ...formData, accountHolderName: e.target.value })}
           className="bg-exchange-bg border-exchange-border text-exchange-text-primary"
           required
         />
       </div>
 
       <div>
-        <Label htmlFor="bankNumber" className="text-exchange-text-secondary">
+        <Label htmlFor="accountNumber" className="text-exchange-text-secondary">
           Account Number
         </Label>
         <Input
-          id="bankNumber"
+          id="accountNumber"
           placeholder="Enter account number"
-          value={formData.bankNumber}
-          onChange={(e) => setFormData({ ...formData, bankNumber: e.target.value })}
+          value={formData.accountNumber}
+          onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
           className="bg-exchange-bg border-exchange-border text-exchange-text-primary"
           required
         />
@@ -124,35 +122,19 @@ const BankCardForm: React.FC<BankCardFormProps> = ({ onSuccess }) => {
           value={formData.bankAddress}
           onChange={(e) => setFormData({ ...formData, bankAddress: e.target.value })}
           className="bg-exchange-bg border-exchange-border text-exchange-text-primary"
-          required
         />
       </div>
 
       <div>
-        <Label htmlFor="payeeAddress" className="text-exchange-text-secondary">
-          Payee Address
+        <Label htmlFor="routingNumber" className="text-exchange-text-secondary">
+          Routing Number
         </Label>
         <Input
-          id="payeeAddress"
-          placeholder="Enter payee address"
-          value={formData.payeeAddress}
-          onChange={(e) => setFormData({ ...formData, payeeAddress: e.target.value })}
+          id="routingNumber"
+          placeholder="Enter routing number"
+          value={formData.routingNumber}
+          onChange={(e) => setFormData({ ...formData, routingNumber: e.target.value })}
           className="bg-exchange-bg border-exchange-border text-exchange-text-primary"
-          required
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="zipCode" className="text-exchange-text-secondary">
-          ZIP Code
-        </Label>
-        <Input
-          id="zipCode"
-          placeholder="Enter ZIP code"
-          value={formData.zipCode}
-          onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
-          className="bg-exchange-bg border-exchange-border text-exchange-text-primary"
-          required
         />
       </div>
 

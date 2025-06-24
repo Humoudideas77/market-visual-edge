@@ -14,12 +14,11 @@ import BankCardModal from './BankCardModal';
 interface BankCard {
   id: string;
   bank_name: string;
-  bank_number: string;
+  account_number: string;
   bank_address: string;
   swift_code: string;
-  payee_name: string;
-  zip_code: string;
-  payee_address: string;
+  account_holder_name: string;
+  routing_number: string;
   is_default: boolean;
 }
 
@@ -209,7 +208,7 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
                 >
                   {bankCards.map((card) => (
                     <option key={card.id} value={card.id}>
-                      {card.bank_name} - ****{card.bank_number.slice(-4)} ({card.payee_name})
+                      {card.bank_name} - ****{card.account_number.slice(-4)} ({card.account_holder_name})
                       {card.is_default ? ' (Default)' : ''}
                     </option>
                   ))}
@@ -239,8 +238,8 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
                 </h4>
                 <div className="space-y-1 text-xs text-gray-600">
                   <div>Bank: {selectedCard.bank_name}</div>
-                  <div>Account: ****{selectedCard.bank_number.slice(-4)}</div>
-                  <div>Holder: {selectedCard.payee_name}</div>
+                  <div>Account: ****{selectedCard.account_number.slice(-4)}</div>
+                  <div>Holder: {selectedCard.account_holder_name}</div>
                   <div>SWIFT: {selectedCard.swift_code}</div>
                 </div>
               </div>
