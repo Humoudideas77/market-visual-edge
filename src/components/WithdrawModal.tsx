@@ -14,12 +14,9 @@ import BankCardModal from './BankCardModal';
 interface BankCard {
   id: string;
   bank_name: string;
-  bank_number: string;
-  bank_address: string;
+  account_number: string;
   swift_code: string;
-  payee_name: string;
-  zip_code: string;
-  payee_address: string;
+  account_holder_name: string;
   is_default: boolean;
 }
 
@@ -65,6 +62,8 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
     if (!user) return;
 
     try {
+      console.log('Fetching bank cards for user:', user.id);
+      
       const { data, error } = await supabase
         .from('bank_cards')
         .select('*')
@@ -72,16 +71,22 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
         .order('is_default', { ascending: false })
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching bank cards:', error);
+        throw error;
+      }
       
+      console.log('Bank cards fetched:', data);
       setBankCards(data || []);
       
       // Auto-select default card or first card
       const defaultCard = data?.find(card => card.is_default);
       if (defaultCard) {
         setSelectedBankCard(defaultCard.id);
+        console.log('Auto-selected default card:', defaultCard.id);
       } else if (data && data.length > 0) {
         setSelectedBankCard(data[0].id);
+        console.log('Auto-selected first card:', data[0].id);
       }
     } catch (error) {
       console.error('Error fetching bank cards:', error);
@@ -128,6 +133,14 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
     setLoading(true);
 
     try {
+      console.log('Creating withdrawal request:', {
+        user_id: user.id,
+        bank_card_id: selectedBankCard,
+        currency,
+        network,
+        amount: withdrawAmount
+      });
+
       // Create withdrawal request
       const { error } = await supabase
         .from('withdrawal_requests')
@@ -140,8 +153,12 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
           status: 'pending'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating withdrawal request:', error);
+        throw error;
+      }
 
+      console.log('Withdrawal request created successfully');
       toast.success('Withdrawal request submitted successfully. Processing time: 1-3 business days.');
       
       // Reset form
@@ -149,10 +166,16 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
       onClose();
     } catch (error: any) {
       console.error('Error submitting withdrawal:', error);
-      toast.error('Failed to submit withdrawal request');
+      toast.error(`Failed to submit withdrawal request: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleBankCardSuccess = () => {
+    // Refresh bank cards after adding a new one
+    fetchBankCards();
+    setShowBankCardModal(false);
   };
 
   return (
@@ -187,9 +210,10 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
                   onChange={(e) => setSelectedBankCard(e.target.value)}
                   className="exchange-input w-full"
                 >
+                  <option value="">Select a bank card</option>
                   {bankCards.map((card) => (
                     <option key={card.id} value={card.id}>
-                      {card.bank_name} - ****{card.bank_number.slice(-4)} ({card.payee_name})
+                      {card.bank_name} - ****{card.account_number.slice(-4)} ({card.account_holder_name})
                       {card.is_default ? ' (Default)' : ''}
                     </option>
                   ))}
@@ -219,8 +243,8 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
                 </h4>
                 <div className="space-y-1 text-xs text-exchange-text-secondary">
                   <div>Bank: {selectedCard.bank_name}</div>
-                  <div>Account: ****{selectedCard.bank_number.slice(-4)}</div>
-                  <div>Holder: {selectedCard.payee_name}</div>
+                  <div>Account: ****{selectedCard.account_number.slice(-4)}</div>
+                  <div>Holder: {selectedCard.account_holder_name}</div>
                   <div>SWIFT: {selectedCard.swift_code}</div>
                 </div>
               </div>
@@ -337,7 +361,7 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
               ) : (
                 <ArrowUpRight className="w-4 h-4 mr-2" />
               )}
-              Withdraw {amount && `${amount} ${currency}`}
+              {loading ? 'Processing...' : `Withdraw ${amount && `${amount} ${currency}`}`}
             </Button>
 
             {/* Important Notice */}
@@ -361,7 +385,7 @@ const WithdrawModal = ({ isOpen, onClose }: WithdrawModalProps) => {
       <BankCardModal
         isOpen={showBankCardModal}
         onClose={() => setShowBankCardModal(false)}
-        onSuccess={fetchBankCards}
+        onSuccess={handleBankCardSuccess}
       />
     </>
   );

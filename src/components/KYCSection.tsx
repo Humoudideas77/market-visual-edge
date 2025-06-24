@@ -22,26 +22,45 @@ const KYCSection = () => {
 
   const checkKYCStatus = async () => {
     try {
+      console.log('Checking KYC status for user:', user?.id);
+      
+      // First check the user's profile for the latest KYC status
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('kyc_status')
         .eq('id', user?.id)
         .single();
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Profile error:', profileError);
+        throw profileError;
+      }
 
+      console.log('Profile KYC status:', profileData?.kyc_status);
+
+      // Check for any KYC submissions
       const { data: submissionData, error: submissionError } = await supabase
         .from('kyc_submissions')
         .select('id, status')
         .eq('user_id', user?.id)
-        .single();
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       if (submissionError && submissionError.code !== 'PGRST116') {
+        console.error('Submission error:', submissionError);
         throw submissionError;
       }
 
-      setKycStatus(submissionData?.status || profileData?.kyc_status || 'pending');
+      console.log('Latest KYC submission:', submissionData);
+
+      // Use the profile status as the primary source, but fall back to submission status
+      const currentStatus = profileData?.kyc_status || submissionData?.status || 'pending';
+      
+      setKycStatus(currentStatus);
       setHasSubmission(!!submissionData);
+      
+      console.log('Final KYC status set to:', currentStatus);
     } catch (error) {
       console.error('Error checking KYC status:', error);
       toast.error('Failed to check KYC status');
@@ -50,12 +69,45 @@ const KYCSection = () => {
     }
   };
 
+  // Set up real-time subscription to profile changes
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('profile-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Profile updated:', payload);
+          if (payload.new?.kyc_status) {
+            setKycStatus(payload.new.kyc_status);
+            if (payload.new.kyc_status === 'approved') {
+              toast.success('Your KYC has been approved! You are now verified.');
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'approved':
         return <CheckCircle className="w-5 h-5 text-green-600" />;
       case 'rejected':
         return <XCircle className="w-5 h-5 text-red-600" />;
+      case 'resubmission_required':
+        return <AlertCircle className="w-5 h-5 text-yellow-600" />;
       case 'pending':
         return <Clock className="w-5 h-5 text-yellow-600" />;
       default:
@@ -66,13 +118,30 @@ const KYCSection = () => {
   const getStatusMessage = (status: string) => {
     switch (status) {
       case 'approved':
-        return 'Your KYC verification has been approved!';
+        return 'Your KYC verification has been approved! You are verified.';
       case 'rejected':
         return 'Your KYC submission was rejected. Please submit new documents.';
+      case 'resubmission_required':
+        return 'Please resubmit your KYC documents with the requested changes.';
       case 'pending':
         return hasSubmission ? 'Your KYC documents are under review' : 'Complete your identity verification';
       default:
         return 'Complete your identity verification';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return 'Verified';
+      case 'rejected':
+        return 'Rejected';
+      case 'resubmission_required':
+        return 'Resubmission Required';
+      case 'pending':
+        return 'Pending';
+      default:
+        return 'Not Started';
     }
   };
 
@@ -115,16 +184,22 @@ const KYCSection = () => {
               </div>
             </div>
             
-            {kycStatus === 'approved' && (
-              <div className="px-3 py-1 bg-green-500/20 text-green-400 text-sm rounded-full">
-                Verified
-              </div>
-            )}
+            <div className={`px-3 py-1 text-sm rounded-full font-medium ${
+              kycStatus === 'approved' 
+                ? 'bg-green-500/20 text-green-400' 
+                : kycStatus === 'rejected'
+                ? 'bg-red-500/20 text-red-400'
+                : kycStatus === 'resubmission_required'
+                ? 'bg-yellow-500/20 text-yellow-400'
+                : 'bg-gray-500/20 text-gray-400'
+            }`}>
+              {getStatusLabel(kycStatus)}
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {(kycStatus === 'pending' && !hasSubmission) || kycStatus === 'rejected' ? (
+      {((kycStatus === 'pending' && !hasSubmission) || kycStatus === 'rejected' || kycStatus === 'resubmission_required') ? (
         <KYCUploadForm />
       ) : null}
     </div>

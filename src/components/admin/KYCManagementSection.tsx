@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -54,65 +53,76 @@ const KYCManagementSection = () => {
     mutationFn: async ({ id, status, notes }: { id: string; status: string; notes?: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
       
-      console.log('Updating KYC submission:', { id, status, notes });
+      if (!user) {
+        throw new Error('No authenticated user found');
+      }
+
+      console.log('Starting KYC update:', { id, status, notes, adminId: user.id });
       
+      // Update KYC submission
       const { error: kycError } = await supabase
         .from('kyc_submissions')
         .update({
           status,
           admin_notes: notes,
-          reviewed_by: user?.id,
+          reviewed_by: user.id,
           reviewed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq('id', id);
 
       if (kycError) {
-        console.error('KYC update error:', kycError);
+        console.error('KYC submission update error:', kycError);
         throw kycError;
       }
 
-      // Update user's kyc_status in profiles
+      // Get the KYC submission to find the user_id
       const kycSubmission = kycSubmissions?.find(k => k.id === id);
-      if (kycSubmission) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({ 
-            kyc_status: status,
-            kyc_submission_id: id 
-          })
-          .eq('id', kycSubmission.user_id);
-          
-        if (profileError) {
-          console.error('Profile update error:', profileError);
-          throw profileError;
-        }
+      if (!kycSubmission) {
+        throw new Error('KYC submission not found');
       }
 
+      // Update user's kyc_status in profiles table
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ 
+          kyc_status: status,
+          kyc_submission_id: id 
+        })
+        .eq('id', kycSubmission.user_id);
+          
+      if (profileError) {
+        console.error('Profile update error:', profileError);
+        throw profileError;
+      }
+
+      console.log('Successfully updated KYC and profile status');
+
       // Log admin activity
-      if (user) {
-        const { error: activityError } = await supabase.from('admin_activities').insert({
+      const { error: activityError } = await supabase
+        .from('admin_activities')
+        .insert({
           admin_id: user.id,
           action_type: `kyc_${status}`,
           target_table: 'kyc_submissions',
           target_record_id: id,
-          action_details: { status, notes },
+          action_details: { status, notes, user_id: kycSubmission.user_id },
         });
         
-        if (activityError) {
-          console.error('Activity log error:', activityError);
-        }
+      if (activityError) {
+        console.error('Activity log error:', activityError);
+        // Don't throw here, just log the error
       }
       
       return { status, notes };
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['admin-kyc'] });
       
       let message = '';
       switch (data.status) {
         case 'approved':
-          message = 'KYC submission approved successfully';
+          message = 'KYC submission approved successfully. User status updated to Verified.';
           break;
         case 'rejected':
           message = 'KYC submission rejected successfully. User has been notified.';
@@ -129,9 +139,9 @@ const KYCManagementSection = () => {
       setAdminNotes('');
       setIsDialogOpen(false);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('KYC update failed:', error);
-      toast.error('Failed to update KYC submission. Please try again.');
+      toast.error(`Failed to update KYC submission: ${error.message}`);
     },
   });
 
@@ -295,7 +305,13 @@ const KYCManagementSection = () => {
                   </TableCell>
                   <TableCell>
                     {kyc.status === 'pending' ? (
-                      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                      <Dialog open={isDialogOpen && selectedKYC?.id === kyc.id} onOpenChange={(open) => {
+                        setIsDialogOpen(open);
+                        if (!open) {
+                          setSelectedKYC(null);
+                          setAdminNotes('');
+                        }
+                      }}>
                         <DialogTrigger asChild>
                           <Button
                             variant="outline"
@@ -316,7 +332,7 @@ const KYCManagementSection = () => {
                               Review KYC Submission
                             </DialogTitle>
                           </DialogHeader>
-                          {selectedKYC && (
+                          {selectedKYC && selectedKYC.id === kyc.id && (
                             <div className="space-y-4">
                               <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div>
@@ -395,7 +411,7 @@ const KYCManagementSection = () => {
                                 </Button>
                                 <Button
                                   onClick={() => handleReject(selectedKYC)}
-                                  disabled={updateKYCMutation.isPending}
+                                  disabled={updateKYCMutation.isPending || !adminNotes.trim()}
                                   variant="destructive"
                                 >
                                   <X className="w-4 h-4 mr-1" />
@@ -403,7 +419,7 @@ const KYCManagementSection = () => {
                                 </Button>
                                 <Button
                                   onClick={() => handleRequireResubmission(selectedKYC)}
-                                  disabled={updateKYCMutation.isPending}
+                                  disabled={updateKYCMutation.isPending || !adminNotes.trim()}
                                   variant="outline"
                                   className="border-yellow-600 text-yellow-600 hover:bg-yellow-600 hover:text-white"
                                 >
