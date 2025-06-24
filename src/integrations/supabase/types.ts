@@ -176,6 +176,7 @@ export type Database = {
           network: string
           screenshot_url: string | null
           status: string
+          transaction_screenshot_url: string | null
           updated_at: string | null
           user_id: string
         }
@@ -189,6 +190,7 @@ export type Database = {
           network: string
           screenshot_url?: string | null
           status?: string
+          transaction_screenshot_url?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -202,6 +204,7 @@ export type Database = {
           network?: string
           screenshot_url?: string | null
           status?: string
+          transaction_screenshot_url?: string | null
           updated_at?: string | null
           user_id?: string
         }
@@ -218,13 +221,18 @@ export type Database = {
           front_document_url: string | null
           full_name: string
           id: string
+          id_card_url: string | null
           nationality: string
+          passport_url: string | null
+          personal_id_number: string | null
           phone_number: string | null
           reviewed_at: string | null
           selfie_url: string | null
+          selfie_with_id_url: string | null
           status: string
           updated_at: string | null
           user_id: string
+          utility_bill_url: string | null
         }
         Insert: {
           address: string
@@ -236,13 +244,18 @@ export type Database = {
           front_document_url?: string | null
           full_name: string
           id?: string
+          id_card_url?: string | null
           nationality: string
+          passport_url?: string | null
+          personal_id_number?: string | null
           phone_number?: string | null
           reviewed_at?: string | null
           selfie_url?: string | null
+          selfie_with_id_url?: string | null
           status?: string
           updated_at?: string | null
           user_id: string
+          utility_bill_url?: string | null
         }
         Update: {
           address?: string
@@ -254,13 +267,18 @@ export type Database = {
           front_document_url?: string | null
           full_name?: string
           id?: string
+          id_card_url?: string | null
           nationality?: string
+          passport_url?: string | null
+          personal_id_number?: string | null
           phone_number?: string | null
           reviewed_at?: string | null
           selfie_url?: string | null
+          selfie_with_id_url?: string | null
           status?: string
           updated_at?: string | null
           user_id?: string
+          utility_bill_url?: string | null
         }
         Relationships: []
       }

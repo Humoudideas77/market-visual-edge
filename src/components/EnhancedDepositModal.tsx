@@ -94,19 +94,29 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
-      console.log('Processing screenshot upload:', fileName);
+      console.log('Uploading screenshot to:', fileName);
 
-      // For now, we'll simulate a successful upload
-      // In a real implementation, you would upload to a storage service
-      const publicUrl = `https://placeholder-storage.com/screenshots/${fileName}`;
-      
-      setScreenshotUrl(publicUrl);
-      console.log('Screenshot processed successfully:', publicUrl);
-      toast.success('Screenshot uploaded successfully');
-      
-      return publicUrl;
+      // Upload to Supabase storage
+      const { data, error } = await supabase.storage
+        .from('deposit-screenshots')
+        .upload(fileName, file);
+
+      if (error) {
+        console.error('Upload error:', error);
+        throw error;
+      }
+
+      console.log('Upload successful:', data);
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('deposit-screenshots')
+        .getPublicUrl(fileName);
+
+      console.log('Public URL:', urlData.publicUrl);
+      return urlData.publicUrl;
     } catch (error) {
-      console.error('Error processing screenshot:', error);
+      console.error('Error uploading screenshot:', error);
       toast.error('Failed to upload screenshot');
       return null;
     } finally {
@@ -116,9 +126,25 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
 
   const handleScreenshotChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setScreenshot(file);
-      await handleFileUpload(file);
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    setScreenshot(file);
+    const url = await handleFileUpload(file);
+    if (url) {
+      setScreenshotUrl(url);
+      toast.success('Screenshot uploaded successfully');
     }
   };
 
@@ -126,7 +152,7 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
     try {
       await navigator.clipboard.writeText(text);
       setAddressCopied(true);
-      toast.success('Address copied to clipboard');
+      toast.success('Address copied to clipboard!');
       setTimeout(() => setAddressCopied(false), 2000);
     } catch (error) {
       console.error('Failed to copy:', error);
@@ -134,23 +160,12 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
     }
   };
 
-  const handleDeposit = async () => {
-    console.log('=== DEPOSIT SUBMISSION DEBUG ===');
-    console.log('User:', user?.email);
-    console.log('Session exists:', !!session);
-    console.log('User ID:', user?.id);
-    console.log('Amount:', amount);
-    console.log('Currency:', currency);
-    console.log('Network:', network);
-
-    // Check authentication first
-    if (!user || !session) {
-      console.error('No user or session found');
-      toast.error('You must be logged in to make a deposit. Please refresh and try again.');
+  const handleSubmit = async () => {
+    if (!user) {
+      toast.error('You must be logged in to make a deposit');
       return;
     }
 
-    // Validate amount
     if (!amount || parseFloat(amount) <= 0) {
       toast.error('Please enter a valid amount');
       return;
@@ -161,49 +176,42 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
       return;
     }
 
-    // Check if address is available
-    if (!selectedAddress) {
-      toast.error('Selected currency/network combination is not available');
+    if (!screenshotUrl) {
+      toast.error('Please upload a transaction screenshot');
       return;
     }
 
     setLoading(true);
 
     try {
-      // Use the current session instead of getting a new one
-      console.log('Using current session for deposit submission');
-      console.log('Session user ID:', session.user.id);
-      console.log('Auth user ID:', user.id);
-
-      const depositData = {
-        user_id: user.id, // Use the user.id from auth context
+      console.log('Submitting deposit request:', {
+        user_id: user.id,
         currency,
         network,
         amount: parseFloat(amount),
-        transaction_screenshot_url: screenshotUrl || null,
-        status: 'pending'
-      };
-
-      console.log('Submitting deposit request with data:', depositData);
+        screenshot_url: screenshotUrl
+      });
 
       const { data, error } = await supabase
         .from('deposit_requests')
-        .insert(depositData)
+        .insert({
+          user_id: user.id,
+          currency,
+          network,
+          amount: parseFloat(amount),
+          screenshot_url: screenshotUrl,
+          status: 'pending'
+        })
         .select()
         .single();
 
       if (error) {
-        console.error('Deposit submission error details:', {
-          message: error.message,
-          code: error.code,
-          details: error.details,
-          hint: error.hint
-        });
+        console.error('Database error:', error);
         throw error;
       }
 
-      console.log('Deposit request created successfully:', data);
-      toast.success('Deposit request submitted successfully! Our team will review and approve it within 24 hours.');
+      console.log('Deposit request created:', data);
+      toast.success('Deposit request submitted successfully! Processing time: 1-24 hours.');
       
       // Reset form
       setAmount('');
@@ -211,35 +219,40 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
       setScreenshotUrl('');
       onClose();
     } catch (error: any) {
-      console.error('Failed to submit deposit request:', error);
-      
-      // Provide more specific error messages
-      if (error.message?.includes('JWT expired') || error.message?.includes('session')) {
-        toast.error('Your session has expired. Please refresh the page and login again.');
-      } else if (error.message?.includes('row-level security')) {
-        toast.error('Permission denied. Please refresh the page and try again.');
-      } else if (error.message?.includes('violates check constraint')) {
-        toast.error('Invalid deposit data. Please check your input and try again.');
-      } else {
-        toast.error(error.message || 'Failed to submit deposit request. Please try again.');
-      }
+      console.error('Error submitting deposit:', error);
+      toast.error(error.message || 'Failed to submit deposit request. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Don't render if user is not authenticated
-  if (!user || !session) {
-    return null;
+  if (!selectedAddress) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Deposit Funds</DialogTitle>
+          </DialogHeader>
+          <div className="text-center py-8">
+            <p className="text-gray-500 mb-4">
+              No deposit address available for {currency} on {network}
+            </p>
+            <Button onClick={onClose} variant="outline">
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <QrCode className="w-5 h-5 mr-2" />
-            Deposit Funds
+            Deposit {currency}
           </DialogTitle>
         </DialogHeader>
         
@@ -247,13 +260,13 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
           {/* Currency Selection */}
           <div>
             <Label htmlFor="currency" className="text-sm font-medium mb-2 block">
-              Currency
+              Select Currency
             </Label>
             <select
               id="currency"
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               {currencies.map((curr) => (
                 <option key={curr} value={curr}>
@@ -267,13 +280,13 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
           {networkOptions[currency]?.length > 1 && (
             <div>
               <Label htmlFor="network" className="text-sm font-medium mb-2 block">
-                Network
+                Select Network
               </Label>
               <select
                 id="network"
                 value={network}
                 onChange={(e) => setNetwork(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 {networkOptions[currency].map((net) => (
                   <option key={net} value={net}>
@@ -285,65 +298,51 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
           )}
 
           {/* Deposit Address */}
-          {selectedAddress && (
-            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium text-gray-900">
-                  Deposit Address ({currency} - {network})
-                </h4>
-              </div>
-              
-              {selectedAddress.qr_code_url && (
-                <div className="flex justify-center">
-                  <img
-                    src={selectedAddress.qr_code_url}
-                    alt="QR Code"
-                    className="w-32 h-32 border border-gray-200 rounded-lg"
-                  />
-                </div>
-              )}
-              
-              <div className="bg-white rounded-lg p-3 border border-gray-200">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 font-mono break-all">
-                    {selectedAddress.wallet_address}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => copyToClipboard(selectedAddress.wallet_address)}
-                    className="ml-2 flex-shrink-0"
-                  >
-                    {addressCopied ? (
-                      <Check className="w-4 h-4 text-green-600" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <p className="text-sm text-yellow-800">
-                  ⚠️ Only send {currency} to this address on the {network} network. 
-                  Sending other cryptocurrencies or using wrong network will result in permanent loss.
-                </p>
-              </div>
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-gray-900">
+                Deposit Address ({network})
+              </h3>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => copyToClipboard(selectedAddress.wallet_address)}
+                className="flex items-center gap-1"
+              >
+                {addressCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {addressCopied ? 'Copied!' : 'Copy'}
+              </Button>
             </div>
-          )}
+            
+            {/* QR Code */}
+            {selectedAddress.qr_code_url && (
+              <div className="text-center mb-4">
+                <img 
+                  src={selectedAddress.qr_code_url}
+                  alt="QR Code"
+                  className="mx-auto w-32 h-32 border border-gray-200 rounded"
+                />
+              </div>
+            )}
+
+            {/* Address */}
+            <div className="bg-white rounded border p-3 font-mono text-sm break-all">
+              {selectedAddress.wallet_address}
+            </div>
+          </div>
 
           {/* Amount Input */}
           <div>
             <Label htmlFor="amount" className="text-sm font-medium mb-2 block">
-              Amount (USD equivalent)
+              Amount (USD)
             </Label>
             <Input
               id="amount"
               type="number"
-              placeholder="Enter amount in USD"
+              placeholder="Enter amount"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               min="10"
               step="0.01"
             />
@@ -355,84 +354,73 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
           {/* Screenshot Upload */}
           <div>
             <Label className="text-sm font-medium mb-2 block">
-              Transaction Screenshot (Optional)
+              Transaction Screenshot
             </Label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
               <input
                 type="file"
                 accept="image/*"
                 onChange={handleScreenshotChange}
                 className="hidden"
                 id="screenshot-upload"
-                disabled={uploadingScreenshot}
               />
-              <label
-                htmlFor="screenshot-upload"
-                className="cursor-pointer inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-              >
-                {uploadingScreenshot ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Upload className="w-4 h-4 mr-2" />
-                )}
-                {screenshot ? 'Change Screenshot' : 'Upload Screenshot'}
+              <label htmlFor="screenshot-upload" className="cursor-pointer">
+                <div className="text-center">
+                  <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                  <p className="text-sm text-gray-600">
+                    Click to upload transaction screenshot
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    PNG, JPG, GIF up to 5MB
+                  </p>
+                </div>
               </label>
-              {screenshot && (
-                <p className="mt-2 text-sm text-gray-500">
-                  Selected: {screenshot.name}
-                </p>
-              )}
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Upload a screenshot of your transaction for faster processing
-            </p>
+            
+            {uploadingScreenshot && (
+              <div className="flex items-center justify-center mt-2">
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                <span className="text-sm text-gray-600">Uploading...</span>
+              </div>
+            )}
+            
+            {screenshotUrl && (
+              <div className="mt-2">
+                <p className="text-sm text-green-600 flex items-center">
+                  <Check className="w-4 h-4 mr-1" />
+                  Screenshot uploaded successfully
+                </p>
+              </div>
+            )}
           </div>
 
-          {/* Deposit Info */}
-          {amount && !isNaN(parseFloat(amount)) && parseFloat(amount) >= 10 && (
-            <div className="bg-blue-50 rounded-lg p-3 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Deposit Amount:</span>
-                <span className="text-gray-900 font-medium">
-                  ${parseFloat(amount).toFixed(2)} USD
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Processing Fee:</span>
-                <span className="text-green-600 font-medium">Free</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Processing Time:</span>
-                <span className="text-gray-600">Up to 24 hours</span>
-              </div>
-            </div>
-          )}
-
-          {/* Submit Button */}
-          <Button
-            onClick={handleDeposit}
-            disabled={loading || !amount || parseFloat(amount) < 10 || !selectedAddress || uploadingScreenshot}
-            className="w-full bg-red-600 hover:bg-red-700 text-white py-3"
-          >
-            {loading ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : null}
-            Submit Deposit Request {amount && `($${amount})`}
-          </Button>
-
-          {/* Important Notice */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          {/* Important Notes */}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
             <h4 className="text-sm font-medium text-gray-900 mb-2">
               Important Instructions:
             </h4>
             <ul className="text-xs text-gray-600 space-y-1">
-              <li>• Send the exact amount in {currency} to the address above</li>
-              <li>• Make sure to use the correct network ({network})</li>
-              <li>• Upload transaction screenshot for faster processing</li>
-              <li>• Deposits are processed within 24 hours during business days</li>
-              <li>• Contact support if you need assistance</li>
+              <li>• Send only {currency} to this address on {network} network</li>
+              <li>• Minimum deposit amount is $10 USD</li>
+              <li>• Upload a clear screenshot of your transaction</li>
+              <li>• Processing time: 1-24 hours after confirmation</li>
+              <li>• Contact support if you have any issues</li>
             </ul>
           </div>
+
+          {/* Submit Button */}
+          <Button
+            onClick={handleSubmit}
+            disabled={loading || !amount || !screenshotUrl || parseFloat(amount) < 10}
+            className="w-full bg-green-600 hover:bg-green-700 text-white py-3"
+          >
+            {loading ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <QrCode className="w-4 h-4 mr-2" />
+            )}
+            Submit Deposit Request
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
