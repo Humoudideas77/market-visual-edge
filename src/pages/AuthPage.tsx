@@ -100,7 +100,6 @@ const AuthPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('signin');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -134,12 +133,11 @@ const AuthPage = () => {
     setError('');
 
     try {
-      // Sign up the user with email confirmation
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth`,
+          emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
             first_name: firstName,
             last_name: lastName
@@ -153,13 +151,9 @@ const AuthPage = () => {
         } else {
           setError(error.message);
         }
-        return;
-      }
-
-      // Handle successful signup
-      if (data.user) {
-        // Check if this is the special superadmin email
-        if (email === 'sabilkhattak77@gmail.com' && data.session) {
+      } else {
+        // Handle superadmin creation
+        if (email === 'sabilkhattak77@gmail.com' && data.user && data.session) {
           const { error: profileError } = await supabase
             .from('profiles')
             .update({ role: 'superadmin' })
@@ -171,24 +165,12 @@ const AuthPage = () => {
             return;
           }
         }
-
-        // Clear the signup form
-        setEmail('');
-        setPassword('');
-        setFirstName('');
-        setLastName('');
-
-        // Show success message and redirect to login
-        if (!data.session) {
-          // Email confirmation required
-          toast.success('Your MecCrypto account has been created successfully! Please check your email for verification, then sign in below.');
+        
+        if (data.user && !data.session) {
+          toast.success('MecCrypto account created! Please check your email for verification.');
         } else {
-          // Auto-confirmed account
-          toast.success('Your MecCrypto account has been created successfully! Please sign in to continue.');
+          toast.success('MecCrypto account created successfully!');
         }
-
-        // Switch to signin tab
-        setActiveTab('signin');
       }
     } catch (err) {
       console.error('Sign up error:', err);
@@ -212,29 +194,11 @@ const AuthPage = () => {
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
           setError('Invalid email or password. Please check your credentials.');
-        } else if (error.message.includes('Email not confirmed')) {
-          setError('Please check your email and click the verification link before signing in.');
         } else {
           setError(error.message);
         }
-      } else if (data.user) {
-        // Clear any cached data
-        localStorage.clear();
-        
-        toast.success('Welcome to MecCrypto! Signed in successfully.');
-        
-        // Check user role and redirect appropriately
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', data.user.id)
-          .single();
-        
-        if (profile?.role === 'superadmin') {
-          navigate('/superadmin-dashboard');
-        } else {
-          navigate('/dashboard');
-        }
+      } else {
+        toast.success('Signed in to MecCrypto successfully!');
       }
     } catch (err) {
       console.error('Sign in error:', err);
@@ -308,7 +272,7 @@ const AuthPage = () => {
             </CardHeader>
             
             <CardContent className="pt-0">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <Tabs defaultValue="signin" className="w-full">
                 <TabsList className="grid w-full grid-cols-2 mb-8 bg-exchange-accent">
                   <TabsTrigger 
                     value="signin" 

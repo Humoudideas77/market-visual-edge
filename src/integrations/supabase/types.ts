@@ -59,43 +59,46 @@ export type Database = {
       }
       bank_cards: {
         Row: {
-          account_holder_name: string
-          account_number: string
-          bank_address: string | null
+          bank_address: string
           bank_name: string
-          created_at: string | null
+          bank_number: string
+          created_at: string
           id: string
           is_default: boolean | null
-          routing_number: string | null
-          swift_code: string | null
-          updated_at: string | null
+          payee_address: string
+          payee_name: string
+          swift_code: string
+          updated_at: string
           user_id: string
+          zip_code: string
         }
         Insert: {
-          account_holder_name: string
-          account_number: string
-          bank_address?: string | null
+          bank_address: string
           bank_name: string
-          created_at?: string | null
+          bank_number: string
+          created_at?: string
           id?: string
           is_default?: boolean | null
-          routing_number?: string | null
-          swift_code?: string | null
-          updated_at?: string | null
+          payee_address: string
+          payee_name: string
+          swift_code: string
+          updated_at?: string
           user_id: string
+          zip_code: string
         }
         Update: {
-          account_holder_name?: string
-          account_number?: string
-          bank_address?: string | null
+          bank_address?: string
           bank_name?: string
-          created_at?: string | null
+          bank_number?: string
+          created_at?: string
           id?: string
           is_default?: boolean | null
-          routing_number?: string | null
-          swift_code?: string | null
-          updated_at?: string | null
+          payee_address?: string
+          payee_name?: string
+          swift_code?: string
+          updated_at?: string
           user_id?: string
+          zip_code?: string
         }
         Relationships: []
       }
@@ -167,45 +170,39 @@ export type Database = {
       }
       deposit_requests: {
         Row: {
-          admin_id: string | null
           admin_notes: string | null
           amount: number
-          created_at: string | null
+          created_at: string
           currency: string
           id: string
           network: string
-          screenshot_url: string | null
           status: string
           transaction_screenshot_url: string | null
-          updated_at: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
-          admin_id?: string | null
           admin_notes?: string | null
           amount: number
-          created_at?: string | null
-          currency?: string
+          created_at?: string
+          currency: string
           id?: string
           network: string
-          screenshot_url?: string | null
           status?: string
           transaction_screenshot_url?: string | null
-          updated_at?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
-          admin_id?: string | null
           admin_notes?: string | null
           amount?: number
-          created_at?: string | null
+          created_at?: string
           currency?: string
           id?: string
           network?: string
-          screenshot_url?: string | null
           status?: string
           transaction_screenshot_url?: string | null
-          updated_at?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -213,10 +210,9 @@ export type Database = {
       kyc_submissions: {
         Row: {
           address: string
-          admin_id: string | null
           admin_notes: string | null
           back_document_url: string | null
-          created_at: string | null
+          created_at: string
           date_of_birth: string
           front_document_url: string | null
           full_name: string
@@ -225,21 +221,19 @@ export type Database = {
           nationality: string
           passport_url: string | null
           personal_id_number: string | null
-          phone_number: string | null
           reviewed_at: string | null
-          selfie_url: string | null
+          reviewed_by: string | null
           selfie_with_id_url: string | null
           status: string
-          updated_at: string | null
+          updated_at: string
           user_id: string
           utility_bill_url: string | null
         }
         Insert: {
           address: string
-          admin_id?: string | null
           admin_notes?: string | null
           back_document_url?: string | null
-          created_at?: string | null
+          created_at?: string
           date_of_birth: string
           front_document_url?: string | null
           full_name: string
@@ -248,21 +242,19 @@ export type Database = {
           nationality: string
           passport_url?: string | null
           personal_id_number?: string | null
-          phone_number?: string | null
           reviewed_at?: string | null
-          selfie_url?: string | null
+          reviewed_by?: string | null
           selfie_with_id_url?: string | null
           status?: string
-          updated_at?: string | null
+          updated_at?: string
           user_id: string
           utility_bill_url?: string | null
         }
         Update: {
           address?: string
-          admin_id?: string | null
           admin_notes?: string | null
           back_document_url?: string | null
-          created_at?: string | null
+          created_at?: string
           date_of_birth?: string
           front_document_url?: string | null
           full_name?: string
@@ -271,16 +263,30 @@ export type Database = {
           nationality?: string
           passport_url?: string | null
           personal_id_number?: string | null
-          phone_number?: string | null
           reviewed_at?: string | null
-          selfie_url?: string | null
+          reviewed_by?: string | null
           selfie_with_id_url?: string | null
           status?: string
-          updated_at?: string | null
+          updated_at?: string
           user_id?: string
           utility_bill_url?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "kyc_submissions_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kyc_submissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       mining_investments: {
         Row: {
@@ -402,7 +408,15 @@ export type Database = {
           trading_enabled?: boolean | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_kyc_submission_id_fkey"
+            columns: ["kyc_submission_id"]
+            isOneToOne: false
+            referencedRelation: "kyc_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trading_chat_messages: {
         Row: {
@@ -501,42 +515,39 @@ export type Database = {
       }
       withdrawal_requests: {
         Row: {
-          admin_id: string | null
           admin_notes: string | null
           amount: number
-          bank_card_id: string | null
-          created_at: string | null
+          bank_card_id: string
+          created_at: string
           currency: string
           id: string
           network: string
           status: string
-          updated_at: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
-          admin_id?: string | null
           admin_notes?: string | null
           amount: number
-          bank_card_id?: string | null
-          created_at?: string | null
-          currency?: string
+          bank_card_id: string
+          created_at?: string
+          currency: string
           id?: string
           network: string
           status?: string
-          updated_at?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
-          admin_id?: string | null
           admin_notes?: string | null
           amount?: number
-          bank_card_id?: string | null
-          created_at?: string | null
+          bank_card_id?: string
+          created_at?: string
           currency?: string
           id?: string
           network?: string
           status?: string
-          updated_at?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
@@ -554,24 +565,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_user_role: {
-        Args: { user_uuid: string }
-        Returns: string
-      }
       is_admin: {
         Args: { user_id: string }
         Returns: boolean
       }
-      is_admin_user: {
-        Args: { user_uuid: string }
-        Returns: boolean
-      }
       is_superadmin: {
         Args: { user_id: string }
-        Returns: boolean
-      }
-      is_superadmin_user: {
-        Args: { user_uuid: string }
         Returns: boolean
       }
       update_wallet_balance: {

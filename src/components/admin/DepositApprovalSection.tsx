@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,9 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Check, X, Eye, ExternalLink, RefreshCw } from 'lucide-react';
+import { Check, X, Eye, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
-import { useEffect } from 'react';
 
 type DepositRequest = {
   id: string;
@@ -19,9 +19,8 @@ type DepositRequest = {
   currency: string;
   network: string;
   status: string;
-  screenshot_url: string | null;
+  transaction_screenshot_url: string | null;
   admin_notes: string | null;
-  admin_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -31,59 +30,21 @@ const DepositApprovalSection = () => {
   const [adminNotes, setAdminNotes] = useState('');
   const queryClient = useQueryClient();
 
-  const { data: deposits, isLoading, error, refetch } = useQuery({
-    queryKey: ['admin-deposits-v6'],
+  const { data: deposits, isLoading } = useQuery({
+    queryKey: ['admin-deposits'],
     queryFn: async () => {
-      console.log('Fetching deposits for admin dashboard...');
-      
       const { data, error } = await supabase
         .from('deposit_requests')
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) {
-        console.error('Error fetching deposits:', error);
-        throw error;
-      }
-      
-      console.log('Deposits fetched successfully:', data?.length || 0, 'records');
+      if (error) throw error;
       return data as DepositRequest[];
     },
-    refetchInterval: 5000,
-    retry: 3,
-    retryDelay: 1000,
   });
-
-  useEffect(() => {
-    console.log('Setting up real-time subscription for deposits...');
-    
-    const channel = supabase
-      .channel('deposit-changes-v3')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'deposit_requests',
-        },
-        (payload) => {
-          console.log('Real-time deposit update received:', payload);
-          queryClient.invalidateQueries({ queryKey: ['admin-deposits-v6'] });
-          queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      console.log('Cleaning up deposit subscription...');
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
 
   const updateDepositMutation = useMutation({
     mutationFn: async ({ id, status, notes }: { id: string; status: string; notes?: string }) => {
-      console.log('Updating deposit:', { id, status, notes });
-      
       const { error } = await supabase
         .from('deposit_requests')
         .update({
@@ -93,16 +54,13 @@ const DepositApprovalSection = () => {
         })
         .eq('id', id);
 
-      if (error) {
-        console.error('Error updating deposit:', error);
-        throw error;
-      }
+      if (error) throw error;
 
+      // If approved, update wallet balance automatically
       if (status === 'approved') {
         const deposit = deposits?.find(d => d.id === id);
         if (deposit) {
-          console.log('Updating wallet balance for approved deposit:', deposit);
-          const { error: walletError } = await supabase.rpc('update_wallet_balance', {
+          const { error: walletError } = await (supabase as any).rpc('update_wallet_balance', {
             p_user_id: deposit.user_id,
             p_currency: deposit.currency,
             p_amount: deposit.amount,
@@ -116,25 +74,20 @@ const DepositApprovalSection = () => {
         }
       }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        console.log('Logging admin activity for deposit update');
-        const { error: activityError } = await supabase.from('admin_activities').insert({
-          admin_id: session.user.id,
+      // Log admin activity
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('admin_activities').insert({
+          admin_id: user.id,
           action_type: `deposit_${status}`,
           target_table: 'deposit_requests',
           target_record_id: id,
           action_details: { status, notes },
         });
-        
-        if (activityError) {
-          console.error('Error logging admin activity:', activityError);
-        }
       }
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-deposits-v6'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-deposits'] });
       
       if (variables.status === 'approved') {
         toast({ 
@@ -194,12 +147,6 @@ const DepositApprovalSection = () => {
     }
   };
 
-  const handleRefresh = () => {
-    console.log('Manually refreshing deposits...');
-    refetch();
-    toast({ title: 'Refreshing deposits...', description: 'Latest data will be loaded shortly' });
-  };
-
   if (isLoading) {
     return (
       <Card className="bg-exchange-card-bg border-exchange-border">
@@ -214,44 +161,19 @@ const DepositApprovalSection = () => {
     );
   }
 
-  if (error) {
-    console.error('Deposit fetch error:', error);
-    return (
-      <Card className="bg-exchange-card-bg border-exchange-border">
-        <CardContent className="p-6">
-          <div className="text-center py-8">
-            <div className="text-red-500 mb-4">
-              Error loading deposits: {error.message}
-            </div>
-            <Button onClick={handleRefresh} variant="outline">
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Retry
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   const pendingDeposits = deposits?.filter(d => d.status === 'pending') || [];
 
   return (
     <Card className="bg-exchange-card-bg border-exchange-border">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-exchange-text-primary">
-            Deposit Approvals ({deposits?.length || 0} total)
-            {pendingDeposits.length > 0 && (
-              <Badge variant="destructive" className="ml-2">
-                {pendingDeposits.length} Pending
-              </Badge>
-            )}
-          </CardTitle>
-          <Button onClick={handleRefresh} variant="outline" size="sm">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
+        <CardTitle className="text-exchange-text-primary">
+          Deposit Approvals
+          {pendingDeposits.length > 0 && (
+            <Badge variant="destructive" className="ml-2">
+              {pendingDeposits.length} Pending
+            </Badge>
+          )}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
@@ -286,11 +208,11 @@ const DepositApprovalSection = () => {
                     {getStatusBadge(deposit.status)}
                   </TableCell>
                   <TableCell>
-                    {deposit.screenshot_url ? (
+                    {deposit.transaction_screenshot_url ? (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleViewScreenshot(deposit.screenshot_url!)}
+                        onClick={() => handleViewScreenshot(deposit.transaction_screenshot_url!)}
                       >
                         <ExternalLink className="w-4 h-4" />
                       </Button>
@@ -340,17 +262,17 @@ const DepositApprovalSection = () => {
                               </div>
                             </div>
 
-                            {deposit.screenshot_url && (
+                            {deposit.transaction_screenshot_url && (
                               <div>
                                 <label className="text-sm font-medium text-exchange-text-secondary mb-2 block">
                                   Transaction Screenshot
                                 </label>
                                 <div className="border border-exchange-border rounded-lg p-2">
                                   <img 
-                                    src={deposit.screenshot_url}
+                                    src={deposit.transaction_screenshot_url}
                                     alt="Transaction Screenshot"
                                     className="max-w-full h-auto max-h-64 mx-auto rounded cursor-pointer"
-                                    onClick={() => handleViewScreenshot(deposit.screenshot_url!)}
+                                    onClick={() => handleViewScreenshot(deposit.transaction_screenshot_url!)}
                                   />
                                   <p className="text-xs text-exchange-text-secondary mt-1 text-center">
                                     Click to view full size

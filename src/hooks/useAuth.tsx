@@ -7,7 +7,6 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  userRole: string | null;
   signOut: () => Promise<void>;
 }
 
@@ -15,7 +14,6 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   loading: true,
-  userRole: null,
   signOut: async () => {},
 });
 
@@ -31,39 +29,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string | null>(null);
-
-  const ensureProfile = async (userId: string, email: string) => {
-    try {
-      console.log('ensureProfile - Checking/creating profile for:', email);
-      
-      // Determine role based on email
-      const role = email === 'sabilkhattak77@gmail.com' ? 'superadmin' : 'user';
-      console.log('ensureProfile - Determined role:', role);
-
-      // Insert or update profile
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          id: userId,
-          email: email,
-          role: role
-        }, {
-          onConflict: 'id'
-        });
-
-      if (error) {
-        console.error('ensureProfile - Error upserting profile:', error);
-        return 'user';
-      }
-
-      console.log('ensureProfile - Profile upserted successfully with role:', role);
-      return role;
-    } catch (error) {
-      console.error('ensureProfile - Exception:', error);
-      return 'user';
-    }
-  };
 
   const signOut = async () => {
     try {
@@ -72,11 +37,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Clear local state immediately
       setSession(null);
       setUser(null);
-      setUserRole(null);
       
-      // Clear browser storage
+      // Clear localStorage
       localStorage.clear();
-      sessionStorage.clear();
       
       // Sign out from Supabase
       await supabase.auth.signOut({ scope: 'global' });
@@ -87,7 +50,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       window.location.href = '/auth';
     } catch (error) {
       console.error('Sign out error:', error);
-      // Force reload even if there's an error
+      // Even if there's an error, clear everything and redirect
+      localStorage.clear();
       window.location.href = '/auth';
     }
   };
@@ -95,44 +59,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     let mounted = true;
 
-    const handleAuthStateChange = async (event: string, newSession: Session | null) => {
-      console.log('Auth state changed:', event, newSession?.user?.email);
+    const handleAuthStateChange = (event: string, newSession: Session | null) => {
+      console.log('Auth state changed:', event);
       
       if (!mounted) return;
 
-      if (event === 'SIGNED_OUT') {
-        setSession(null);
-        setUser(null);
-        setUserRole(null);
-        setLoading(false);
-        return;
-      }
-
-      if (newSession?.user) {
-        setSession(newSession);
-        setUser(newSession.user);
-        
-        // Ensure profile exists and get role
-        try {
-          const role = await ensureProfile(newSession.user.id, newSession.user.email!);
-          if (mounted) {
-            setUserRole(role);
-          }
-        } catch (error) {
-          console.error('Error ensuring profile:', error);
-          if (mounted) {
-            setUserRole('user');
-          }
-        }
-      } else {
-        setSession(null);
-        setUser(null);
-        setUserRole(null);
+      switch (event) {
+        case 'SIGNED_IN':
+        case 'TOKEN_REFRESHED':
+          setSession(newSession);
+          setUser(newSession?.user ?? null);
+          break;
+        case 'SIGNED_OUT':
+          setSession(null);
+          setUser(null);
+          localStorage.clear();
+          break;
+        default:
+          setSession(newSession);
+          setUser(newSession?.user ?? null);
       }
       
-      if (mounted) {
-        setLoading(false);
-      }
+      setLoading(false);
     };
 
     // Set up auth state listener
@@ -147,26 +95,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.error('Session check error:', error);
           setSession(null);
           setUser(null);
-          setUserRole(null);
-        } else if (session?.user) {
-          setSession(session);
-          setUser(session.user);
-          
-          // Ensure profile exists and get role
-          const role = await ensureProfile(session.user.id, session.user.email!);
-          if (mounted) {
-            setUserRole(role);
-          }
         } else {
-          setSession(null);
-          setUser(null);
-          setUserRole(null);
+          setSession(session);
+          setUser(session?.user ?? null);
         }
       } catch (err) {
         console.error('Unexpected session check error:', err);
         setSession(null);
         setUser(null);
-        setUserRole(null);
       } finally {
         if (mounted) {
           setLoading(false);
@@ -183,7 +119,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, userRole, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );

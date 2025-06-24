@@ -6,6 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Users, CreditCard, FileCheck, Activity, DollarSign, UserCheck, Shield, Settings, RefreshCw, Home } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import DepositApprovalSection from '@/components/admin/DepositApprovalSection';
 import WithdrawalApprovalSection from '@/components/admin/WithdrawalApprovalSection';
 import UserManagementSection from '@/components/admin/UserManagementSection';
@@ -19,16 +21,45 @@ import ContactMessagesSection from '@/components/admin/ContactMessagesSection';
 import { toast } from 'sonner';
 
 const SuperAdminPage = () => {
-  const { user, userRole, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  console.log('SuperAdminPage - Current state:', { user: user?.email, userRole, authLoading });
+  console.log('SuperAdminPage - Current URL:', window.location.pathname);
+  console.log('SuperAdminPage - User:', user?.email);
+
+  // Check if user is specifically a superadmin
+  const { data: userProfile, isLoading: profileLoading, error, refetch } = useQuery({
+    queryKey: ['superadmin-check', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      
+      console.log('SuperAdminPage - Checking superadmin status for user:', user.id, user.email);
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role, email')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) {
+        console.error('SuperAdminPage - Error fetching user profile:', error);
+        throw error;
+      }
+      
+      console.log('SuperAdminPage - User profile data:', data);
+      return data;
+    },
+    enabled: !!user && !authLoading,
+    retry: 3,
+    retryDelay: 1000,
+  });
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      window.location.reload();
+      await refetch();
+      toast.success('Dashboard refreshed successfully');
     } catch (error) {
       toast.error('Failed to refresh dashboard');
     } finally {
@@ -45,14 +76,45 @@ const SuperAdminPage = () => {
     window.location.href = '/';
   };
 
-  // Show loading while checking authentication
-  if (authLoading) {
+  console.log('SuperAdminPage - Render state:', {
+    user: user?.email,
+    authLoading,
+    profileLoading,
+    userProfile,
+    error,
+    currentPath: window.location.pathname
+  });
+
+  // Show loading while checking authentication or profile
+  if (authLoading || profileLoading) {
     console.log('SuperAdminPage - Showing loading state');
     return (
       <div className="admin-dashboard-bg flex items-center justify-center min-h-screen">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
           <div className="text-white text-base font-bold">Verifying Super Admin Access...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if profile fetch failed
+  if (error) {
+    console.log('SuperAdminPage - Showing error state:', error);
+    return (
+      <div className="admin-dashboard-bg flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4 p-6">
+          <div className="text-red-400 text-xl font-bold">Error Loading Profile</div>
+          <div className="text-gray-300 text-base leading-relaxed font-medium">
+            Failed to verify admin access. Please try refreshing the page.
+          </div>
+          <div className="text-sm text-gray-400 bg-gray-800 p-3 rounded-lg font-medium border border-gray-600">
+            Error: {error.message}
+          </div>
+          <Button onClick={handleRefresh} className="bg-red-600 hover:bg-red-700">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Try Again
+          </Button>
         </div>
       </div>
     );
@@ -65,12 +127,12 @@ const SuperAdminPage = () => {
   }
 
   // Redirect if user is not a superadmin
-  if (userRole !== 'superadmin') {
-    console.log('SuperAdminPage - User is not superadmin, role:', userRole, 'redirecting to dashboard');
+  if (!userProfile || userProfile.role !== 'superadmin') {
+    console.log('SuperAdminPage - User is not superadmin, role:', userProfile?.role);
     return <Navigate to="/dashboard" replace />;
   }
 
-  console.log('SuperAdminPage - Rendering SuperAdmin dashboard for:', user.email);
+  console.log('SuperAdminPage - Rendering SuperAdmin dashboard for:', userProfile.email);
 
   return (
     <div className="admin-dashboard-bg min-h-screen">
@@ -118,7 +180,7 @@ const SuperAdminPage = () => {
                     Superadmin Access
                   </Badge>
                   <span className="text-gray-300 text-base font-semibold">
-                    Welcome, {user.email}
+                    Welcome, {userProfile.email}
                   </span>
                 </div>
               </div>
@@ -223,6 +285,7 @@ const SuperAdminPage = () => {
         </Tabs>
       </div>
 
+      {/* MecBot Integration for SuperAdmin monitoring */}
       <MecBot />
     </div>
   );

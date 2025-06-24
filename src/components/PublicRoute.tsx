@@ -8,22 +8,14 @@ interface PublicRouteProps {
 }
 
 const PublicRoute = ({ children }: PublicRouteProps) => {
-  const { user, userRole, loading } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && user && userRole) {
-      console.log('PublicRoute - Redirecting authenticated user with role:', userRole);
-      
-      if (userRole === 'superadmin') {
-        console.log('PublicRoute - Redirecting superadmin to /superadmin-dashboard');
-        navigate('/superadmin-dashboard', { replace: true });
-      } else {
-        console.log('PublicRoute - Redirecting regular user to /dashboard');
-        navigate('/dashboard', { replace: true });
-      }
+    if (!loading && user) {
+      navigate('/dashboard', { replace: true });
     }
-  }, [user, userRole, loading, navigate]);
+  }, [user, loading, navigate]);
 
   if (loading) {
     return (
@@ -36,13 +28,7 @@ const PublicRoute = ({ children }: PublicRouteProps) => {
     );
   }
 
-  // Only render children if user is not authenticated
-  if (!user) {
-    return <>{children}</>;
-  }
-
-  // Return null while redirecting
-  return null;
+  return <>{children}</>;
 };
 
 export default PublicRoute;

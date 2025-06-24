@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,13 +19,13 @@ type KYCSubmission = {
   address: string;
   nationality: string;
   date_of_birth: string;
-  front_document_url: string | null;
-  back_document_url: string | null;
-  selfie_url: string | null;
-  phone_number: string | null;
+  id_card_url: string | null;
+  passport_url: string | null;
+  utility_bill_url: string | null;
+  selfie_with_id_url: string | null;
   status: string;
   admin_notes: string | null;
-  admin_id: string | null;
+  reviewed_by: string | null;
   reviewed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -36,20 +37,15 @@ const KYCManagementSection = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: kycSubmissions, isLoading, error } = useQuery({
-    queryKey: ['admin-kyc-v3'],
+  const { data: kycSubmissions, isLoading } = useQuery({
+    queryKey: ['admin-kyc'],
     queryFn: async () => {
-      console.log('Fetching KYC submissions...');
       const { data, error } = await supabase
         .from('kyc_submissions')
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) {
-        console.error('Error fetching KYC submissions:', error);
-        throw error;
-      }
-      console.log('KYC submissions fetched successfully:', data?.length || 0, 'records');
+      if (error) throw error;
       return data as KYCSubmission[];
     },
   });
@@ -65,7 +61,7 @@ const KYCManagementSection = () => {
         .update({
           status,
           admin_notes: notes,
-          admin_id: user?.id,
+          reviewed_by: user?.id,
           reviewed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -76,6 +72,7 @@ const KYCManagementSection = () => {
         throw kycError;
       }
 
+      // Update user's kyc_status in profiles
       const kycSubmission = kycSubmissions?.find(k => k.id === id);
       if (kycSubmission) {
         const { error: profileError } = await supabase
@@ -92,8 +89,8 @@ const KYCManagementSection = () => {
         }
       }
 
+      // Log admin activity
       if (user) {
-        console.log('Logging admin activity for KYC update');
         const { error: activityError } = await supabase.from('admin_activities').insert({
           admin_id: user.id,
           action_type: `kyc_${status}`,
@@ -110,9 +107,7 @@ const KYCManagementSection = () => {
       return { status, notes };
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-kyc-v3'] });
-      queryClient.invalidateQueries({ queryKey: ['kyc-status'] });
-      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-kyc'] });
       
       let message = '';
       switch (data.status) {
@@ -195,7 +190,6 @@ const KYCManagementSection = () => {
       toast.error(`No ${title} provided`);
       return;
     }
-    console.log(`Opening document: ${title} - ${url}`);
     window.open(url, '_blank');
   };
 
@@ -207,19 +201,6 @@ const KYCManagementSection = () => {
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="h-12 bg-exchange-border rounded"></div>
             ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (error) {
-    console.error('KYC fetch error:', error);
-    return (
-      <Card className="bg-exchange-card-bg border-exchange-border">
-        <CardContent className="p-6">
-          <div className="text-center py-8 text-red-500">
-            Error loading KYC submissions: {error.message}
           </div>
         </CardContent>
       </Card>
@@ -277,30 +258,36 @@ const KYCManagementSection = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => viewDocument(kyc.front_document_url, 'Front Document')}
-                        disabled={!kyc.front_document_url}
-                        title="Front Document"
-                        className={kyc.front_document_url ? "text-blue-400 hover:text-blue-300" : "text-gray-500"}
+                        onClick={() => viewDocument(kyc.id_card_url, 'ID Card')}
+                        disabled={!kyc.id_card_url}
+                        title="ID Card"
                       >
                         <FileImage className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => viewDocument(kyc.back_document_url, 'Back Document')}
-                        disabled={!kyc.back_document_url}
-                        title="Back Document"
-                        className={kyc.back_document_url ? "text-blue-400 hover:text-blue-300" : "text-gray-500"}
+                        onClick={() => viewDocument(kyc.passport_url, 'Passport')}
+                        disabled={!kyc.passport_url}
+                        title="Passport"
                       >
                         <FileImage className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => viewDocument(kyc.selfie_url, 'Selfie')}
-                        disabled={!kyc.selfie_url}
-                        title="Selfie"
-                        className={kyc.selfie_url ? "text-blue-400 hover:text-blue-300" : "text-gray-500"}
+                        onClick={() => viewDocument(kyc.utility_bill_url, 'Utility Bill')}
+                        disabled={!kyc.utility_bill_url}
+                        title="Utility Bill"
+                      >
+                        <FileImage className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => viewDocument(kyc.selfie_with_id_url, 'Selfie with ID')}
+                        disabled={!kyc.selfie_with_id_url}
+                        title="Selfie with ID"
                       >
                         <FileImage className="w-4 h-4" />
                       </Button>
@@ -308,13 +295,7 @@ const KYCManagementSection = () => {
                   </TableCell>
                   <TableCell>
                     {kyc.status === 'pending' ? (
-                      <Dialog open={isDialogOpen && selectedKYC?.id === kyc.id} onOpenChange={(open) => {
-                        setIsDialogOpen(open);
-                        if (!open) {
-                          setSelectedKYC(null);
-                          setAdminNotes('');
-                        }
-                      }}>
+                      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                         <DialogTrigger asChild>
                           <Button
                             variant="outline"
@@ -370,9 +351,10 @@ const KYCManagementSection = () => {
                                 <h4 className="font-medium text-exchange-text-primary mb-2">Documents</h4>
                                 <div className="grid grid-cols-2 gap-2">
                                   {[
-                                    { url: selectedKYC.front_document_url, label: 'Front Document' },
-                                    { url: selectedKYC.back_document_url, label: 'Back Document' },
-                                    { url: selectedKYC.selfie_url, label: 'Selfie' },
+                                    { url: selectedKYC.id_card_url, label: 'ID Card' },
+                                    { url: selectedKYC.passport_url, label: 'Passport' },
+                                    { url: selectedKYC.utility_bill_url, label: 'Utility Bill' },
+                                    { url: selectedKYC.selfie_with_id_url, label: 'Selfie with ID' },
                                   ].map((doc, index) => (
                                     <Button
                                       key={index}
@@ -413,7 +395,7 @@ const KYCManagementSection = () => {
                                 </Button>
                                 <Button
                                   onClick={() => handleReject(selectedKYC)}
-                                  disabled={updateKYCMutation.isPending || !adminNotes.trim()}
+                                  disabled={updateKYCMutation.isPending}
                                   variant="destructive"
                                 >
                                   <X className="w-4 h-4 mr-1" />
@@ -421,7 +403,7 @@ const KYCManagementSection = () => {
                                 </Button>
                                 <Button
                                   onClick={() => handleRequireResubmission(selectedKYC)}
-                                  disabled={updateKYCMutation.isPending || !adminNotes.trim()}
+                                  disabled={updateKYCMutation.isPending}
                                   variant="outline"
                                   className="border-yellow-600 text-yellow-600 hover:bg-yellow-600 hover:text-white"
                                 >
@@ -434,8 +416,8 @@ const KYCManagementSection = () => {
                       </Dialog>
                     ) : (
                       <span className="text-exchange-text-secondary text-sm">
-                        {kyc.status === 'approved' ? '✅ Approved' : 
-                         kyc.status === 'rejected' ? '❌ Rejected' : '⚠️ Resubmission Required'}
+                        {kyc.status === 'approved' ? 'Approved' : 
+                         kyc.status === 'rejected' ? 'Rejected' : 'Resubmission Required'}
                       </span>
                     )}
                   </TableCell>
