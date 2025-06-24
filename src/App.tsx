@@ -1,99 +1,59 @@
 
-import { Toaster } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/hooks/useAuth";
-import { WalletProvider } from "@/hooks/useWallet";
-import { MiningProvider } from "@/hooks/useMiningInvestments";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import PublicRoute from "@/components/PublicRoute";
-import MecBot from "@/components/MecBot";
-import Index from "./pages/Index";
-import AuthPage from "./pages/AuthPage";
-import DashboardPage from "./pages/DashboardPage";
-import SuperAdminPage from "./pages/SuperAdminPage";
-import ExchangePage from "./pages/ExchangePage";
-import TradingPage from "./pages/TradingPage";
-import MyAssetsPage from "./pages/MyAssetsPage";
-import LaunchpadPage from "./pages/LaunchpadPage";
-import ContractsPage from "./pages/ContractsPage";
-import GoldMiningPage from "./pages/GoldMiningPage";
-import NotFound from "./pages/NotFound";
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from '@/components/ui/sonner';
+import { useAuth, AuthProvider } from '@/hooks/useAuth';
+import { WalletProvider } from '@/hooks/useWallet';
+import { MiningProvider } from '@/hooks/useMiningInvestments';
+import Index from '@/pages/Index';
+import AuthPage from '@/pages/AuthPage';
+import DashboardPage from '@/pages/DashboardPage';
+import ExchangePage from '@/pages/ExchangePage';
+import TradingPage from '@/pages/TradingPage';
+import MyAssetsPage from '@/pages/MyAssetsPage';
+import GoldMiningPage from '@/pages/GoldMiningPage';
+import ContractsPage from '@/pages/ContractsPage';
+import LaunchpadPage from '@/pages/LaunchpadPage';
+import AdminDashboardPage from '@/pages/AdminDashboardPage';
+import SuperAdminPage from '@/pages/SuperAdminPage';
+import NotFound from '@/pages/NotFound';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import PublicRoute from '@/components/PublicRoute';
+import './App.css';
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <WalletProvider>
           <MiningProvider>
-            <Toaster />
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/auth" element={
-                  <PublicRoute>
-                    <AuthPage />
-                  </PublicRoute>
-                } />
-                <Route path="/dashboard" element={
-                  <ProtectedRoute>
-                    <>
-                      <DashboardPage />
-                      <MecBot />
-                    </>
-                  </ProtectedRoute>
-                } />
-                <Route path="/superadmin-dashboard" element={
-                  <ProtectedRoute>
-                    <SuperAdminPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/exchange" element={<ExchangePage />} />
-                <Route path="/trading/:pair?" element={
-                  <ProtectedRoute>
-                    <>
-                      <TradingPage />
-                      <MecBot />
-                    </>
-                  </ProtectedRoute>
-                } />
-                <Route path="/my-assets" element={
-                  <ProtectedRoute>
-                    <>
-                      <MyAssetsPage />
-                      <MecBot />
-                    </>
-                  </ProtectedRoute>
-                } />
-                <Route path="/launchpad" element={
-                  <ProtectedRoute>
-                    <>
-                      <LaunchpadPage />
-                      <MecBot />
-                    </>
-                  </ProtectedRoute>
-                } />
-                <Route path="/contracts" element={<ContractsPage />} />
-                <Route path="/gold-mining" element={
-                  <ProtectedRoute>
-                    <>
-                      <GoldMiningPage />
-                      <MecBot />
-                    </>
-                  </ProtectedRoute>
-                } />
-                <Route path="/404" element={<NotFound />} />
-                <Route path="*" element={<Navigate to="/404" replace />} />
-              </Routes>
-            </BrowserRouter>
+            <Router>
+              <div className="min-h-screen bg-background">
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/auth" element={<PublicRoute><AuthPage /></PublicRoute>} />
+                  <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+                  <Route path="/exchange" element={<ExchangePage />} />
+                  <Route path="/trading" element={<TradingPage />} />
+                  <Route path="/trading/:pair" element={<TradingPage />} />
+                  <Route path="/my-assets" element={<ProtectedRoute><MyAssetsPage /></ProtectedRoute>} />
+                  <Route path="/gold-mining" element={<ProtectedRoute><GoldMiningPage /></ProtectedRoute>} />
+                  <Route path="/contracts" element={<ProtectedRoute><ContractsPage /></ProtectedRoute>} />
+                  <Route path="/launchpad" element={<ProtectedRoute><LaunchpadPage /></ProtectedRoute>} />
+                  <Route path="/admin" element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
+                  <Route path="/superadmin" element={<ProtectedRoute><SuperAdminPage /></ProtectedRoute>} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+                <Toaster />
+              </div>
+            </Router>
           </MiningProvider>
         </WalletProvider>
       </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+    </QueryClientProvider>
+  );
+}
 
 export default App;

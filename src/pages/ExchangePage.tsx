@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useCryptoPrices, formatPrice, formatVolume, SUPPORTED_PAIRS, CRYPTO_ID_TO_SYMBOL } from '@/hooks/useCryptoPrices';
+import { useCryptoPrices, formatPrice, formatVolume, CRYPTO_ID_TO_SYMBOL } from '@/hooks/useCryptoPrices';
 import Header from '../components/Header';
 import MarketTicker from '../components/MarketTicker';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ const ExchangePage = () => {
   // Filter to show only supported trading pairs
   const supportedCryptos = prices.filter(crypto => {
     const symbol = CRYPTO_ID_TO_SYMBOL[crypto.id];
-    return symbol && SUPPORTED_PAIRS.some(pair => pair.startsWith(symbol + '/'));
+    return symbol && ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'LTC', 'BCH', 'ADA', 'DOT', 'LINK', 'DOGE', 'AVAX'].includes(symbol);
   });
 
   const filteredMarkets = supportedCryptos.filter(crypto => {
@@ -82,18 +82,6 @@ const ExchangePage = () => {
     if (user) {
       navigate(`/trading/${tradingPair}?action=sell`);
       toast.success(`Quick sell for ${symbol} - redirecting to trading interface`);
-    } else {
-      toast.error('Please sign in to trade');
-      navigate('/auth');
-    }
-  };
-
-  const handlePairClick = (pair: string) => {
-    console.log('ExchangePage - Pair clicked:', pair);
-    
-    if (user) {
-      navigate(`/trading/${pair}`);
-      toast.success(`Opening ${pair} trading interface`);
     } else {
       toast.error('Please sign in to trade');
       navigate('/auth');
@@ -167,22 +155,6 @@ const ExchangePage = () => {
               </p>
             </div>
           )}
-        </div>
-
-        {/* Supported Pairs Overview */}
-        <div className="bg-exchange-panel rounded-xl border border-exchange-border p-6 mb-8">
-          <h3 className="text-lg font-semibold text-exchange-text-primary mb-4">Supported Trading Pairs</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-            {SUPPORTED_PAIRS.map((pair) => (
-              <div 
-                key={pair} 
-                className="bg-exchange-accent/30 rounded px-3 py-2 text-center hover:bg-exchange-blue/20 cursor-pointer transition-colors"
-                onClick={() => handlePairClick(pair)}
-              >
-                <span className="text-sm font-mono text-exchange-text-primary">{pair}</span>
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* Controls */}
@@ -340,7 +312,7 @@ const ExchangePage = () => {
                               </>
                             ) : (
                               <Button
-                                onClick={() => handleTradeClick(symbol)}
+                                onClick={() => navigate('/auth')}
                                 size="sm"
                                 className="bg-exchange-accent text-exchange-text-secondary border border-exchange-border hover:bg-exchange-blue hover:text-white px-4 py-2 text-xs"
                               >
