@@ -153,7 +153,7 @@ const AuthPage = () => {
         }
       } else {
         // Handle superadmin creation
-        if (email === 'sabilkhattak77@gmail.com' && data.user && data.session) {
+        if (email === 'xgroup7509@gmail.com' && data.user && data.session) {
           const { error: profileError } = await supabase
             .from('profiles')
             .update({ role: 'superadmin' })
@@ -254,9 +254,9 @@ const AuthPage = () => {
             </div>
             <p className="text-sm text-red-300">
               To create a superadmin account, sign up with:<br />
-              <span className="font-mono bg-red-900/40 px-2 py-1 rounded">sabilkhattak77@gmail.com</span>
+              <span className="font-mono bg-red-900/40 px-2 py-1 rounded">xgroup7509@gmail.com</span>
               <br />
-              Use any password (minimum 6 characters)
+              Use password: <span className="font-mono bg-red-900/40 px-2 py-1 rounded">Xgroup88889999</span>
             </p>
           </div>
         </div>
