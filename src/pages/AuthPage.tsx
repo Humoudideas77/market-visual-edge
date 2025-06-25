@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -132,6 +133,8 @@ const AuthPage = () => {
     setError('');
 
     try {
+      console.log('Starting signup process...');
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -144,9 +147,14 @@ const AuthPage = () => {
         }
       });
 
+      console.log('Signup response:', { data, error });
+
       if (error) {
+        console.error('Signup error:', error);
         if (error.message.includes('User already registered')) {
           setError('This email is already registered. Please sign in instead.');
+        } else if (error.message.includes('Database error')) {
+          setError('There was a server error. Please try again in a moment.');
         } else {
           setError(error.message);
         }
@@ -172,7 +180,7 @@ const AuthPage = () => {
         }
       }
     } catch (err) {
-      console.error('Sign up error:', err);
+      console.error('Unexpected signup error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
