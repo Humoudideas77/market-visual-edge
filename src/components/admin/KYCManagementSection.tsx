@@ -82,11 +82,13 @@ const KYCManagementSection = () => {
         throw kycError;
       }
 
-      // Update user's kyc_status in profiles table
+      // Update user's kyc_status in profiles table - use 'verified' instead of 'approved'
+      const profileStatus = status === 'approved' ? 'verified' : status;
+      
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ 
-          kyc_status: status,
+          kyc_status: profileStatus,
           kyc_submission_id: id 
         })
         .eq('id', kycSubmission.user_id);

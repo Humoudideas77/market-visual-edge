@@ -87,7 +87,7 @@ const KYCSection = () => {
           console.log('Profile updated:', payload);
           if (payload.new?.kyc_status) {
             setKycStatus(payload.new.kyc_status);
-            if (payload.new.kyc_status === 'approved') {
+            if (payload.new.kyc_status === 'verified') {
               toast.success('Your KYC has been approved! You are now verified.');
             }
           }
@@ -102,7 +102,7 @@ const KYCSection = () => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'approved':
+      case 'verified':
         return <CheckCircle className="w-5 h-5 text-green-600" />;
       case 'rejected':
         return <XCircle className="w-5 h-5 text-red-600" />;
@@ -117,7 +117,7 @@ const KYCSection = () => {
 
   const getStatusMessage = (status: string) => {
     switch (status) {
-      case 'approved':
+      case 'verified':
         return 'Your KYC verification has been approved! You are verified.';
       case 'rejected':
         return 'Your KYC submission was rejected. Please submit new documents.';
@@ -132,7 +132,7 @@ const KYCSection = () => {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'approved':
+      case 'verified':
         return 'Verified';
       case 'rejected':
         return 'Rejected';
@@ -176,7 +176,7 @@ const KYCSection = () => {
                   {getStatusMessage(kycStatus)}
                 </p>
                 <p className="text-sm text-exchange-text-secondary">
-                  {kycStatus === 'approved' 
+                  {kycStatus === 'verified' 
                     ? 'Enhanced trading limits unlocked'
                     : 'Verify your identity to unlock higher withdrawal limits'
                   }
@@ -185,7 +185,7 @@ const KYCSection = () => {
             </div>
             
             <div className={`px-3 py-1 text-sm rounded-full font-medium ${
-              kycStatus === 'approved' 
+              kycStatus === 'verified' 
                 ? 'bg-green-500/20 text-green-400' 
                 : kycStatus === 'rejected'
                 ? 'bg-red-500/20 text-red-400'
