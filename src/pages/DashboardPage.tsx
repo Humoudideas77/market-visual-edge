@@ -92,31 +92,35 @@ const DashboardPage = () => {
               <Card className="col-span-1 sm:col-span-2 bg-white border border-gray-200 shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between pb-3">
                   <CardTitle className="text-gray-900 text-lg sm:text-xl">Total Portfolio Value</CardTitle>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setHideBalances(!hideBalances)}
-                      className="text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                      className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 order-3 sm:order-1"
                     >
                       {hideBalances ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => setShowDepositModal(true)}
-                      className="bg-red-600 hover:bg-red-700 text-white"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Deposit
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => setShowWithdrawModal(true)}
-                      className="bg-gray-600 hover:bg-gray-700 text-white"
-                    >
-                      <Minus className="w-4 h-4 mr-2" />
-                      Withdraw
-                    </Button>
+                    <div className="flex gap-2 order-1 sm:order-2">
+                      <Button
+                        size="sm"
+                        onClick={() => setShowDepositModal(true)}
+                        className="bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm px-2 sm:px-3"
+                      >
+                        <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                        <span className="hidden sm:inline">Deposit</span>
+                        <span className="sm:hidden">Dep</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => setShowWithdrawModal(true)}
+                        className="bg-gray-600 hover:bg-gray-700 text-white text-xs sm:text-sm px-2 sm:px-3"
+                      >
+                        <Minus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                        <span className="hidden sm:inline">Withdraw</span>
+                        <span className="sm:hidden">With</span>
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
