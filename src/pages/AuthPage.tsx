@@ -260,7 +260,7 @@ const AuthPage = () => {
         <div className="flex justify-center order-1 lg:order-2">
           <Card className="w-full max-w-md bg-exchange-panel border-2 border-exchange-border shadow-2xl">
             <CardHeader className="text-center pb-6">
-              <CardTitle className="text-3xl text-exchange-text-primary font-bold">Welcome to MecCrypto</CardTitle>
+              <CardTitle className="text-3xl text-exchange-text-primary font-bold">Welcome to MexcCrypto</CardTitle>
               <CardDescription className="text-exchange-text-secondary text-lg">
                 Sign in to your account or create a new one
               </CardDescription>
