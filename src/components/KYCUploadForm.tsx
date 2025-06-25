@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -96,7 +95,7 @@ const KYCUploadForm = ({ onSubmissionComplete }: KYCUploadFormProps) => {
         .update({ kyc_status: 'pending' })
         .eq('id', user.id);
 
-      toast.success('KYC submission successful! MecCrypto will review your documents within 24-48 hours.');
+      toast.success('KYC submission successful! You will be notified once your KYC is approved.');
       
       // Reset form
       setKycData({
