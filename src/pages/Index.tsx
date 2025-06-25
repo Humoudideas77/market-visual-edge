@@ -37,10 +37,10 @@ const Index = () => {
       
       {/* Contact Form Section */}
       <section className="py-20 bg-gray-50 contact-form-section">
-        <div className="container mx-auto px-6">
+        <div className="container mx-auto px-3 sm:px-4 lg:px-6">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 leading-tight">
-              Contact <span className="text-red-600">MecCrypto</span>
+              Contact <span className="text-red-600">MexcCrypto</span>
             </h2>
             <p className="text-lg md:text-xl text-gray-700 max-w-2xl mx-auto leading-relaxed">
               Have questions about trading, need technical support, or want to learn more about our platform? 
@@ -55,8 +55,8 @@ const Index = () => {
       
       {/* Navigation Tabs - Only show trading interface if authenticated */}
       <div className="border-b border-gray-200 bg-white">
-        <div className="px-6">
-          <nav className="flex space-x-8">
+        <div className="px-3 sm:px-4 lg:px-6">
+          <nav className="flex space-x-4 sm:space-x-8">
             <button
               onClick={() => setActiveView('markets')}
               className={`py-4 px-2 border-b-2 font-semibold text-sm md:text-base transition-colors ${
@@ -88,7 +88,7 @@ const Index = () => {
         {activeView === 'markets' && <MarketsOverview />}
         {activeView === 'trading' && user && <TradingInterface />}
         {activeView === 'trading' && !user && (
-          <div className="container mx-auto px-6 py-12 text-center">
+          <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-12 text-center">
             <div className="bg-white rounded-xl border border-gray-200 p-12 shadow-sm">
               <h3 className="text-2xl font-bold text-gray-900 mb-4 leading-tight">
                 Authentication Required
@@ -108,12 +108,12 @@ const Index = () => {
 
       {/* Footer */}
       <footer className="bg-gray-900 border-t border-gray-800 mt-12">
-        <div className="px-6 py-8">
+        <div className="px-3 sm:px-4 lg:px-6 py-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 <div className="w-6 h-6 bg-gradient-to-br from-red-600 to-red-700 rounded"></div>
-                <span className="text-lg font-bold text-white">MecCrypto</span>
+                <span className="text-lg font-bold text-white">MexcCrypto</span>
               </div>
               <p className="text-gray-300 text-sm leading-relaxed">
                 The world's leading cryptocurrency exchange platform with advanced trading features.
@@ -179,7 +179,7 @@ const Index = () => {
           
           <div className="border-t border-gray-700 mt-8 pt-6 flex flex-col md:flex-row justify-between items-center">
             <div className="text-gray-400 text-sm">
-              © 2024 MecCrypto. All rights reserved.
+              © 2024 MexcCrypto. All rights reserved.
             </div>
             <div className="flex items-center space-x-4 mt-4 md:mt-0">
               <div className="flex items-center space-x-2 text-xs text-gray-400">
