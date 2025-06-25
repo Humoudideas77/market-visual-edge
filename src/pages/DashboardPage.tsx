@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Header from '../components/Header';
 import KYCSection from '../components/KYCSection';
@@ -80,7 +81,7 @@ const DashboardPage = () => {
         {/* Main Dashboard Tabs */}
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className="grid w-full grid-cols-4 mb-6">
-            <TabsTrigger value="overview">Portfolio Overview</TabsTrigger>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="assets">My Assets</TabsTrigger>
             <TabsTrigger value="profile">Profile & KYC</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
