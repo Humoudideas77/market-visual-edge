@@ -413,6 +413,54 @@ export type Database = {
           },
         ]
       }
+      perpetual_positions: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          entry_price: number
+          exit_price: number | null
+          id: string
+          leverage: number
+          liquidation_price: number
+          margin: number
+          pair: string
+          side: string
+          size: number
+          status: string
+          user_id: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          entry_price: number
+          exit_price?: number | null
+          id?: string
+          leverage: number
+          liquidation_price: number
+          margin: number
+          pair: string
+          side: string
+          size: number
+          status?: string
+          user_id: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          entry_price?: number
+          exit_price?: number | null
+          id?: string
+          leverage?: number
+          liquidation_price?: number
+          margin?: number
+          pair?: string
+          side?: string
+          size?: number
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

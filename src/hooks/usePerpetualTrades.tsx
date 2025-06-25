@@ -24,6 +24,22 @@ export interface PerpetualPosition {
   closed_at?: Date;
 }
 
+interface DatabasePosition {
+  id: string;
+  user_id: string;
+  pair: string;
+  side: string;
+  size: string;
+  entry_price: string;
+  exit_price: string | null;
+  leverage: string;
+  margin: string;
+  liquidation_price: string;
+  status: string;
+  created_at: string;
+  closed_at: string | null;
+}
+
 export const usePerpetualTrades = (selectedPair: string) => {
   const { user } = useAuth();
   const { getBalance, executeTransaction } = useWallet();
@@ -40,7 +56,7 @@ export const usePerpetualTrades = (selectedPair: string) => {
 
     try {
       const { data, error } = await supabase
-        .from('perpetual_positions')
+        .from('perpetual_positions' as any)
         .select('*')
         .eq('user_id', user.id)
         .eq('pair', selectedPair)
@@ -48,7 +64,7 @@ export const usePerpetualTrades = (selectedPair: string) => {
 
       if (error) throw error;
 
-      const formattedPositions: PerpetualPosition[] = (data || []).map(pos => ({
+      const formattedPositions: PerpetualPosition[] = (data as DatabasePosition[] || []).map(pos => ({
         id: pos.id,
         user_id: pos.user_id,
         pair: pos.pair,
@@ -119,7 +135,7 @@ export const usePerpetualTrades = (selectedPair: string) => {
 
       // Create position in database
       const { data, error } = await supabase
-        .from('perpetual_positions')
+        .from('perpetual_positions' as any)
         .insert({
           user_id: user.id,
           pair: selectedPair,
@@ -168,7 +184,7 @@ export const usePerpetualTrades = (selectedPair: string) => {
 
       // Update position in database
       const { error: updateError } = await supabase
-        .from('perpetual_positions')
+        .from('perpetual_positions' as any)
         .update({
           status: 'closed',
           exit_price: currentPrice,
