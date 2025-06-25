@@ -415,10 +415,6 @@ const DashboardPage = () => {
                         {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
                       </p>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-600">KYC Status</p>
-                      <p className="font-medium text-yellow-600">Pending Verification</p>
-                    </div>
                   </div>
                 </CardContent>
               </Card>
