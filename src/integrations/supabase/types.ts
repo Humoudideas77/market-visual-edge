@@ -362,57 +362,6 @@ export type Database = {
           },
         ]
       }
-      peer_transfers: {
-        Row: {
-          amount: number
-          created_at: string
-          currency: string
-          id: string
-          notes: string | null
-          recipient_id: string
-          recipient_transfer_id: string
-          sender_id: string
-          status: string
-        }
-        Insert: {
-          amount: number
-          created_at?: string
-          currency: string
-          id?: string
-          notes?: string | null
-          recipient_id: string
-          recipient_transfer_id: string
-          sender_id: string
-          status?: string
-        }
-        Update: {
-          amount?: number
-          created_at?: string
-          currency?: string
-          id?: string
-          notes?: string | null
-          recipient_id?: string
-          recipient_transfer_id?: string
-          sender_id?: string
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "peer_transfers_recipient_id_fkey"
-            columns: ["recipient_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "peer_transfers_sender_id_fkey"
-            columns: ["sender_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -425,7 +374,6 @@ export type Database = {
           last_name: string | null
           role: Database["public"]["Enums"]["user_role"] | null
           trading_enabled: boolean | null
-          unique_transfer_id: string
           updated_at: string
         }
         Insert: {
@@ -439,7 +387,6 @@ export type Database = {
           last_name?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
           trading_enabled?: boolean | null
-          unique_transfer_id: string
           updated_at?: string
         }
         Update: {
@@ -453,63 +400,9 @@ export type Database = {
           last_name?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
           trading_enabled?: boolean | null
-          unique_transfer_id?: string
           updated_at?: string
         }
         Relationships: []
-      }
-      trade_pnl: {
-        Row: {
-          created_at: string
-          currency: string
-          entry_price: number
-          exit_price: number
-          id: string
-          pnl_amount: number
-          pnl_percentage: number
-          trade_pair: string
-          trade_reference: string | null
-          trade_side: string
-          trade_size: number
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          currency?: string
-          entry_price: number
-          exit_price: number
-          id?: string
-          pnl_amount: number
-          pnl_percentage: number
-          trade_pair: string
-          trade_reference?: string | null
-          trade_side: string
-          trade_size: number
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          currency?: string
-          entry_price?: number
-          exit_price?: number
-          id?: string
-          pnl_amount?: number
-          pnl_percentage?: number
-          trade_pair?: string
-          trade_reference?: string | null
-          trade_side?: string
-          trade_size?: number
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "trade_pnl_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       trading_chat_messages: {
         Row: {
@@ -661,20 +554,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      execute_peer_transfer: {
-        Args: {
-          p_sender_id: string
-          p_recipient_transfer_id: string
-          p_currency: string
-          p_amount: number
-          p_notes?: string
-        }
-        Returns: Json
-      }
-      generate_unique_transfer_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
       get_user_role: {
         Args: { user_uuid: string }
         Returns: string
@@ -694,18 +573,6 @@ export type Database = {
       is_superadmin_user: {
         Args: { user_uuid: string }
         Returns: boolean
-      }
-      record_trade_pnl: {
-        Args: {
-          p_user_id: string
-          p_trade_pair: string
-          p_trade_side: string
-          p_entry_price: number
-          p_exit_price: number
-          p_trade_size: number
-          p_currency?: string
-        }
-        Returns: Json
       }
       update_wallet_balance: {
         Args: {

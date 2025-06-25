@@ -28,7 +28,7 @@ interface PerpetualTrade {
 
 const PerpetualTradingView = ({ selectedPair, onPairChange }: PerpetualTradingViewProps) => {
   const { user } = useAuth();
-  const { tradingPair, closePerpetualPosition } = useTradingEngine(selectedPair);
+  const { tradingPair } = useTradingEngine(selectedPair);
   const [tradeLotSize, setTradeLotSize] = useState<number>(0.001);
   const [timeframe, setTimeframe] = useState('5m');
   const [chartType, setChartType] = useState<'candlestick' | 'line'>('candlestick');
@@ -82,40 +82,25 @@ const PerpetualTradingView = ({ selectedPair, onPairChange }: PerpetualTradingVi
     toast.success(`${side.toUpperCase()} position opened for ${tradeLotSize} ${selectedPair.split('/')[0]}`);
   };
 
-  const closeTrade = async (tradeId: string) => {
-    const trade = perpetualTrades.find(t => t.id === tradeId);
-    if (!trade || trade.status !== 'open') return;
-
-    // Close the position and record P&L
-    const success = await closePerpetualPosition(
-      trade.entryPrice,
-      trade.currentPrice,
-      trade.side,
-      trade.size
+  const closeTrade = (tradeId: string) => {
+    setPerpetualTrades(prev => 
+      prev.map(trade => 
+        trade.id === tradeId 
+          ? { ...trade, status: 'closed' as const }
+          : trade
+      )
     );
 
-    if (success) {
-      setPerpetualTrades(prev => 
-        prev.map(t => 
-          t.id === tradeId 
-            ? { ...t, status: 'closed' as const }
-            : t
-        )
+    if (user) {
+      const updatedTrades = perpetualTrades.map(trade => 
+        trade.id === tradeId 
+          ? { ...trade, status: 'closed' as const }
+          : trade
       );
-
-      if (user) {
-        const updatedTrades = perpetualTrades.map(t => 
-          t.id === tradeId 
-            ? { ...t, status: 'closed' as const }
-            : t
-        );
-        localStorage.setItem(`perpetual_trades_${user.id}`, JSON.stringify(updatedTrades));
-      }
-
-      toast.success(`Position closed. P&L: ${trade.pnl >= 0 ? '+' : ''}$${trade.pnl.toFixed(2)}`);
-    } else {
-      toast.error('Failed to close position');
+      localStorage.setItem(`perpetual_trades_${user.id}`, JSON.stringify(updatedTrades));
     }
+
+    toast.success('Position closed successfully');
   };
 
   // Load saved trades on component mount
@@ -188,7 +173,7 @@ const PerpetualTradingView = ({ selectedPair, onPairChange }: PerpetualTradingVi
           </div>
         </div>
         <div className="exchange-panel p-3">
-          <div className="text-xs text-exchange-text-secondary mb-1">Unrealized PnL</div>
+          <div className="text-xs text-exchange-text-secondary mb-1">Total PnL</div>
           <div className={`text-lg font-mono ${totalPnL >= 0 ? 'text-exchange-green' : 'text-exchange-red'}`}>
             {totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}
           </div>
@@ -283,12 +268,12 @@ const PerpetualTradingView = ({ selectedPair, onPairChange }: PerpetualTradingVi
 
         {/* Trade History */}
         <div className="exchange-panel p-4">
-          <h3 className="text-lg font-semibold text-exchange-text-primary mb-4">Active Positions</h3>
+          <h3 className="text-lg font-semibold text-exchange-text-primary mb-4">Trade History</h3>
           
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {perpetualTrades.length === 0 ? (
               <div className="text-center text-sm text-exchange-text-secondary py-8">
-                No positions yet
+                No trades yet
               </div>
             ) : (
               perpetualTrades.map((trade) => (
@@ -316,7 +301,7 @@ const PerpetualTradingView = ({ selectedPair, onPairChange }: PerpetualTradingVi
                         onClick={() => closeTrade(trade.id)}
                         className="text-xs"
                       >
-                        Close Position
+                        Close Trade
                       </Button>
                     )}
                   </div>
@@ -343,7 +328,7 @@ const PerpetualTradingView = ({ selectedPair, onPairChange }: PerpetualTradingVi
                           </div>
                         </div>
                         <div>
-                          <div className="text-exchange-text-secondary">Unrealized PnL</div>
+                          <div className="text-exchange-text-secondary">PnL</div>
                           <div className={`font-mono ${trade.pnl >= 0 ? 'text-exchange-green' : 'text-exchange-red'}`}>
                             {trade.pnl >= 0 ? '+' : ''}${trade.pnl.toFixed(2)} ({trade.pnlPercentage.toFixed(2)}%)
                           </div>
