@@ -425,7 +425,7 @@ export type Database = {
           last_name: string | null
           role: Database["public"]["Enums"]["user_role"] | null
           trading_enabled: boolean | null
-          unique_transfer_id: string
+          unique_transfer_id: string | null
           updated_at: string
         }
         Insert: {
@@ -439,7 +439,7 @@ export type Database = {
           last_name?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
           trading_enabled?: boolean | null
-          unique_transfer_id: string
+          unique_transfer_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -453,7 +453,7 @@ export type Database = {
           last_name?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
           trading_enabled?: boolean | null
-          unique_transfer_id?: string
+          unique_transfer_id?: string | null
           updated_at?: string
         }
         Relationships: []
