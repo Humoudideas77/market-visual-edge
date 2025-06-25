@@ -73,7 +73,7 @@ export const useTradePnL = () => {
       if (error) throw error;
 
       // Type guard to safely access properties
-      const response = data as TradePnLResponse;
+      const response = data as unknown as TradePnLResponse;
       
       if (response && typeof response === 'object' && 'success' in response) {
         if (response.success) {

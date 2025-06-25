@@ -86,7 +86,7 @@ export const PeerTransferProvider = ({ children }: { children: React.ReactNode }
       if (error) throw error;
 
       // Type guard to safely access properties
-      const response = data as TransferResponse;
+      const response = data as unknown as TransferResponse;
       
       if (response && typeof response === 'object' && 'success' in response) {
         if (response.success) {
