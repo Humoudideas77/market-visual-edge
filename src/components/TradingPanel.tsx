@@ -78,17 +78,27 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
       return;
     }
 
-    // Validate sufficient balance
+    // Enhanced balance validation to prevent the bug
     if (tradeTab === 'buy') {
       const availableQuote = quoteBalance?.available || 0;
+      console.log('Buy validation - Available USDT:', availableQuote, 'Required:', totalCost);
+      
       if (availableQuote < totalCost) {
-        toast.error(`Insufficient ${quoteAsset} balance. Available: ${availableQuote.toFixed(2)}`);
+        toast.error(`Insufficient ${quoteAsset} balance! You need ${totalCost.toFixed(2)} ${quoteAsset} but only have ${availableQuote.toFixed(2)} ${quoteAsset} available.`);
+        return;
+      }
+      
+      // Additional safety check for minimum balance
+      if (totalCost > availableQuote) {
+        toast.error(`Cannot buy ${tradeAmount.toFixed(8)} ${baseAsset}. Maximum you can buy is ${(availableQuote / tradePrice).toFixed(8)} ${baseAsset} with your current balance.`);
         return;
       }
     } else {
       const availableBase = baseBalance?.available || 0;
+      console.log('Sell validation - Available base:', availableBase, 'Required:', tradeAmount);
+      
       if (availableBase < tradeAmount) {
-        toast.error(`Insufficient ${baseAsset} balance. Available: ${availableBase.toFixed(8)}`);
+        toast.error(`Insufficient ${baseAsset} balance! You need ${tradeAmount.toFixed(8)} ${baseAsset} but only have ${availableBase.toFixed(8)} ${baseAsset} available.`);
         return;
       }
     }
@@ -129,9 +139,11 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
     if (orderType === 'limit' && (!price || parseFloat(price) <= 0)) return false;
     
     if (tradeTab === 'buy') {
-      return (quoteBalance?.available || 0) >= totalCost;
+      const availableQuote = quoteBalance?.available || 0;
+      return availableQuote >= totalCost && totalCost > 0;
     } else {
-      return (baseBalance?.available || 0) >= tradeAmount;
+      const availableBase = baseBalance?.available || 0;
+      return availableBase >= tradeAmount && tradeAmount > 0;
     }
   };
 
@@ -141,12 +153,12 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
     if (tradeTab === 'buy') {
       const availableQuote = quoteBalance?.available || 0;
       if (availableQuote < totalCost) {
-        return `Insufficient ${quoteAsset} balance (Available: ${availableQuote.toFixed(2)})`;
+        return `Insufficient ${quoteAsset} balance (Available: ${availableQuote.toFixed(2)}, Required: ${totalCost.toFixed(2)})`;
       }
     } else {
       const availableBase = baseBalance?.available || 0;
       if (availableBase < tradeAmount) {
-        return `Insufficient ${baseAsset} balance (Available: ${availableBase.toFixed(8)})`;
+        return `Insufficient ${baseAsset} balance (Available: ${availableBase.toFixed(8)}, Required: ${tradeAmount.toFixed(8)})`;
       }
     }
     return null;
