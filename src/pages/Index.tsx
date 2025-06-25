@@ -38,18 +38,18 @@ const Index = () => {
       <GoldMiningSection />
       
       {/* Contact Form Section */}
-      <section className="py-12 sm:py-20 bg-gray-50 contact-form-section">
-        <div className="container mx-auto px-3 sm:px-6">
-          <div className="text-center mb-8 sm:mb-12">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-4 leading-tight px-2">
+      <section className="py-8 sm:py-16 bg-gray-50 contact-form-section">
+        <div className="w-full max-w-none px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-6 sm:mb-10">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4 leading-tight">
               Contact <span className="text-red-600">MexcCrypto</span>
             </h2>
-            <p className="text-base sm:text-lg md:text-xl text-gray-700 max-w-2xl mx-auto leading-relaxed px-2">
+            <p className="text-base sm:text-lg lg:text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed">
               Have questions about trading, need technical support, or want to learn more about our platform? 
               We're here to help you succeed in your crypto journey.
             </p>
           </div>
-          <div className="max-w-2xl mx-auto px-2">
+          <div className="max-w-2xl mx-auto">
             <ContactForm />
           </div>
         </div>
@@ -57,11 +57,11 @@ const Index = () => {
       
       {/* Navigation Tabs - Only show trading interface if authenticated */}
       <div className="border-b border-gray-200 bg-white">
-        <div className="px-3 sm:px-6">
-          <nav className="flex space-x-2 sm:space-x-8 overflow-x-auto">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          <nav className="flex space-x-2 sm:space-x-6 overflow-x-auto">
             <button
               onClick={() => setActiveView('markets')}
-              className={`py-3 sm:py-4 px-2 sm:px-4 border-b-2 font-semibold text-sm md:text-base transition-colors whitespace-nowrap ${
+              className={`py-3 sm:py-4 px-3 sm:px-4 border-b-2 font-semibold text-sm md:text-base transition-colors whitespace-nowrap ${
                 activeView === 'markets'
                   ? 'border-red-600 text-red-600'
                   : 'border-transparent text-gray-600 hover:text-gray-900'
@@ -72,7 +72,7 @@ const Index = () => {
             {user && (
               <button
                 onClick={() => setActiveView('trading')}
-                className={`py-3 sm:py-4 px-2 sm:px-4 border-b-2 font-semibold text-sm md:text-base transition-colors whitespace-nowrap ${
+                className={`py-3 sm:py-4 px-3 sm:px-4 border-b-2 font-semibold text-sm md:text-base transition-colors whitespace-nowrap ${
                   activeView === 'trading'
                     ? 'border-red-600 text-red-600'
                     : 'border-transparent text-gray-600 hover:text-gray-900'
@@ -90,8 +90,8 @@ const Index = () => {
         {activeView === 'markets' && <MarketsOverview />}
         {activeView === 'trading' && user && <TradingInterface />}
         {activeView === 'trading' && !user && (
-          <div className="container mx-auto px-3 sm:px-6 py-8 sm:py-12 text-center">
-            <div className="bg-white rounded-xl border border-gray-200 p-6 sm:p-12 shadow-sm mx-2">
+          <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-10 text-center">
+            <div className="bg-white rounded-xl border border-gray-200 p-6 sm:p-10 shadow-sm max-w-2xl mx-auto">
               <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 leading-tight">
                 Authentication Required
               </h3>
@@ -110,8 +110,8 @@ const Index = () => {
 
       {/* Footer */}
       <footer className="bg-gray-900 border-t border-gray-800 mt-8 sm:mt-12">
-        <div className="px-3 sm:px-6 py-6 sm:py-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 sm:gap-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 <div className="w-6 h-6 bg-gradient-to-br from-red-600 to-red-700 rounded"></div>

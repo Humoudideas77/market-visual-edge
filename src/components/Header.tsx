@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Settings, User, ChevronDown, Globe, LogOut, Shield, MessageCircle, Menu, X } from 'lucide-react';
@@ -84,14 +83,14 @@ const Header = () => {
   };
 
   return (
-    <header className="bg-gray-900 border-b border-gray-700 px-3 sm:px-6 py-3 flex items-center justify-between shadow-xl relative">
+    <header className="bg-gray-900 border-b border-gray-700 w-full px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between shadow-xl relative">
       {/* Logo */}
       <div className="flex items-center space-x-2 min-w-0">
         <Link to="/" className="flex items-center space-x-2">
           <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-500 to-red-500 rounded-lg flex items-center justify-center shadow-lg">
             <span className="text-white font-bold text-xs sm:text-sm">MC</span>
           </div>
-          <span className="text-base sm:text-xl font-bold text-white truncate">MexcCrypto</span>
+          <span className="text-base sm:text-xl font-bold text-white">MexcCrypto</span>
         </Link>
       </div>
 
@@ -136,7 +135,7 @@ const Header = () => {
       </nav>
 
       {/* Right Side Controls */}
-      <div className="flex items-center space-x-1 sm:space-x-4">
+      <div className="flex items-center space-x-1 sm:space-x-3">
         {/* Language Selector - Hidden on small screens */}
         <div className="hidden sm:flex items-center space-x-1 text-gray-400 hover:text-white cursor-pointer transition-colors">
           <Globe className="w-4 h-4" />
@@ -188,7 +187,7 @@ const Header = () => {
             {/* Mobile Menu Button */}
             <button
               onClick={toggleMobileMenu}
-              className="lg:hidden p-2 text-gray-400 hover:text-white transition-colors border border-gray-600 rounded-lg hover:bg-gray-800 ml-2"
+              className="lg:hidden p-2 text-gray-400 hover:text-white transition-colors border border-gray-600 rounded-lg hover:bg-gray-800"
             >
               {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -208,15 +207,15 @@ const Header = () => {
               </Link>
             </div>
 
-            {/* Mobile Auth Buttons - Improved */}
+            {/* Mobile Auth Buttons */}
             <div className="flex sm:hidden items-center space-x-1">
               <Link to="/auth">
-                <button className="px-2 py-1.5 text-white border border-gray-600 rounded-md hover:bg-gray-800 transition-colors text-xs">
+                <button className="px-3 py-2 text-white border border-gray-600 rounded-md hover:bg-gray-800 transition-colors text-xs">
                   Log In
                 </button>
               </Link>
               <Link to="/auth">
-                <button className="px-2 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs">
+                <button className="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs">
                   Sign Up
                 </button>
               </Link>
@@ -225,7 +224,7 @@ const Header = () => {
         )}
       </div>
 
-      {/* Mobile Menu Overlay - Fixed positioning and z-index */}
+      {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && user && (
         <>
           {/* Backdrop */}

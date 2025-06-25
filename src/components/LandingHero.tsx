@@ -6,25 +6,25 @@ import { TrendingUp, Shield, Users, Zap } from 'lucide-react';
 
 const LandingHero = () => {
   return (
-    <section className="bg-gradient-to-br from-exchange-bg via-exchange-panel to-exchange-accent min-h-screen flex items-center">
-      <div className="container mx-auto px-6 py-20">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+    <section className="bg-gradient-to-br from-exchange-bg via-exchange-panel to-exchange-accent w-full min-h-screen flex items-center">
+      <div className="w-full max-w-none px-4 sm:px-6 lg:px-8 py-12 sm:py-20">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center max-w-7xl mx-auto">
           {/* Left Content */}
-          <div className="space-y-8">
+          <div className="space-y-6 lg:space-y-8">
             <div className="space-y-4">
-              <h1 className="text-5xl lg:text-6xl font-bold text-exchange-text-primary leading-tight">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-exchange-text-primary leading-tight">
                 Advanced <span className="text-exchange-blue">Cryptocurrency</span>
                 <br />
                 Trading Platform
               </h1>
-              <p className="text-xl text-exchange-text-secondary leading-relaxed max-w-2xl">
+              <p className="text-lg sm:text-xl text-exchange-text-secondary leading-relaxed max-w-2xl">
                 Experience professional-grade trading with advanced charts, real-time market data, 
                 secure custody, and innovative features like gold mining and contract trading.
               </p>
             </div>
 
             {/* Key Features */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-exchange-green/20 rounded-lg flex items-center justify-center">
                   <TrendingUp className="w-5 h-5 text-exchange-green" />
@@ -54,37 +54,37 @@ const LandingHero = () => {
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4">
               <Link to="/auth">
-                <Button className="bg-exchange-blue hover:bg-exchange-blue/90 px-8 py-4 text-lg font-semibold">
+                <Button className="bg-exchange-blue hover:bg-exchange-blue/90 px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold w-full sm:w-auto">
                   Start Trading Now
                 </Button>
               </Link>
               <Link to="/exchange">
-                <Button variant="outline" className="px-8 py-4 text-lg font-semibold border-exchange-border hover:bg-exchange-accent">
+                <Button variant="outline" className="px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold border-exchange-border hover:bg-exchange-accent w-full sm:w-auto">
                   Explore Markets
                 </Button>
               </Link>
             </div>
 
             {/* Trust Indicators */}
-            <div className="flex items-center space-x-8 pt-4">
+            <div className="flex items-center justify-between sm:justify-start sm:space-x-8 pt-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-exchange-text-primary">10M+</div>
-                <div className="text-sm text-exchange-text-secondary">Active Users</div>
+                <div className="text-xl sm:text-2xl font-bold text-exchange-text-primary">10M+</div>
+                <div className="text-xs sm:text-sm text-exchange-text-secondary">Active Users</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-exchange-text-primary">$50B+</div>
-                <div className="text-sm text-exchange-text-secondary">Trading Volume</div>
+                <div className="text-xl sm:text-2xl font-bold text-exchange-text-primary">$50B+</div>
+                <div className="text-xs sm:text-sm text-exchange-text-secondary">Trading Volume</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-exchange-text-primary">99.9%</div>
-                <div className="text-sm text-exchange-text-secondary">Uptime</div>
+                <div className="text-xl sm:text-2xl font-bold text-exchange-text-primary">99.9%</div>
+                <div className="text-xs sm:text-sm text-exchange-text-secondary">Uptime</div>
               </div>
             </div>
           </div>
 
           {/* Right Content - Visual */}
           <div className="relative">
-            <div className="bg-exchange-panel rounded-2xl p-8 border border-exchange-border backdrop-blur-sm">
+            <div className="bg-exchange-panel rounded-2xl p-6 sm:p-8 border border-exchange-border backdrop-blur-sm">
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-exchange-text-primary">Live Market Data</h3>
