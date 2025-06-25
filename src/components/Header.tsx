@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Settings, User, ChevronDown, Globe, LogOut, Shield, MessageCircle, Menu, X } from 'lucide-react';
@@ -83,7 +84,7 @@ const Header = () => {
   };
 
   return (
-    <header className="bg-gray-900 border-b border-gray-700 w-full px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between shadow-xl relative">
+    <header className="bg-gray-900 border-b border-gray-700 w-full px-4 sm:px-6 py-3 flex items-center justify-between shadow-xl relative">
       {/* Logo */}
       <div className="flex items-center space-x-2 min-w-0">
         <Link to="/" className="flex items-center space-x-2">

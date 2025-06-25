@@ -7,8 +7,8 @@ import { TrendingUp, Shield, Users, Zap } from 'lucide-react';
 const LandingHero = () => {
   return (
     <section className="bg-gradient-to-br from-exchange-bg via-exchange-panel to-exchange-accent w-full min-h-screen flex items-center">
-      <div className="w-full max-w-none px-4 sm:px-6 lg:px-8 py-12 sm:py-20">
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center max-w-7xl mx-auto">
+      <div className="w-full px-4 sm:px-6 py-12 sm:py-20">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           {/* Left Content */}
           <div className="space-y-6 lg:space-y-8">
             <div className="space-y-4">
@@ -17,7 +17,7 @@ const LandingHero = () => {
                 <br />
                 Trading Platform
               </h1>
-              <p className="text-lg sm:text-xl text-exchange-text-secondary leading-relaxed max-w-2xl">
+              <p className="text-lg sm:text-xl text-exchange-text-secondary leading-relaxed">
                 Experience professional-grade trading with advanced charts, real-time market data, 
                 secure custody, and innovative features like gold mining and contract trading.
               </p>

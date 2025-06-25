@@ -21,7 +21,7 @@ const Index = () => {
   console.log('Index page render - user:', !!user, 'activeView:', activeView);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white w-full">
       <Header />
       <MarketTicker />
       
@@ -38,8 +38,8 @@ const Index = () => {
       <GoldMiningSection />
       
       {/* Contact Form Section */}
-      <section className="py-8 sm:py-16 bg-gray-50 contact-form-section">
-        <div className="w-full max-w-none px-4 sm:px-6 lg:px-8">
+      <section className="py-8 sm:py-16 bg-gray-50 contact-form-section w-full">
+        <div className="w-full px-4 sm:px-6">
           <div className="text-center mb-6 sm:mb-10">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4 leading-tight">
               Contact <span className="text-red-600">MexcCrypto</span>
@@ -56,8 +56,8 @@ const Index = () => {
       </section>
       
       {/* Navigation Tabs - Only show trading interface if authenticated */}
-      <div className="border-b border-gray-200 bg-white">
-        <div className="w-full px-4 sm:px-6 lg:px-8">
+      <div className="border-b border-gray-200 bg-white w-full">
+        <div className="w-full px-4 sm:px-6">
           <nav className="flex space-x-2 sm:space-x-6 overflow-x-auto">
             <button
               onClick={() => setActiveView('markets')}
@@ -86,11 +86,11 @@ const Index = () => {
       </div>
 
       {/* Content */}
-      <div className="animate-fade-in">
+      <div className="animate-fade-in w-full">
         {activeView === 'markets' && <MarketsOverview />}
         {activeView === 'trading' && user && <TradingInterface />}
         {activeView === 'trading' && !user && (
-          <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-10 text-center">
+          <div className="w-full px-4 sm:px-6 py-6 sm:py-10 text-center">
             <div className="bg-white rounded-xl border border-gray-200 p-6 sm:p-10 shadow-sm max-w-2xl mx-auto">
               <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 leading-tight">
                 Authentication Required
@@ -109,8 +109,8 @@ const Index = () => {
       </div>
 
       {/* Footer */}
-      <footer className="bg-gray-900 border-t border-gray-800 mt-8 sm:mt-12">
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <footer className="bg-gray-900 border-t border-gray-800 mt-8 sm:mt-12 w-full">
+        <div className="w-full px-4 sm:px-6 py-6 sm:py-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">

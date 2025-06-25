@@ -43,8 +43,8 @@ const TradingFeatures = () => {
   ];
 
   return (
-    <section className="py-20 bg-exchange-bg">
-      <div className="container mx-auto px-6">
+    <section className="py-20 bg-exchange-bg w-full">
+      <div className="w-full px-4 sm:px-6">
         <div className="text-center mb-16">
           <h2 className="text-4xl font-bold text-exchange-text-primary mb-4">
             Why Choose MEXC Pro?
@@ -55,7 +55,7 @@ const TradingFeatures = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
           {features.map((feature, index) => (
             <div key={index} className="bg-exchange-panel border border-exchange-border rounded-xl p-6 hover:border-exchange-blue/50 transition-all duration-300 group">
               <div className="flex items-center space-x-4 mb-4">
