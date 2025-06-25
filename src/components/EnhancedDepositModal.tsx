@@ -153,8 +153,8 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
       return;
     }
 
-    if (parseFloat(amount) < 10) {
-      toast.error('Minimum deposit amount is $10');
+    if (parseFloat(amount) < 60) {
+      toast.error('Minimum deposit amount is $60');
       return;
     }
 
@@ -312,11 +312,11 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               className="exchange-input"
-              min="10"
+              min="60"
               step="0.01"
             />
             <p className="text-xs text-exchange-text-secondary mt-1">
-              Minimum deposit: $10 USD
+              Minimum deposit: $60 USD
             </p>
           </div>
 
