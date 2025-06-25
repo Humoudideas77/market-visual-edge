@@ -3,6 +3,7 @@
 CREATE OR REPLACE FUNCTION public.generate_unique_transfer_id()
 RETURNS text
 LANGUAGE plpgsql
+SECURITY DEFINER
 AS $$
 DECLARE
     new_id TEXT;
@@ -29,10 +30,11 @@ $$;
 CREATE OR REPLACE FUNCTION public.assign_unique_transfer_id()
 RETURNS trigger
 LANGUAGE plpgsql
+SECURITY DEFINER
 AS $$
 BEGIN
     IF NEW.unique_transfer_id IS NULL THEN
-        NEW.unique_transfer_id := generate_unique_transfer_id();
+        NEW.unique_transfer_id := public.generate_unique_transfer_id();
     END IF;
     RETURN NEW;
 END;
@@ -44,14 +46,14 @@ DROP TRIGGER IF EXISTS set_unique_transfer_id ON public.profiles;
 -- Create the trigger
 CREATE TRIGGER set_unique_transfer_id
     BEFORE INSERT ON public.profiles
-    FOR EACH ROW EXECUTE FUNCTION assign_unique_transfer_id();
+    FOR EACH ROW EXECUTE FUNCTION public.assign_unique_transfer_id();
 
 -- Ensure the handle_new_user function works correctly
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path TO ''
+SET search_path TO 'public'
 AS $$
 BEGIN
   INSERT INTO public.profiles (id, email, first_name, last_name)
@@ -70,3 +72,8 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Grant necessary permissions
+GRANT EXECUTE ON FUNCTION public.generate_unique_transfer_id() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.assign_unique_transfer_id() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.handle_new_user() TO authenticated;
