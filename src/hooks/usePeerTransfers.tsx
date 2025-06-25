@@ -16,12 +16,6 @@ interface PeerTransfer {
   notes?: string;
 }
 
-interface TransferResponse {
-  success: boolean;
-  message: string;
-  transfer_id?: string;
-}
-
 interface PeerTransferContextType {
   transfers: PeerTransfer[];
   loading: boolean;
@@ -85,20 +79,12 @@ export const PeerTransferProvider = ({ children }: { children: React.ReactNode }
 
       if (error) throw error;
 
-      // Type guard to safely access properties
-      const response = data as unknown as TransferResponse;
-      
-      if (response && typeof response === 'object' && 'success' in response) {
-        if (response.success) {
-          toast.success('Transfer completed successfully');
-          await fetchTransfers();
-          return true;
-        } else {
-          toast.error(response.message || 'Transfer failed');
-          return false;
-        }
+      if (data.success) {
+        toast.success('Transfer completed successfully');
+        await fetchTransfers();
+        return true;
       } else {
-        toast.error('Unexpected response format');
+        toast.error(data.message || 'Transfer failed');
         return false;
       }
     } catch (error) {

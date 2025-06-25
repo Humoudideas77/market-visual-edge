@@ -17,13 +17,6 @@ interface TradePnL {
   trade_reference?: string;
 }
 
-interface TradePnLResponse {
-  success: boolean;
-  message: string;
-  pnl_amount?: number;
-  pnl_percentage?: number;
-}
-
 export const useTradePnL = () => {
   const { user } = useAuth();
   const [tradePnLHistory, setTradePnLHistory] = useState<TradePnL[]>([]);
@@ -72,20 +65,12 @@ export const useTradePnL = () => {
 
       if (error) throw error;
 
-      // Type guard to safely access properties
-      const response = data as unknown as TradePnLResponse;
-      
-      if (response && typeof response === 'object' && 'success' in response) {
-        if (response.success) {
-          console.log('Trade PnL recorded:', response);
-          await fetchTradePnL(); // Refresh the history
-          return true;
-        } else {
-          console.error('Failed to record trade PnL:', response.message);
-          return false;
-        }
+      if (data.success) {
+        console.log('Trade PnL recorded:', data);
+        await fetchTradePnL(); // Refresh the history
+        return true;
       } else {
-        console.error('Unexpected response format');
+        console.error('Failed to record trade PnL:', data.message);
         return false;
       }
     } catch (error) {
