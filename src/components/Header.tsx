@@ -12,6 +12,8 @@ const Header = () => {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  console.log('Header render - user:', !!user, 'mobile menu:', isMobileMenuOpen);
+
   const { data: userProfile } = useQuery({
     queryKey: ['user-profile', user?.id],
     queryFn: async () => {
@@ -73,6 +75,7 @@ const Header = () => {
   };
 
   const toggleMobileMenu = () => {
+    console.log('Toggle mobile menu clicked');
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
@@ -81,14 +84,14 @@ const Header = () => {
   };
 
   return (
-    <header className="bg-gray-900 border-b border-gray-700 px-4 sm:px-6 py-4 flex items-center justify-between shadow-xl relative">
+    <header className="bg-gray-900 border-b border-gray-700 px-3 sm:px-6 py-3 flex items-center justify-between shadow-xl relative">
       {/* Logo */}
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 min-w-0">
         <Link to="/" className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-red-500 rounded-lg flex items-center justify-center shadow-lg">
-            <span className="text-white font-bold text-sm">MC</span>
+          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-500 to-red-500 rounded-lg flex items-center justify-center shadow-lg">
+            <span className="text-white font-bold text-xs sm:text-sm">MC</span>
           </div>
-          <span className="text-lg sm:text-xl font-bold text-white">MexcCrypto</span>
+          <span className="text-base sm:text-xl font-bold text-white truncate">MexcCrypto</span>
         </Link>
       </div>
 
@@ -133,7 +136,7 @@ const Header = () => {
       </nav>
 
       {/* Right Side Controls */}
-      <div className="flex items-center space-x-2 sm:space-x-4">
+      <div className="flex items-center space-x-1 sm:space-x-4">
         {/* Language Selector - Hidden on small screens */}
         <div className="hidden sm:flex items-center space-x-1 text-gray-400 hover:text-white cursor-pointer transition-colors">
           <Globe className="w-4 h-4" />
@@ -185,9 +188,9 @@ const Header = () => {
             {/* Mobile Menu Button */}
             <button
               onClick={toggleMobileMenu}
-              className="lg:hidden p-2 text-gray-400 hover:text-white transition-colors"
+              className="lg:hidden p-2 text-gray-400 hover:text-white transition-colors border border-gray-600 rounded-lg hover:bg-gray-800 ml-2"
             >
-              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </>
         ) : (
@@ -205,15 +208,15 @@ const Header = () => {
               </Link>
             </div>
 
-            {/* Mobile Auth Buttons */}
-            <div className="flex sm:hidden items-center space-x-2">
+            {/* Mobile Auth Buttons - Improved */}
+            <div className="flex sm:hidden items-center space-x-1">
               <Link to="/auth">
-                <button className="px-3 py-2 text-white border border-gray-600 rounded-md hover:bg-gray-800 transition-colors text-xs">
+                <button className="px-2 py-1.5 text-white border border-gray-600 rounded-md hover:bg-gray-800 transition-colors text-xs">
                   Log In
                 </button>
               </Link>
               <Link to="/auth">
-                <button className="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs">
+                <button className="px-2 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs">
                   Sign Up
                 </button>
               </Link>
@@ -222,91 +225,100 @@ const Header = () => {
         )}
       </div>
 
-      {/* Mobile Menu Overlay */}
+      {/* Mobile Menu Overlay - Fixed positioning and z-index */}
       {isMobileMenuOpen && user && (
-        <div className="lg:hidden absolute top-full left-0 right-0 bg-gray-900 border-b border-gray-700 shadow-xl z-50">
-          <div className="px-4 py-4 space-y-4">
-            {/* Mobile Navigation Links */}
-            <div className="space-y-3">
-              <Link to="/exchange" onClick={closeMobileMenu} className="block text-white hover:text-red-400 transition-colors font-medium py-2">
-                Markets
-              </Link>
-              <Link to="/trading" onClick={closeMobileMenu} className="block text-white hover:text-red-400 transition-colors font-medium py-2">
-                Trade
-              </Link>
-              <Link to="/contracts" onClick={closeMobileMenu} className="block text-gray-300 hover:text-red-400 transition-colors font-medium py-2">
-                Contracts
-              </Link>
-              <Link to="/gold-mining" onClick={closeMobileMenu} className="block text-gray-300 hover:text-red-400 transition-colors font-medium py-2">
-                Gold Mining
-              </Link>
-              <Link to="/launchpad" onClick={closeMobileMenu} className="block text-gray-300 hover:text-red-400 transition-colors font-medium py-2">
-                Launchpad
-              </Link>
-              <Link to="/dashboard" onClick={closeMobileMenu} className="block text-gray-300 hover:text-red-400 transition-colors font-medium py-2">
-                Assets
-              </Link>
-              
-              {userProfile?.role === 'superadmin' && (
-                <button 
-                  onClick={handleSuperAdminClick}
-                  className="flex items-center space-x-2 text-red-400 hover:text-red-300 transition-colors font-medium py-2"
-                >
-                  <Shield className="w-4 h-4" />
-                  <span>Super Admin</span>
-                </button>
-              )}
-              
-              <button 
-                onClick={handleSupportClick}
-                className="flex items-center space-x-2 text-gray-300 hover:text-blue-400 transition-colors font-medium py-2"
-              >
-                <MessageCircle className="w-4 h-4" />
-                <span>Customer Support</span>
-              </button>
-            </div>
-
-            <div className="border-t border-gray-700 pt-4 space-y-3">
-              {/* Mobile User Actions */}
-              <button onClick={handleNotificationClick} className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors py-2">
-                <Bell className="w-5 h-5" />
-                <span>Notifications</span>
-              </button>
-              
-              <button onClick={handleSettingsClick} className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors py-2">
-                <Settings className="w-5 h-5" />
-                <span>Settings</span>
-              </button>
-              
-              <button 
-                onClick={handleProfileClick}
-                className="flex items-center space-x-2 text-white hover:text-red-400 transition-colors py-2"
-              >
-                {userProfile?.role === 'superadmin' ? (
-                  <Shield className="w-5 h-5 text-red-400" />
-                ) : (
-                  <User className="w-5 h-5" />
+        <>
+          {/* Backdrop */}
+          <div 
+            className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+            onClick={closeMobileMenu}
+          />
+          
+          {/* Menu Content */}
+          <div className="lg:hidden fixed top-0 left-0 right-0 bg-gray-900 border-b border-gray-700 shadow-xl z-50 pt-16">
+            <div className="px-4 py-4 space-y-4 max-h-screen overflow-y-auto">
+              {/* Mobile Navigation Links */}
+              <div className="space-y-3">
+                <Link to="/exchange" onClick={closeMobileMenu} className="block text-white hover:text-red-400 transition-colors font-medium py-3 border-b border-gray-700">
+                  Markets
+                </Link>
+                <Link to="/trading" onClick={closeMobileMenu} className="block text-white hover:text-red-400 transition-colors font-medium py-3 border-b border-gray-700">
+                  Trade
+                </Link>
+                <Link to="/contracts" onClick={closeMobileMenu} className="block text-gray-300 hover:text-red-400 transition-colors font-medium py-3 border-b border-gray-700">
+                  Contracts
+                </Link>
+                <Link to="/gold-mining" onClick={closeMobileMenu} className="block text-gray-300 hover:text-red-400 transition-colors font-medium py-3 border-b border-gray-700">
+                  Gold Mining
+                </Link>
+                <Link to="/launchpad" onClick={closeMobileMenu} className="block text-gray-300 hover:text-red-400 transition-colors font-medium py-3 border-b border-gray-700">
+                  Launchpad
+                </Link>
+                <Link to="/dashboard" onClick={closeMobileMenu} className="block text-gray-300 hover:text-red-400 transition-colors font-medium py-3 border-b border-gray-700">
+                  Assets
+                </Link>
+                
+                {userProfile?.role === 'superadmin' && (
+                  <button 
+                    onClick={handleSuperAdminClick}
+                    className="flex items-center space-x-2 text-red-400 hover:text-red-300 transition-colors font-medium py-3 border-b border-gray-700 w-full text-left"
+                  >
+                    <Shield className="w-4 h-4" />
+                    <span>Super Admin</span>
+                  </button>
                 )}
-                <span>{userProfile?.role === 'superadmin' ? 'Super Admin Panel' : 'My Profile'}</span>
-              </button>
-              
-              <button
-                onClick={handleSignOut}
-                className="flex items-center space-x-2 text-gray-400 hover:text-red-400 transition-colors py-2"
-              >
-                <LogOut className="w-5 h-5" />
-                <span>Sign Out</span>
-              </button>
+                
+                <button 
+                  onClick={handleSupportClick}
+                  className="flex items-center space-x-2 text-gray-300 hover:text-blue-400 transition-colors font-medium py-3 border-b border-gray-700 w-full text-left"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Customer Support</span>
+                </button>
+              </div>
 
-              {/* Language Selector in Mobile */}
-              <div className="flex items-center space-x-2 text-gray-400 hover:text-white cursor-pointer transition-colors py-2">
-                <Globe className="w-5 h-5" />
-                <span>English</span>
-                <ChevronDown className="w-4 h-4" />
+              <div className="border-t border-gray-700 pt-4 space-y-3">
+                {/* Mobile User Actions */}
+                <button onClick={handleNotificationClick} className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors py-3 w-full text-left">
+                  <Bell className="w-5 h-5" />
+                  <span>Notifications</span>
+                </button>
+                
+                <button onClick={handleSettingsClick} className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors py-3 w-full text-left">
+                  <Settings className="w-5 h-5" />
+                  <span>Settings</span>
+                </button>
+                
+                <button 
+                  onClick={handleProfileClick}
+                  className="flex items-center space-x-2 text-white hover:text-red-400 transition-colors py-3 w-full text-left"
+                >
+                  {userProfile?.role === 'superadmin' ? (
+                    <Shield className="w-5 h-5 text-red-400" />
+                  ) : (
+                    <User className="w-5 h-5" />
+                  )}
+                  <span>{userProfile?.role === 'superadmin' ? 'Super Admin Panel' : 'My Profile'}</span>
+                </button>
+                
+                <button
+                  onClick={handleSignOut}
+                  className="flex items-center space-x-2 text-gray-400 hover:text-red-400 transition-colors py-3 w-full text-left"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span>Sign Out</span>
+                </button>
+
+                {/* Language Selector in Mobile */}
+                <div className="flex items-center space-x-2 text-gray-400 hover:text-white cursor-pointer transition-colors py-3">
+                  <Globe className="w-5 h-5" />
+                  <span>English</span>
+                  <ChevronDown className="w-4 h-4" />
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </>
       )}
     </header>
   );
