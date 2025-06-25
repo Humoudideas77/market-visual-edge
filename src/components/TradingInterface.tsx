@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { TrendingUp, TrendingDown, Clock, CheckCircle, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Clock, CheckCircle, BarChart3, Activity } from 'lucide-react';
 import { useTradingEngine } from '@/hooks/useTradingEngine';
 import { formatPrice, formatVolume, SUPPORTED_PAIRS } from '@/hooks/useCryptoPrices';
 import TradingPanel from './TradingPanel';
@@ -8,12 +8,13 @@ import TradingChatLive from './TradingChatLive';
 import CandlestickChart from './CandlestickChart';
 import MarketPairSelector from './MarketPairSelector';
 import KindleStakeLab from './KindleStakeLab';
+import OptionTrading from './OptionTrading';
 
 interface TradingInterfaceProps {
   initialPair?: string;
 }
 
-type ActiveViewType = 'standard' | 'kindle';
+type ActiveViewType = 'standard' | 'kindle' | 'option';
 
 const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) => {
   const { baseAsset, quoteAsset } = useParams();
@@ -74,6 +75,56 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
 
   const isPositive = tradingPair.change24h >= 0;
 
+  // Render Option Trading view
+  if (activeView === ('option' as ActiveViewType)) {
+    return (
+      <div className="space-y-4">
+        {/* View Toggle */}
+        <div className="flex items-center justify-between p-6 pb-0">
+          <div className="flex space-x-2 bg-exchange-accent/30 rounded-lg p-1">
+            <button
+              onClick={() => handleViewChange('standard' as ActiveViewType)}
+              className={`px-4 py-2 text-sm font-medium rounded transition-colors ${
+                activeView === ('standard' as ActiveViewType)
+                  ? 'bg-exchange-blue text-white'
+                  : 'text-exchange-text-secondary hover:text-exchange-text-primary'
+              }`}
+            >
+              Standard Trading
+            </button>
+            <button
+              onClick={() => handleViewChange('kindle' as ActiveViewType)}
+              className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded transition-colors ${
+                activeView === ('kindle' as ActiveViewType)
+                  ? 'bg-exchange-blue text-white'
+                  : 'text-exchange-text-secondary hover:text-exchange-text-primary'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span>Kindle Stake Lab</span>
+            </button>
+            <button
+              onClick={() => handleViewChange('option' as ActiveViewType)}
+              className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded transition-colors ${
+                activeView === ('option' as ActiveViewType)
+                  ? 'bg-exchange-blue text-white'
+                  : 'text-exchange-text-secondary hover:text-exchange-text-primary'
+              }`}
+            >
+              <Activity className="w-4 h-4" />
+              <span>Option</span>
+            </button>
+          </div>
+        </div>
+
+        <OptionTrading 
+          selectedPair={selectedPair}
+          onPairChange={handlePairChange}
+        />
+      </div>
+    );
+  }
+
   // Render Kindle Stake Lab view
   if (activeView === ('kindle' as ActiveViewType)) {
     return (
@@ -101,6 +152,17 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
             >
               <BarChart3 className="w-4 h-4" />
               <span>Kindle Stake Lab</span>
+            </button>
+            <button
+              onClick={() => handleViewChange('option' as ActiveViewType)}
+              className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded transition-colors ${
+                activeView === ('option' as ActiveViewType)
+                  ? 'bg-exchange-blue text-white'
+                  : 'text-exchange-text-secondary hover:text-exchange-text-primary'
+              }`}
+            >
+              <Activity className="w-4 h-4" />
+              <span>Option</span>
             </button>
           </div>
         </div>
@@ -145,6 +207,17 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
           >
             <BarChart3 className="w-4 h-4" />
             <span>Kindle Stake Lab</span>
+          </button>
+          <button
+            onClick={() => handleViewChange('option' as ActiveViewType)}
+            className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded transition-colors ${
+              activeView === ('option' as ActiveViewType)
+                ? 'bg-exchange-blue text-white'
+                : 'text-exchange-text-secondary hover:text-exchange-text-primary'
+            }`}
+          >
+            <Activity className="w-4 h-4" />
+            <span>Option</span>
           </button>
         </div>
 
