@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Settings, User, ChevronDown, Globe, LogOut, Shield, MessageCircle, Menu, X } from 'lucide-react';
@@ -91,7 +90,7 @@ const Header = () => {
           <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-500 to-red-500 rounded-lg flex items-center justify-center shadow-lg">
             <span className="text-white font-bold text-xs sm:text-sm">MC</span>
           </div>
-          <span className="text-base sm:text-xl font-bold text-white">MecCrypto</span>
+          <span className="text-base sm:text-xl font-bold text-white">MexcCrypto</span>
         </Link>
       </div>
 
