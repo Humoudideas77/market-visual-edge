@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useCryptoPrices, getPriceBySymbol } from './useCryptoPrices';
 import { useWallet } from './useWallet';
 import { useAuth } from './useAuth';
+import { useTradePnL } from './useTradePnL';
 
 interface OrderBookEntry {
   price: number;
@@ -37,6 +38,7 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
   const { user } = useAuth();
   const { prices } = useCryptoPrices();
   const { getBalance, executeTransaction } = useWallet();
+  const { recordTradePnL } = useTradePnL();
   const [buyOrders, setBuyOrders] = useState<OrderBookEntry[]>([]);
   const [sellOrders, setSellOrders] = useState<OrderBookEntry[]>([]);
   const [recentTrades, setRecentTrades] = useState<Trade[]>([]);
@@ -207,6 +209,36 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
     }
   };
 
+  const closePerpetualPosition = async (
+    entryPrice: number,
+    currentPrice: number,
+    tradeSide: 'long' | 'short',
+    tradeSize: number
+  ): Promise<boolean> => {
+    if (!user || !tradingPair) return false;
+
+    try {
+      // Record the P&L for this position closure
+      const success = await recordTradePnL(
+        selectedPair,
+        tradeSide,
+        entryPrice,
+        currentPrice,
+        tradeSize,
+        'USDT'
+      );
+
+      if (success) {
+        console.log('Perpetual position closed and P&L recorded');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error closing perpetual position:', error);
+      return false;
+    }
+  };
+
   // Load user trades on component mount
   useEffect(() => {
     if (user) {
@@ -228,5 +260,6 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
     recentTrades,
     userTrades,
     executeTrade,
+    closePerpetualPosition,
   };
 };
