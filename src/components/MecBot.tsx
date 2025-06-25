@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { MessageCircle, X, Send, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,7 +28,7 @@ const MecBot = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Hi! I'm MecBot. How can I assist you today?",
+      text: "Hi! I'm MexcCrypto Bot. How can I assist you today?",
       isBot: true,
       timestamp: new Date()
     }
@@ -124,7 +125,7 @@ const MecBot = () => {
     setIsSubmitting(true);
 
     try {
-      console.log('Submitting MecBot support request:', contactForm);
+      console.log('Submitting MexcCrypto support request:', contactForm);
 
       // Call the same edge function used by the main contact form
       const { data, error } = await supabase.functions.invoke('send-contact-email', {
@@ -132,7 +133,7 @@ const MecBot = () => {
           firstName: contactForm.firstName,
           lastName: contactForm.lastName,
           email: contactForm.email,
-          message: `MecBot Support Request:\n\n${contactForm.message}`,
+          message: `MexcCrypto Bot Support Request:\n\n${contactForm.message}`,
           userId: user?.id
         }
       });
@@ -207,7 +208,7 @@ const MecBot = () => {
               <MessageCircle className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-semibold">MecBot</h3>
+              <h3 className="font-semibold">MexcCrypto Bot</h3>
               <p className="text-xs opacity-90">Online</p>
             </div>
           </div>
