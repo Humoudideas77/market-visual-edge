@@ -89,6 +89,8 @@ const KYCSection = () => {
             setKycStatus(payload.new.kyc_status);
             if (payload.new.kyc_status === 'verified') {
               toast.success('Your KYC has been approved! You are now verified.');
+            } else if (payload.new.kyc_status === 'rejected') {
+              toast.error('Your KYC submission has been rejected. Please resubmit with corrected documents.');
             }
           }
         }
@@ -120,7 +122,7 @@ const KYCSection = () => {
       case 'verified':
         return 'Your KYC verification has been approved! You are verified.';
       case 'rejected':
-        return 'Your KYC submission was rejected. Please submit new documents.';
+        return 'Your KYC submission was rejected. Please submit new documents with the required corrections.';
       case 'resubmission_required':
         return 'Please resubmit your KYC documents with the requested changes.';
       case 'pending':
@@ -199,8 +201,9 @@ const KYCSection = () => {
         </CardContent>
       </Card>
 
-      {((kycStatus === 'pending' && !hasSubmission) || kycStatus === 'rejected' || kycStatus === 'resubmission_required') ? (
-        <KYCUploadForm />
+      {/* Show upload form for new submissions, rejections, or resubmission required */}
+      {(kycStatus === 'pending' && !hasSubmission) || kycStatus === 'rejected' || kycStatus === 'resubmission_required' ? (
+        <KYCUploadForm onSubmissionComplete={checkKYCStatus} />
       ) : null}
     </div>
   );

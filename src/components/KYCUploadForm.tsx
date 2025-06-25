@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,11 @@ import { Upload, FileText, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import BackButton from './BackButton';
 
-const KYCUploadForm = () => {
+interface KYCUploadFormProps {
+  onSubmissionComplete?: () => void;
+}
+
+const KYCUploadForm = ({ onSubmissionComplete }: KYCUploadFormProps) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [kycData, setKycData] = useState({
@@ -85,7 +90,15 @@ const KYCUploadForm = () => {
 
       if (error) throw error;
 
+      // Update user's profile to pending status
+      await supabase
+        .from('profiles')
+        .update({ kyc_status: 'pending' })
+        .eq('id', user.id);
+
       toast.success('KYC submission successful! MecCrypto will review your documents within 24-48 hours.');
+      
+      // Reset form
       setKycData({
         full_name: '',
         date_of_birth: '',
@@ -99,6 +112,11 @@ const KYCUploadForm = () => {
       // Reset file inputs
       const fileInputs = document.querySelectorAll('input[type="file"]') as NodeListOf<HTMLInputElement>;
       fileInputs.forEach(input => input.value = '');
+
+      // Call the callback to refresh the parent component
+      if (onSubmissionComplete) {
+        onSubmissionComplete();
+      }
       
     } catch (error) {
       console.error('KYC submission error:', error);
