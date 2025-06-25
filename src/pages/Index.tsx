@@ -37,7 +37,7 @@ const Index = () => {
       
       {/* Contact Form Section */}
       <section className="py-20 bg-gray-50 contact-form-section">
-        <div className="container mx-auto px-3 sm:px-4 lg:px-6">
+        <div className="container mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 leading-tight">
               Contact <span className="text-red-600">MexcCrypto</span>
@@ -55,7 +55,7 @@ const Index = () => {
       
       {/* Navigation Tabs - Only show trading interface if authenticated */}
       <div className="border-b border-gray-200 bg-white">
-        <div className="px-3 sm:px-4 lg:px-6">
+        <div className="px-4 sm:px-6">
           <nav className="flex space-x-4 sm:space-x-8">
             <button
               onClick={() => setActiveView('markets')}
@@ -88,7 +88,7 @@ const Index = () => {
         {activeView === 'markets' && <MarketsOverview />}
         {activeView === 'trading' && user && <TradingInterface />}
         {activeView === 'trading' && !user && (
-          <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-12 text-center">
+          <div className="container mx-auto px-4 sm:px-6 py-12 text-center">
             <div className="bg-white rounded-xl border border-gray-200 p-12 shadow-sm">
               <h3 className="text-2xl font-bold text-gray-900 mb-4 leading-tight">
                 Authentication Required
@@ -108,7 +108,7 @@ const Index = () => {
 
       {/* Footer */}
       <footer className="bg-gray-900 border-t border-gray-800 mt-12">
-        <div className="px-3 sm:px-4 lg:px-6 py-8">
+        <div className="px-4 sm:px-6 py-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
