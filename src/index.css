@@ -58,12 +58,6 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     line-height: 1.5;
     letter-spacing: -0.01em;
-    overflow-x: hidden;
-  }
-
-  /* Prevent horizontal scrolling */
-  html {
-    overflow-x: hidden;
   }
 
   /* Dark Theme Typography */
@@ -136,18 +130,6 @@
 }
 
 @layer components {
-  /* Container utilities for consistent spacing */
-  .container {
-    @apply mx-auto px-4 sm:px-6 lg:px-8;
-    max-width: 1200px;
-  }
-
-  @media (min-width: 1280px) {
-    .container {
-      max-width: 1280px;
-    }
-  }
-
   .dashboard-card {
     @apply bg-gray-900 border border-gray-700 rounded-xl shadow-xl backdrop-blur-sm;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
