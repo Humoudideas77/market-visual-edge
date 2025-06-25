@@ -1,19 +1,21 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
-import KindleCandlestickChart from './KindleCandlestickChart';
-import ChartControls from './ChartControls';
-import { useTradingEngine } from '@/hooks/useTradingEngine';
-import { useAuth } from '@/hooks/useAuth';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { useWallet } from '@/hooks/useWallet';
+import { useCryptoPrices, getPriceBySymbol } from '@/hooks/useCryptoPrices';
 import { toast } from 'sonner';
+import { TrendingUp, TrendingDown, BarChart3, AlertCircle, DollarSign } from 'lucide-react';
 
 interface PerpetualTradingViewProps {
   selectedPair: string;
   onPairChange: (pair: string) => void;
 }
 
-interface PerpetualTrade {
+interface Position {
   id: string;
   pair: string;
   side: 'long' | 'short';
@@ -22,330 +24,328 @@ interface PerpetualTrade {
   currentPrice: number;
   pnl: number;
   pnlPercentage: number;
-  timestamp: Date;
-  status: 'open' | 'closed';
+  leverage: number;
+  margin: number;
+  liquidationPrice: number;
+  isActive: boolean;
 }
 
 const PerpetualTradingView = ({ selectedPair, onPairChange }: PerpetualTradingViewProps) => {
-  const { user } = useAuth();
-  const { tradingPair } = useTradingEngine(selectedPair);
-  const [tradeLotSize, setTradeLotSize] = useState<number>(0.001);
-  const [timeframe, setTimeframe] = useState('5m');
-  const [chartType, setChartType] = useState<'candlestick' | 'line'>('candlestick');
-  const [showIndicators, setShowIndicators] = useState(false);
-  const [perpetualTrades, setPerpetualTrades] = useState<PerpetualTrade[]>([]);
+  const { getBalance, executeTransaction } = useWallet();
+  const { prices } = useCryptoPrices();
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [tradeSize, setTradeSize] = useState('');
+  const [leverage, setLeverage] = useState('10');
+  const [tradeSide, setTradeSide] = useState<'long' | 'short'>('long');
 
-  const timeframes = [
-    { value: '1m', label: '1M' },
-    { value: '5m', label: '5M' },
-    { value: '15m', label: '15M' },
-    { value: '30m', label: '30M' },
-    { value: '1h', label: '1H' },
-    { value: '4h', label: '4H' }
-  ];
+  const [baseAsset] = selectedPair.split('/');
+  const currentPrice = getPriceBySymbol(prices, baseAsset)?.current_price || 0;
+  const usdtBalance = getBalance('USDT');
 
-  const executePerpetualTrade = (side: 'long' | 'short') => {
-    if (!user) {
-      toast.error('Please log in to trade');
-      return;
-    }
-
-    if (!tradingPair) {
-      toast.error('Trading pair not available');
-      return;
-    }
-
-    if (tradeLotSize <= 0) {
-      toast.error('Please enter a valid trade lot size');
-      return;
-    }
-
-    const newTrade: PerpetualTrade = {
-      id: `perp_${Date.now()}`,
-      pair: selectedPair,
-      side,
-      size: tradeLotSize,
-      entryPrice: tradingPair.currentPrice,
-      currentPrice: tradingPair.currentPrice,
-      pnl: 0,
-      pnlPercentage: 0,
-      timestamp: new Date(),
-      status: 'open'
-    };
-
-    setPerpetualTrades(prev => [newTrade, ...prev]);
-    
-    // Save to localStorage
-    const savedTrades = [...perpetualTrades, newTrade];
-    localStorage.setItem(`perpetual_trades_${user.id}`, JSON.stringify(savedTrades));
-
-    toast.success(`${side.toUpperCase()} position opened for ${tradeLotSize} ${selectedPair.split('/')[0]}`);
+  // Calculate margin required for the trade
+  const calculateMargin = () => {
+    if (!tradeSize || !leverage || !currentPrice) return 0;
+    const size = parseFloat(tradeSize);
+    const lev = parseFloat(leverage);
+    return (size * currentPrice) / lev;
   };
 
-  const closeTrade = (tradeId: string) => {
-    setPerpetualTrades(prev => 
-      prev.map(trade => 
-        trade.id === tradeId 
-          ? { ...trade, status: 'closed' as const }
-          : trade
-      )
-    );
+  const marginRequired = calculateMargin();
+  const availableBalance = usdtBalance?.available || 0;
 
-    if (user) {
-      const updatedTrades = perpetualTrades.map(trade => 
-        trade.id === tradeId 
-          ? { ...trade, status: 'closed' as const }
-          : trade
-      );
-      localStorage.setItem(`perpetual_trades_${user.id}`, JSON.stringify(updatedTrades));
+  const openPosition = async () => {
+    if (!tradeSize || parseFloat(tradeSize) <= 0) {
+      toast.error('Please enter a valid trade size');
+      return;
     }
 
-    toast.success('Position closed successfully');
-  };
+    if (!leverage || parseFloat(leverage) <= 0) {
+      toast.error('Please enter a valid leverage');
+      return;
+    }
 
-  // Load saved trades on component mount
-  React.useEffect(() => {
-    if (user) {
-      const savedTrades = localStorage.getItem(`perpetual_trades_${user.id}`);
-      if (savedTrades) {
-        const trades = JSON.parse(savedTrades).map((t: any) => ({
-          ...t,
-          timestamp: new Date(t.timestamp)
-        }));
-        setPerpetualTrades(trades);
+    // Check if user has sufficient balance
+    if (availableBalance < marginRequired) {
+      toast.error(`Insufficient balance! You need $${marginRequired.toFixed(2)} USDT margin but only have $${availableBalance.toFixed(2)} USDT available.`);
+      return;
+    }
+
+    try {
+      // Deduct margin from user's balance
+      const success = await executeTransaction({
+        type: 'trade_sell',
+        currency: 'USDT',
+        amount: marginRequired
+      });
+
+      if (success) {
+        const newPosition: Position = {
+          id: `pos_${Date.now()}`,
+          pair: selectedPair,
+          side: tradeSide,
+          size: parseFloat(tradeSize),
+          entryPrice: currentPrice,
+          currentPrice: currentPrice,
+          pnl: 0,
+          pnlPercentage: 0,
+          leverage: parseFloat(leverage),
+          margin: marginRequired,
+          liquidationPrice: calculateLiquidationPrice(currentPrice, tradeSide, parseFloat(leverage)),
+          isActive: true
+        };
+
+        setPositions(prev => [...prev, newPosition]);
+        toast.success(`✅ ${tradeSide.toUpperCase()} position opened! Size: ${tradeSize} ${baseAsset}, Leverage: ${leverage}x`);
+        
+        // Reset form
+        setTradeSize('');
+        setLeverage('10');
+      } else {
+        toast.error('Failed to open position. Please try again.');
       }
+    } catch (error) {
+      console.error('Position opening error:', error);
+      toast.error('Failed to open position. Please try again.');
     }
-  }, [user]);
+  };
 
-  // Update current prices and PnL for open trades
-  React.useEffect(() => {
-    if (tradingPair) {
-      setPerpetualTrades(prev => 
-        prev.map(trade => {
-          if (trade.status === 'open') {
-            const currentPrice = tradingPair.currentPrice;
-            const priceDiff = trade.side === 'long' 
-              ? currentPrice - trade.entryPrice
-              : trade.entryPrice - currentPrice;
-            const pnl = priceDiff * trade.size;
-            const pnlPercentage = (priceDiff / trade.entryPrice) * 100;
-
-            return {
-              ...trade,
-              currentPrice,
-              pnl,
-              pnlPercentage
-            };
-          }
-          return trade;
-        })
-      );
+  const calculateLiquidationPrice = (entryPrice: number, side: 'long' | 'short', leverage: number): number => {
+    const liquidationMargin = 0.05; // 5% liquidation margin
+    if (side === 'long') {
+      return entryPrice * (1 - (1 / leverage) + liquidationMargin);
+    } else {
+      return entryPrice * (1 + (1 / leverage) - liquidationMargin);
     }
-  }, [tradingPair]);
+  };
 
-  if (!tradingPair) {
-    return (
-      <div className="exchange-panel p-8 text-center">
-        <div className="text-exchange-text-secondary">
-          Loading perpetual trading data for {selectedPair}...
-        </div>
-      </div>
-    );
-  }
+  const closePosition = async (position: Position) => {
+    try {
+      // Calculate PnL
+      const priceDiff = position.currentPrice - position.entryPrice;
+      const pnl = position.side === 'long' 
+        ? priceDiff * position.size
+        : -priceDiff * position.size;
 
-  const openTrades = perpetualTrades.filter(trade => trade.status === 'open');
-  const totalPnL = openTrades.reduce((sum, trade) => sum + trade.pnl, 0);
+      // Return margin + PnL to user's balance
+      const totalReturn = position.margin + pnl;
+      
+      if (totalReturn > 0) {
+        await executeTransaction({
+          type: 'trade_buy',
+          currency: 'USDT',
+          amount: totalReturn
+        });
+      }
+
+      // Remove position from active positions
+      setPositions(prev => prev.filter(p => p.id !== position.id));
+      
+      toast.success(`✅ Position closed! PnL: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} USDT`);
+    } catch (error) {
+      console.error('Position closing error:', error);
+      toast.error('Failed to close position. Please try again.');
+    }
+  };
+
+  // Update positions with current prices
+  useEffect(() => {
+    if (positions.length > 0 && currentPrice > 0) {
+      setPositions(prev => prev.map(position => {
+        const priceDiff = currentPrice - position.entryPrice;
+        const pnl = position.side === 'long' 
+          ? priceDiff * position.size
+          : -priceDiff * position.size;
+        const pnlPercentage = (pnl / position.margin) * 100;
+
+        return {
+          ...position,
+          currentPrice,
+          pnl,
+          pnlPercentage
+        };
+      }));
+    }
+  }, [currentPrice, positions.length]);
 
   return (
-    <div className="space-y-4">
-      {/* Trading Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="exchange-panel p-3">
-          <div className="text-xs text-exchange-text-secondary mb-1">Current Price</div>
-          <div className="text-lg font-mono text-exchange-text-primary">
-            ${tradingPair.currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-          </div>
-        </div>
-        <div className="exchange-panel p-3">
-          <div className="text-xs text-exchange-text-secondary mb-1">Open Positions</div>
-          <div className="text-lg font-bold text-exchange-text-primary">
-            {openTrades.length}
-          </div>
-        </div>
-        <div className="exchange-panel p-3">
-          <div className="text-xs text-exchange-text-secondary mb-1">Total PnL</div>
-          <div className={`text-lg font-mono ${totalPnL >= 0 ? 'text-exchange-green' : 'text-exchange-red'}`}>
-            {totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}
-          </div>
-        </div>
-        <div className="exchange-panel p-3">
-          <div className="text-xs text-exchange-text-secondary mb-1">24h Change</div>
-          <div className={`text-lg font-mono flex items-center ${
-            tradingPair.change24h >= 0 ? 'text-exchange-green' : 'text-exchange-red'
-          }`}>
-            {tradingPair.change24h >= 0 ? (
-              <TrendingUp className="w-4 h-4 mr-1" />
-            ) : (
-              <TrendingDown className="w-4 h-4 mr-1" />
-            )}
-            {tradingPair.change24h >= 0 ? '+' : ''}${Math.abs(tradingPair.change24h).toFixed(2)}
-          </div>
-        </div>
-      </div>
-
-      {/* Chart Section */}
-      <div className="exchange-panel p-4">
-        <ChartControls
-          selectedPair={selectedPair}
-          onPairChange={onPairChange}
-          timeframe={timeframe}
-          onTimeframeChange={setTimeframe}
-          chartType={chartType}
-          onChartTypeChange={setChartType}
-          showIndicators={showIndicators}
-          onToggleIndicators={setShowIndicators}
-          timeframes={timeframes}
-        />
-        
-        <div className="mt-4">
-          <KindleCandlestickChart 
-            symbol={selectedPair}
-            timeframe={timeframe}
-            chartType={chartType}
-          />
-        </div>
-      </div>
-
-      {/* Trading Controls */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Trade Entry */}
-        <div className="exchange-panel p-4">
-          <h3 className="text-lg font-semibold text-exchange-text-primary mb-4">Open Position</h3>
-          
-          <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Current Price and Balance */}
+      <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm text-exchange-text-secondary mb-2">
-                Trade Lot Size ({selectedPair.split('/')[0]})
-              </label>
-              <input
+              <div className="text-sm text-gray-600">Current Price</div>
+              <div className="text-xl font-bold text-gray-900">${currentPrice.toFixed(2)}</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-600">Available Balance</div>
+              <div className="text-xl font-bold text-gray-900">${availableBalance.toFixed(2)} USDT</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-600">Active Positions</div>
+              <div className="text-xl font-bold text-gray-900">{positions.length}</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Trading Panel */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <BarChart3 className="w-5 h-5" />
+            <span>Open Perpetual Position</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Side Selection */}
+          <div className="flex space-x-2">
+            <Button
+              variant={tradeSide === 'long' ? 'default' : 'outline'}
+              onClick={() => setTradeSide('long')}
+              className={`flex-1 ${tradeSide === 'long' ? 'bg-green-600 hover:bg-green-700' : ''}`}
+            >
+              <TrendingUp className="w-4 h-4 mr-2" />
+              Long
+            </Button>
+            <Button
+              variant={tradeSide === 'short' ? 'default' : 'outline'}
+              onClick={() => setTradeSide('short')}
+              className={`flex-1 ${tradeSide === 'short' ? 'bg-red-600 hover:bg-red-700' : ''}`}
+            >
+              <TrendingDown className="w-4 h-4 mr-2" />
+              Short
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="size">Size ({baseAsset})</Label>
+              <Input
+                id="size"
                 type="number"
+                placeholder="0.1"
+                value={tradeSize}
+                onChange={(e) => setTradeSize(e.target.value)}
                 step="0.001"
-                min="0.001"
-                value={tradeLotSize}
-                onChange={(e) => setTradeLotSize(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 bg-exchange-accent border border-exchange-border rounded text-exchange-text-primary font-mono"
-                placeholder="0.001"
+                min="0"
               />
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                onClick={() => executePerpetualTrade('long')}
-                className="bg-exchange-green hover:bg-exchange-green/90 text-white font-semibold py-3"
-                disabled={!user || tradeLotSize <= 0}
-              >
-                <TrendingUp className="w-4 h-4 mr-2" />
-                Buy Long
-              </Button>
-              
-              <Button
-                onClick={() => executePerpetualTrade('short')}
-                className="bg-exchange-red hover:bg-exchange-red/90 text-white font-semibold py-3"
-                disabled={!user || tradeLotSize <= 0}
-              >
-                <TrendingDown className="w-4 h-4 mr-2" />
-                Sell Short
-              </Button>
+            <div>
+              <Label htmlFor="leverage">Leverage</Label>
+              <Input
+                id="leverage"
+                type="number"
+                placeholder="10"
+                value={leverage}
+                onChange={(e) => setLeverage(e.target.value)}
+                step="1"
+                min="1"
+                max="100"
+              />
             </div>
-
-            {!user && (
-              <div className="text-center text-sm text-exchange-text-secondary">
-                Please log in to start trading
-              </div>
-            )}
           </div>
-        </div>
 
-        {/* Trade History */}
-        <div className="exchange-panel p-4">
-          <h3 className="text-lg font-semibold text-exchange-text-primary mb-4">Trade History</h3>
-          
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {perpetualTrades.length === 0 ? (
-              <div className="text-center text-sm text-exchange-text-secondary py-8">
-                No trades yet
+          {/* Trade Summary */}
+          {tradeSize && leverage && parseFloat(tradeSize) > 0 && parseFloat(leverage) > 0 && (
+            <div className="bg-gray-50 p-4 rounded border">
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>Position Size:</div>
+                <div className="font-semibold">{parseFloat(tradeSize).toFixed(3)} {baseAsset}</div>
+                
+                <div>Notional Value:</div>
+                <div className="font-semibold">${(parseFloat(tradeSize) * currentPrice).toFixed(2)}</div>
+                
+                <div>Margin Required:</div>
+                <div className="font-semibold">${marginRequired.toFixed(2)} USDT</div>
+                
+                <div>Available Balance:</div>
+                <div className="font-semibold">${availableBalance.toFixed(2)} USDT</div>
               </div>
-            ) : (
-              perpetualTrades.map((trade) => (
-                <div key={trade.id} className="bg-exchange-accent/30 p-3 rounded">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <div className={`w-2 h-2 rounded-full ${
-                        trade.side === 'long' ? 'bg-exchange-green' : 'bg-exchange-red'
-                      }`} />
-                      <span className="text-sm font-medium text-exchange-text-primary uppercase">
-                        {trade.side} {trade.pair}
-                      </span>
-                      <span className={`px-2 py-1 text-xs rounded ${
-                        trade.status === 'open' 
-                          ? 'bg-exchange-blue/20 text-exchange-blue' 
-                          : 'bg-exchange-text-secondary/20 text-exchange-text-secondary'
-                      }`}>
-                        {trade.status}
-                      </span>
-                    </div>
-                    {trade.status === 'open' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => closeTrade(trade.id)}
-                        className="text-xs"
-                      >
-                        Close Trade
-                      </Button>
-                    )}
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4 text-xs">
-                    <div>
-                      <div className="text-exchange-text-secondary">Size</div>
-                      <div className="font-mono text-exchange-text-primary">
-                        {trade.size} {trade.pair.split('/')[0]}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-exchange-text-secondary">Entry Price</div>
-                      <div className="font-mono text-exchange-text-primary">
-                        ${trade.entryPrice.toFixed(2)}
-                      </div>
-                    </div>
-                    {trade.status === 'open' && (
-                      <>
-                        <div>
-                          <div className="text-exchange-text-secondary">Current Price</div>
-                          <div className="font-mono text-exchange-text-primary">
-                            ${trade.currentPrice.toFixed(2)}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-exchange-text-secondary">PnL</div>
-                          <div className={`font-mono ${trade.pnl >= 0 ? 'text-exchange-green' : 'text-exchange-red'}`}>
-                            {trade.pnl >= 0 ? '+' : ''}${trade.pnl.toFixed(2)} ({trade.pnlPercentage.toFixed(2)}%)
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  
-                  <div className="text-xs text-exchange-text-secondary mt-2">
-                    {trade.timestamp.toLocaleString()}
-                  </div>
+              
+              {marginRequired > availableBalance && (
+                <div className="flex items-center space-x-1 text-red-600 text-sm mt-2">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>Insufficient balance for this position size</span>
                 </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
+              )}
+            </div>
+          )}
+
+          <Button
+            onClick={openPosition}
+            disabled={!tradeSize || !leverage || parseFloat(tradeSize) <= 0 || parseFloat(leverage) <= 0 || marginRequired > availableBalance}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400"
+          >
+            Open {tradeSide.toUpperCase()} Position
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Active Positions */}
+      {positions.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <DollarSign className="w-5 h-5" />
+              <span>Active Positions</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left p-3">Pair</th>
+                    <th className="text-center p-3">Side</th>
+                    <th className="text-right p-3">Size</th>
+                    <th className="text-right p-3">Entry Price</th>
+                    <th className="text-right p-3">Current Price</th>
+                    <th className="text-right p-3">PnL</th>
+                    <th className="text-right p-3">Margin</th>
+                    <th className="text-center p-3">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {positions.map((position) => (
+                    <tr key={position.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="p-3 font-semibold">{position.pair}</td>
+                      <td className="p-3 text-center">
+                        <Badge 
+                          variant={position.side === 'long' ? 'default' : 'destructive'}
+                          className="uppercase"
+                        >
+                          {position.side}
+                        </Badge>
+                      </td>
+                      <td className="p-3 text-right font-mono">{position.size.toFixed(3)}</td>
+                      <td className="p-3 text-right font-mono">${position.entryPrice.toFixed(2)}</td>
+                      <td className="p-3 text-right font-mono">${position.currentPrice.toFixed(2)}</td>
+                      <td className={`p-3 text-right font-mono font-semibold ${position.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {position.pnl >= 0 ? '+' : ''}${position.pnl.toFixed(2)}
+                        <div className="text-xs">
+                          ({position.pnlPercentage >= 0 ? '+' : ''}{position.pnlPercentage.toFixed(2)}%)
+                        </div>
+                      </td>
+                      <td className="p-3 text-right font-mono">${position.margin.toFixed(2)}</td>
+                      <td className="p-3 text-center">
+                        <Button
+                          size="sm"
+                          onClick={() => closePosition(position)}
+                          variant="outline"
+                          className="text-red-600 border-red-300 hover:bg-red-50"
+                        >
+                          Close
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
