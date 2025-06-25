@@ -319,7 +319,7 @@ const AuthPage = () => {
                       className="w-full bg-exchange-blue hover:bg-exchange-blue/90 text-white py-3 text-lg font-medium"
                       disabled={loading}
                     >
-                      {loading ? 'Signing In...' : 'Login to MecCrypto'}
+                      {loading ? 'Signing In...' : 'Login to MexcCrypto'}
                     </Button>
                   </form>
                 </TabsContent>
