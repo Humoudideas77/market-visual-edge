@@ -76,6 +76,7 @@
     min-height: 100vh;
     margin: 0;
     padding: 0;
+    overflow-x: hidden;
   }
 
   /* Dark Theme Typography */
@@ -333,7 +334,7 @@
   }
 
   .admin-tab-button {
-    @apply px-3 sm:px-4 py-2 font-semibold text-xs sm:text-sm rounded-lg transition-all duration-200;
+    @apply px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 font-semibold text-xs sm:text-sm rounded-lg transition-all duration-200 whitespace-nowrap min-w-0 flex items-center justify-center;
   }
 
   .admin-tab-active {
@@ -465,12 +466,24 @@
       padding: 8px 6px !important;
       font-size: 11px !important;
     }
+
+    /* Mobile admin tab fixes */
+    .admin-tab-button {
+      padding: 6px 4px !important;
+      font-size: 10px !important;
+      min-width: 0 !important;
+    }
   }
 
   /* Tablet adjustments */
   @media (min-width: 641px) and (max-width: 1024px) {
     .tablet-adjust {
       font-size: 14px !important;
+    }
+    
+    .admin-tab-button {
+      padding: 8px 8px !important;
+      font-size: 12px !important;
     }
   }
 
@@ -559,4 +572,3 @@
     gap: 24px;
   }
 }
-

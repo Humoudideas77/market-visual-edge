@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
@@ -135,121 +136,131 @@ const SuperAdminPage = () => {
   console.log('SuperAdminPage - Rendering SuperAdmin dashboard for:', userProfile.email);
 
   return (
-    <div className="admin-dashboard-bg min-h-screen">
-      <div className="container mx-auto px-6 py-8">
+    <div className="admin-dashboard-bg min-h-screen w-full overflow-x-hidden">
+      <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 max-w-7xl">
         {/* Header Section with Action Buttons */}
-        <div className="flex justify-between items-start mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
           <BackButton fallbackPath="/" label="← Dashboard" />
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full sm:w-auto">
             <Button 
               onClick={handleRefresh} 
               disabled={isRefreshing}
               variant="outline" 
               size="sm"
-              className="border-gray-600 text-gray-300 hover:bg-gray-800"
+              className="border-gray-600 text-gray-300 hover:bg-gray-800 flex-1 sm:flex-none"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
             </Button>
             <Button 
               onClick={handleLandingPageRedirect}
               variant="outline" 
               size="sm"
-              className="border-gray-600 text-gray-300 hover:bg-gray-800"
+              className="border-gray-600 text-gray-300 hover:bg-gray-800 flex-1 sm:flex-none"
             >
               <Home className="w-4 h-4 mr-2" />
-              Dashboard
+              <span className="hidden sm:inline">Dashboard</span>
             </Button>
           </div>
         </div>
 
         {/* Main Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-red-600 to-red-700 rounded-2xl flex items-center justify-center shadow-2xl glow-red">
-                <Shield className="w-8 h-8 text-white" />
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-4 sm:mb-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 w-full lg:w-auto">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-red-600 to-red-700 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xl glow-red flex-shrink-0">
+                <Shield className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white" />
               </div>
-              <div>
-                <h1 className="text-4xl md:text-5xl font-black text-white leading-tight mb-2">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black text-white leading-tight mb-1 sm:mb-2">
                   Mexc PRO Super Admin
                 </h1>
-                <div className="flex items-center gap-3 mt-3">
-                  <Badge variant="destructive" className="bg-red-600 text-white font-bold px-4 py-2 text-sm border border-red-500 shadow-lg">
-                    <Shield className="w-4 h-4 mr-2" />
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+                  <Badge variant="destructive" className="bg-red-600 text-white font-bold px-3 py-1 sm:px-4 sm:py-2 text-xs sm:text-sm border border-red-500 shadow-lg">
+                    <Shield className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                     Superadmin Access
                   </Badge>
-                  <span className="text-gray-300 text-base font-semibold">
+                  <span className="text-gray-300 text-sm sm:text-base font-semibold break-all sm:break-normal">
                     Welcome, {userProfile.email}
                   </span>
                 </div>
               </div>
             </div>
           </div>
-          <p className="text-gray-300 text-xl leading-relaxed font-medium max-w-4xl">
+          <p className="text-gray-300 text-base sm:text-lg lg:text-xl leading-relaxed font-medium max-w-4xl">
             Complete platform administration and user management dashboard with enhanced monitoring capabilities
           </p>
         </div>
 
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-8">
-          <TabsList className="grid w-full grid-cols-8 bg-gray-900 border-2 border-gray-700 shadow-2xl rounded-xl p-2">
-            <TabsTrigger 
-              value="overview" 
-              className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive"
-            >
-              <Activity className="w-4 h-4 mr-2" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger 
-              value="messages" 
-              className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive"
-            >
-              <UserCheck className="w-4 h-4 mr-2" />
-              Messages
-            </TabsTrigger>
-            <TabsTrigger 
-              value="users" 
-              className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive"
-            >
-              <Users className="w-4 h-4 mr-2" />
-              Users
-            </TabsTrigger>
-            <TabsTrigger 
-              value="kyc" 
-              className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive"
-            >
-              <FileCheck className="w-4 h-4 mr-2" />
-              KYC
-            </TabsTrigger>
-            <TabsTrigger 
-              value="deposits" 
-              className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive"
-            >
-              <DollarSign className="w-4 h-4 mr-2" />
-              Deposits
-            </TabsTrigger>
-            <TabsTrigger 
-              value="withdrawals" 
-              className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive"
-            >
-              <CreditCard className="w-4 h-4 mr-2" />
-              Withdrawals
-            </TabsTrigger>
-            <TabsTrigger 
-              value="activity" 
-              className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive"
-            >
-              <UserCheck className="w-4 h-4 mr-2" />
-              Activity
-            </TabsTrigger>
-            <TabsTrigger 
-              value="settings" 
-              className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Settings
-            </TabsTrigger>
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6 sm:space-y-8">
+          <div className="w-full overflow-x-auto">
+            <TabsList className="grid grid-cols-4 lg:grid-cols-8 bg-gray-900 border-2 border-gray-700 shadow-2xl rounded-xl p-1 sm:p-2 min-w-full lg:min-w-0">
+              <TabsTrigger 
+                value="overview" 
+                className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive text-xs sm:text-sm px-1 sm:px-2 lg:px-3"
+              >
+                <Activity className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Overview</span>
+                <span className="sm:hidden">Over</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="messages" 
+                className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive text-xs sm:text-sm px-1 sm:px-2 lg:px-3"
+              >
+                <UserCheck className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Messages</span>
+                <span className="sm:hidden">Msg</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="users" 
+                className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive text-xs sm:text-sm px-1 sm:px-2 lg:px-3"
+              >
+                <Users className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Users</span>
+                <span className="sm:hidden">User</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="kyc" 
+                className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive text-xs sm:text-sm px-1 sm:px-2 lg:px-3"
+              >
+                <FileCheck className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">KYC</span>
+                <span className="sm:hidden">KYC</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="deposits" 
+                className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive text-xs sm:text-sm px-1 sm:px-2 lg:px-3"
+              >
+                <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Deposits</span>
+                <span className="sm:hidden">Dep</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="withdrawals" 
+                className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive text-xs sm:text-sm px-1 sm:px-2 lg:px-3"
+              >
+                <CreditCard className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Withdrawals</span>
+                <span className="sm:hidden">With</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="activity" 
+                className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive text-xs sm:text-sm px-1 sm:px-2 lg:px-3"
+              >
+                <UserCheck className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Activity</span>
+                <span className="sm:hidden">Act</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="settings" 
+                className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive text-xs sm:text-sm px-1 sm:px-2 lg:px-3"
+              >
+                <Settings className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Settings</span>
+                <span className="sm:hidden">Set</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="overview">
             <AdminStatsSection />
