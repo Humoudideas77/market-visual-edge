@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useWallet } from '@/hooks/useWallet';
 import { useCryptoPrices, getPriceBySymbol } from '@/hooks/useCryptoPrices';
+import { useOptionTrades } from '@/hooks/useOptionTrades';
 import { toast } from 'sonner';
-import { TrendingUp, TrendingDown, Clock, DollarSign, AlertCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Clock, DollarSign, AlertCircle, X } from 'lucide-react';
 
 interface OptionTableProps {
   selectedPair: string;
@@ -20,6 +21,7 @@ interface OptionContract {
   strikePrice: number;
   premium: number;
   expiry: string;
+  expiryMinutes: number;
   timeToExpiry: string;
   impliedVolatility: number;
   delta: number;
@@ -27,37 +29,51 @@ interface OptionContract {
 }
 
 const OptionTable = ({ selectedPair }: OptionTableProps) => {
-  const { getBalance, executeTransaction } = useWallet();
+  const { getBalance } = useWallet();
   const { prices } = useCryptoPrices();
+  const { activeTrades, closedTrades, openTrade, closeTrade, getTotalPnL } = useOptionTrades();
   const [contracts, setContracts] = useState<OptionContract[]>([]);
   const [selectedContract, setSelectedContract] = useState<OptionContract | null>(null);
   const [tradeAmount, setTradeAmount] = useState('');
   const [showTradeModal, setShowTradeModal] = useState(false);
+  const [showActiveTradesModal, setShowActiveTradesModal] = useState(false);
 
   const [baseAsset] = selectedPair.split('/');
   const currentPrice = getPriceBySymbol(prices, baseAsset)?.current_price || 0;
   const usdtBalance = getBalance('USDT');
 
-  // Generate mock option contracts
+  // Generate option contracts based on current price
   useEffect(() => {
     if (currentPrice > 0) {
       const mockContracts: OptionContract[] = [];
-      const expiryDates = ['1H', '4H', '1D', '7D'];
+      const expiryOptions = [
+        { label: '1H', minutes: 60 },
+        { label: '4H', minutes: 240 },
+        { label: '1D', minutes: 1440 },
+        { label: '7D', minutes: 10080 }
+      ];
       
-      expiryDates.forEach((expiry) => {
+      expiryOptions.forEach((expiry) => {
         // Generate strike prices around current price
         for (let i = -2; i <= 2; i++) {
           const strikeOffset = currentPrice * (i * 0.05); // 5% increments
           const strikePrice = currentPrice + strikeOffset;
           
+          // Calculate more realistic premium based on moneyness and time
+          const moneyness = Math.abs(strikePrice - currentPrice) / currentPrice;
+          const timeValue = Math.sqrt(expiry.minutes / 1440); // Time decay factor
+          const basePremium = currentPrice * 0.02;
+          const premium = basePremium * (1 + moneyness) * timeValue;
+          
           // Call option
           mockContracts.push({
-            id: `call-${expiry}-${i}`,
+            id: `call-${expiry.label}-${i}`,
             type: 'call',
             strikePrice: parseFloat(strikePrice.toFixed(2)),
-            premium: parseFloat((currentPrice * 0.02 + Math.abs(i) * 0.5).toFixed(2)),
-            expiry,
-            timeToExpiry: getTimeToExpiry(expiry),
+            premium: parseFloat(premium.toFixed(2)),
+            expiry: expiry.label,
+            expiryMinutes: expiry.minutes,
+            timeToExpiry: getTimeToExpiry(expiry.minutes),
             impliedVolatility: 25 + Math.random() * 20,
             delta: 0.5 + (i * 0.1),
             isActive: true
@@ -65,12 +81,13 @@ const OptionTable = ({ selectedPair }: OptionTableProps) => {
 
           // Put option
           mockContracts.push({
-            id: `put-${expiry}-${i}`,
+            id: `put-${expiry.label}-${i}`,
             type: 'put',
             strikePrice: parseFloat(strikePrice.toFixed(2)),
-            premium: parseFloat((currentPrice * 0.02 + Math.abs(i) * 0.5).toFixed(2)),
-            expiry,
-            timeToExpiry: getTimeToExpiry(expiry),
+            premium: parseFloat(premium.toFixed(2)),
+            expiry: expiry.label,
+            expiryMinutes: expiry.minutes,
+            timeToExpiry: getTimeToExpiry(expiry.minutes),
             impliedVolatility: 25 + Math.random() * 20,
             delta: -0.5 - (i * 0.1),
             isActive: true
@@ -82,14 +99,12 @@ const OptionTable = ({ selectedPair }: OptionTableProps) => {
     }
   }, [currentPrice]);
 
-  const getTimeToExpiry = (expiry: string): string => {
-    switch (expiry) {
-      case '1H': return '59:45';
-      case '4H': return '3:59:45';
-      case '1D': return '23:59:45';
-      case '7D': return '6d 23:59:45';
-      default: return '00:00';
-    }
+  const getTimeToExpiry = (minutes: number): string => {
+    if (minutes < 60) return `${minutes}m`;
+    if (minutes < 1440) return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+    const days = Math.floor(minutes / 1440);
+    const hours = Math.floor((minutes % 1440) / 60);
+    return `${days}d ${hours}h`;
   };
 
   const handleOpenTrade = (contract: OptionContract) => {
@@ -100,44 +115,41 @@ const OptionTable = ({ selectedPair }: OptionTableProps) => {
 
   const executeTrade = async () => {
     if (!selectedContract || !tradeAmount) {
-      toast.error('Please enter a valid trade amount');
+      toast.error('Please enter a valid number of contracts');
       return;
     }
 
-    const amount = parseFloat(tradeAmount);
-    if (amount <= 0) {
-      toast.error('Trade amount must be greater than 0');
+    const contracts = parseFloat(tradeAmount);
+    if (contracts <= 0) {
+      toast.error('Number of contracts must be greater than 0');
       return;
     }
 
-    const totalCost = amount * selectedContract.premium;
-    const availableBalance = usdtBalance?.available || 0;
+    const result = await openTrade({
+      type: selectedContract.type,
+      strikePrice: selectedContract.strikePrice,
+      premium: selectedContract.premium,
+      contracts: contracts,
+      expiryMinutes: selectedContract.expiryMinutes,
+      baseAsset: baseAsset
+    });
 
-    // Check if user has sufficient balance
-    if (availableBalance < totalCost) {
-      toast.error(`Insufficient balance! You need $${totalCost.toFixed(2)} USDT but only have $${availableBalance.toFixed(2)} USDT available.`);
-      return;
+    if (result.success) {
+      toast.success(result.message);
+      setShowTradeModal(false);
+      setSelectedContract(null);
+      setTradeAmount('');
+    } else {
+      toast.error(result.message);
     }
+  };
 
-    try {
-      // Deduct the premium from user's balance
-      const success = await executeTransaction({
-        type: 'trade_sell',
-        currency: 'USDT',
-        amount: totalCost
-      });
-
-      if (success) {
-        toast.success(`✅ ${selectedContract.type.toUpperCase()} option opened successfully! Premium paid: $${totalCost.toFixed(2)} USDT`);
-        setShowTradeModal(false);
-        setSelectedContract(null);
-        setTradeAmount('');
-      } else {
-        toast.error('Failed to execute trade. Please try again.');
-      }
-    } catch (error) {
-      console.error('Trade execution error:', error);
-      toast.error('Trade execution failed. Please try again.');
+  const handleCloseTrade = async (tradeId: string) => {
+    const result = await closeTrade(tradeId);
+    if (result.success) {
+      toast.success(result.message);
+    } else {
+      toast.error(result.message);
     }
   };
 
@@ -149,23 +161,66 @@ const OptionTable = ({ selectedPair }: OptionTableProps) => {
     return contract.type === 'call' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />;
   };
 
+  const formatTimeRemaining = (expiryTime: Date): string => {
+    const now = new Date();
+    const remaining = expiryTime.getTime() - now.getTime();
+    
+    if (remaining <= 0) return 'Expired';
+    
+    const minutes = Math.floor(remaining / 60000);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) return `${days}d ${hours % 24}h`;
+    if (hours > 0) return `${hours}h ${minutes % 60}m`;
+    return `${minutes}m`;
+  };
+
   return (
     <div className="space-y-6">
-      {/* Current Price Banner */}
-      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">{selectedPair} Options</h3>
-              <p className="text-sm text-gray-600">Current Spot Price: ${currentPrice.toFixed(2)}</p>
+      {/* Current Price and Active Trades Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">{selectedPair} Options</h3>
+                <p className="text-sm text-gray-600">Current Spot Price: ${currentPrice.toFixed(2)}</p>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-gray-600">Available Balance</div>
+                <div className="text-lg font-semibold text-gray-900">${(usdtBalance?.available || 0).toFixed(2)} USDT</div>
+              </div>
             </div>
-            <div className="text-right">
-              <div className="text-sm text-gray-600">Available Balance</div>
-              <div className="text-lg font-semibold text-gray-900">${(usdtBalance?.available || 0).toFixed(2)} USDT</div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Active Trades</h3>
+                <p className="text-sm text-gray-600">{activeTrades.length} open positions</p>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-gray-600">Total P&L</div>
+                <div className={`text-lg font-semibold ${getTotalPnL() >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  ${getTotalPnL().toFixed(2)}
+                </div>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+            {activeTrades.length > 0 && (
+              <Button
+                onClick={() => setShowActiveTradesModal(true)}
+                className="mt-2 w-full bg-green-600 hover:bg-green-700 text-white"
+                size="sm"
+              >
+                View Active Trades
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Options Table */}
       <Card>
@@ -235,13 +290,24 @@ const OptionTable = ({ selectedPair }: OptionTableProps) => {
 
       {/* Trade Modal */}
       {showTradeModal && selectedContract && (
-        <Card className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold mb-4">
-              Open {selectedContract.type.toUpperCase()} Option
-            </h3>
-            
-            <div className="space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">
+                  Open {selectedContract.type.toUpperCase()} Option
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowTradeModal(false)}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-gray-600">Strike Price:</span>
@@ -264,7 +330,7 @@ const OptionTable = ({ selectedPair }: OptionTableProps) => {
               </div>
 
               <div>
-                <Label htmlFor="amount">Contracts</Label>
+                <Label htmlFor="amount">Number of Contracts</Label>
                 <Input
                   id="amount"
                   type="number"
@@ -316,9 +382,91 @@ const OptionTable = ({ selectedPair }: OptionTableProps) => {
                   Open Trade
                 </Button>
               </div>
-            </div>
-          </div>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Active Trades Modal */}
+      {showActiveTradesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <Card className="w-full max-w-4xl mx-4 max-h-[80vh] overflow-hidden">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Active Option Trades</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowActiveTradesModal(false)}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="overflow-y-auto">
+              {activeTrades.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No active trades
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {activeTrades.map((trade) => (
+                    <div key={trade.id} className="border rounded-lg p-4 bg-gray-50">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center space-x-2">
+                          <Badge variant={trade.type === 'call' ? 'default' : 'destructive'}>
+                            {trade.type.toUpperCase()}
+                          </Badge>
+                          <span className="font-semibold">${trade.strikePrice}</span>
+                          <span className="text-sm text-gray-500">
+                            {trade.contracts} contracts
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <div className={`font-semibold ${trade.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            ${trade.pnl.toFixed(2)}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {trade.isInMoney ? 'In the Money' : 'Out of Money'}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm mb-3">
+                        <div>
+                          <span className="text-gray-600">Open Price:</span>
+                          <div>${trade.openPrice.toFixed(2)}</div>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Current Price:</span>
+                          <div>${trade.currentPrice.toFixed(2)}</div>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Premium Paid:</span>
+                          <div>${trade.totalCost.toFixed(2)}</div>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Time Left:</span>
+                          <div>{formatTimeRemaining(trade.expiryTime)}</div>
+                        </div>
+                      </div>
+                      
+                      <Button
+                        onClick={() => handleCloseTrade(trade.id)}
+                        size="sm"
+                        variant="outline"
+                        className="w-full"
+                      >
+                        Close Position
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );
