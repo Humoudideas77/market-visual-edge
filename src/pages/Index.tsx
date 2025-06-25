@@ -42,7 +42,7 @@ const Index = () => {
         <div className="container-responsive max-w-6xl">
           <div className="text-center mb-6 sm:mb-8 lg:mb-10">
             <h2 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-900 mb-3 sm:mb-4 leading-tight px-2">
-              Contact <span className="text-red-600">MexcCrypto</span>
+              Contact <span className="text-red-600">MecCrypto</span>
             </h2>
             <p className="text-sm sm:text-base lg:text-lg xl:text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed px-3">
               Have questions about trading, need technical support, or want to learn more about our platform? 
@@ -115,7 +115,7 @@ const Index = () => {
             <div className="text-center sm:text-left">
               <div className="flex items-center justify-center sm:justify-start space-x-2 mb-3 sm:mb-4">
                 <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-br from-red-600 to-red-700 rounded"></div>
-                <span className="text-base sm:text-lg font-bold text-white">MexcCrypto</span>
+                <span className="text-base sm:text-lg font-bold text-white">MecCrypto</span>
               </div>
               <p className="text-gray-300 text-xs sm:text-sm leading-relaxed">
                 The world's leading cryptocurrency exchange platform with advanced trading features.
@@ -170,7 +170,7 @@ const Index = () => {
                   </>
                 ) : (
                   <>
-                    <li><Link to="/auth" className="hover:text-white transition-colors">Sign In</Link></li>
+                    <li><Link to="/auth" className="hover:text-white transition-colors">Login</Link></li>
                     <li><Link to="/auth" className="hover:text-white transition-colors">Create Account</Link></li>
                   </>
                 )}
@@ -181,7 +181,7 @@ const Index = () => {
           
           <div className="border-t border-gray-700 mt-6 sm:mt-8 pt-4 sm:pt-6 flex flex-col md:flex-row justify-between items-center space-y-3 md:space-y-0">
             <div className="text-gray-400 text-xs sm:text-sm text-center md:text-left">
-              © 2024 MexcCrypto. All rights reserved.
+              © 2024 MecCrypto. All rights reserved.
             </div>
             <div className="flex items-center space-x-3 sm:space-x-4">
               <div className="flex items-center space-x-2 text-xs text-gray-400">
@@ -203,4 +203,3 @@ const Index = () => {
 };
 
 export default Index;
-

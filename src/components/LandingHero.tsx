@@ -141,4 +141,3 @@ const LandingHero = () => {
 };
 
 export default LandingHero;
-

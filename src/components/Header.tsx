@@ -91,7 +91,7 @@ const Header = () => {
           <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-500 to-red-500 rounded-lg flex items-center justify-center shadow-lg">
             <span className="text-white font-bold text-xs sm:text-sm">MC</span>
           </div>
-          <span className="text-base sm:text-xl font-bold text-white">MexcCrypto</span>
+          <span className="text-base sm:text-xl font-bold text-white">MecCrypto</span>
         </Link>
       </div>
 
@@ -198,7 +198,7 @@ const Header = () => {
             <div className="hidden sm:flex items-center space-x-2">
               <Link to="/auth">
                 <button className="px-4 py-2 text-white border border-gray-600 rounded-md hover:bg-gray-800 transition-colors text-sm">
-                  Log In
+                  Login
                 </button>
               </Link>
               <Link to="/auth">
@@ -212,7 +212,7 @@ const Header = () => {
             <div className="flex sm:hidden items-center space-x-1">
               <Link to="/auth">
                 <button className="px-3 py-2 text-white border border-gray-600 rounded-md hover:bg-gray-800 transition-colors text-xs">
-                  Log In
+                  Login
                 </button>
               </Link>
               <Link to="/auth">

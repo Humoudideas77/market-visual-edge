@@ -273,7 +273,7 @@ const AuthPage = () => {
                     value="signin" 
                     className="data-[state=active]:bg-exchange-blue data-[state=active]:text-white font-medium"
                   >
-                    Sign In
+                    Login
                   </TabsTrigger>
                   <TabsTrigger 
                     value="signup"
@@ -319,7 +319,7 @@ const AuthPage = () => {
                       className="w-full bg-exchange-blue hover:bg-exchange-blue/90 text-white py-3 text-lg font-medium"
                       disabled={loading}
                     >
-                      {loading ? 'Signing In...' : 'Sign In to MecCrypto'}
+                      {loading ? 'Signing In...' : 'Login to MecCrypto'}
                     </Button>
                   </form>
                 </TabsContent>
