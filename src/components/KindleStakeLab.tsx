@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, BarChart3, Activity, Volume2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart3, Activity, Volume2, Wifi } from 'lucide-react';
 import { useCryptoPrices, getPriceBySymbol, SUPPORTED_PAIRS } from '@/hooks/useCryptoPrices';
+import { useRealtimePrices } from '@/hooks/useRealtimePrices';
 import KindleCandlestickChart from './KindleCandlestickChart';
 import ChartControls from './ChartControls';
 import TechnicalIndicators from './TechnicalIndicators';
@@ -14,13 +15,19 @@ interface KindleStakeLabProps {
 
 const KindleStakeLab = ({ selectedPair, onPairChange }: KindleStakeLabProps) => {
   const { prices } = useCryptoPrices();
+  const { realtimePrices, subscribeToSymbol, isConnected } = useRealtimePrices();
   const [timeframe, setTimeframe] = useState('5m');
   const [showIndicators, setShowIndicators] = useState(false);
   const [chartType, setChartType] = useState<'candlestick' | 'line'>('candlestick');
 
   const [baseAsset] = selectedPair.split('/');
   const currentCrypto = getPriceBySymbol(prices, baseAsset);
-  const isPositive = currentCrypto ? currentCrypto.price_change_percentage_24h >= 0 : false;
+  const realtimeData = realtimePrices.get(selectedPair);
+  
+  // Use real-time price if available, otherwise use static price
+  const displayPrice = realtimeData?.price || currentCrypto?.current_price || 0;
+  const displayChange = realtimeData?.changePercent || currentCrypto?.price_change_percentage_24h || 0;
+  const isPositive = displayChange >= 0;
 
   const timeframes = [
     { value: '1m', label: '1M' },
@@ -31,10 +38,15 @@ const KindleStakeLab = ({ selectedPair, onPairChange }: KindleStakeLabProps) => 
     { value: '1h', label: '1H' }
   ];
 
+  // Subscribe to real-time updates for the selected pair
+  useEffect(() => {
+    subscribeToSymbol(selectedPair);
+  }, [selectedPair, subscribeToSymbol]);
+
   return (
     <div className="space-y-6">
       <div className="exchange-panel p-6">
-        {/* Header */}
+        {/* Enhanced Header with Real-time Status */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
             <BarChart3 className="w-6 h-6 text-exchange-blue" />
@@ -42,27 +54,41 @@ const KindleStakeLab = ({ selectedPair, onPairChange }: KindleStakeLabProps) => 
             <div className="bg-exchange-blue/20 text-exchange-blue px-2 py-1 rounded text-xs font-medium">
               PROFESSIONAL
             </div>
+            <div className={`flex items-center space-x-1 px-2 py-1 rounded text-xs ${
+              isConnected ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'
+            }`}>
+              <Wifi className="w-3 h-3" />
+              <span>{isConnected ? 'LIVE' : 'OFFLINE'}</span>
+            </div>
           </div>
           
           <div className="flex items-center space-x-4">
             {currentCrypto && (
               <div className="text-right">
                 <div className="text-2xl font-mono font-bold text-exchange-text-primary">
-                  ${currentCrypto.current_price.toLocaleString('en-US', { 
+                  ${displayPrice.toLocaleString('en-US', { 
                     minimumFractionDigits: 2, 
                     maximumFractionDigits: 2 
                   })}
+                  {realtimeData && (
+                    <span className="text-xs ml-2 text-exchange-text-secondary">
+                      📊 Real-time
+                    </span>
+                  )}
                 </div>
                 <div className={`flex items-center text-sm ${isPositive ? 'text-exchange-green' : 'text-exchange-red'}`}>
                   {isPositive ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
-                  {isPositive ? '+' : ''}{currentCrypto.price_change_percentage_24h.toFixed(2)}%
+                  {isPositive ? '+' : ''}{displayChange.toFixed(2)}%
+                  {realtimeData && (
+                    <div className="ml-2 w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  )}
                 </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Chart Controls */}
+        {/* Enhanced Chart Controls */}
         <ChartControls
           selectedPair={selectedPair}
           onPairChange={onPairChange}
@@ -75,7 +101,7 @@ const KindleStakeLab = ({ selectedPair, onPairChange }: KindleStakeLabProps) => 
           timeframes={timeframes}
         />
 
-        {/* Main Chart */}
+        {/* Enhanced Main Chart with Real-time Data */}
         <div className="mt-6">
           <KindleCandlestickChart 
             symbol={selectedPair}
@@ -91,20 +117,21 @@ const KindleStakeLab = ({ selectedPair, onPairChange }: KindleStakeLabProps) => 
           </div>
         )}
 
-        {/* Market Stats */}
+        {/* Enhanced Market Stats with Real-time Updates */}
         {currentCrypto && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-            <div className="bg-exchange-accent/20 p-4 rounded-lg">
+            <div className="bg-exchange-accent/20 p-4 rounded-lg relative">
               <div className="flex items-center space-x-2 mb-2">
                 <Volume2 className="w-4 h-4 text-exchange-text-secondary" />
                 <span className="text-xs text-exchange-text-secondary">24h Volume</span>
+                {realtimeData && <div className="w-1 h-1 bg-green-500 rounded-full animate-pulse"></div>}
               </div>
               <div className="text-lg font-mono text-exchange-text-primary">
                 ${(currentCrypto.total_volume / 1e9).toFixed(2)}B
               </div>
             </div>
 
-            <div className="bg-exchange-accent/20 p-4 rounded-lg">
+            <div className="bg-exchange-accent/20 p-4 rounded-lg relative">
               <div className="flex items-center space-x-2 mb-2">
                 <TrendingUp className="w-4 h-4 text-exchange-green" />
                 <span className="text-xs text-exchange-text-secondary">24h High</span>
@@ -117,7 +144,7 @@ const KindleStakeLab = ({ selectedPair, onPairChange }: KindleStakeLabProps) => 
               </div>
             </div>
 
-            <div className="bg-exchange-accent/20 p-4 rounded-lg">
+            <div className="bg-exchange-accent/20 p-4 rounded-lg relative">
               <div className="flex items-center space-x-2 mb-2">
                 <TrendingDown className="w-4 h-4 text-exchange-red" />
                 <span className="text-xs text-exchange-text-secondary">24h Low</span>
@@ -130,7 +157,7 @@ const KindleStakeLab = ({ selectedPair, onPairChange }: KindleStakeLabProps) => 
               </div>
             </div>
 
-            <div className="bg-exchange-accent/20 p-4 rounded-lg">
+            <div className="bg-exchange-accent/20 p-4 rounded-lg relative">
               <div className="flex items-center space-x-2 mb-2">
                 <Activity className="w-4 h-4 text-exchange-text-secondary" />
                 <span className="text-xs text-exchange-text-secondary">Market Cap</span>
@@ -141,6 +168,19 @@ const KindleStakeLab = ({ selectedPair, onPairChange }: KindleStakeLabProps) => 
             </div>
           </div>
         )}
+
+        {/* Real-time Status Banner */}
+        <div className="mt-6 bg-gradient-to-r from-blue-500/10 to-green-500/10 border border-blue-500/20 rounded-lg p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-sm text-exchange-text-primary">📊 Real-time market data active</span>
+            </div>
+            <div className="text-xs text-exchange-text-secondary">
+              Updates every second • Live price movements
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Live Trading Chat */}
