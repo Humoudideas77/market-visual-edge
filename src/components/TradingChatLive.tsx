@@ -60,7 +60,7 @@ const TradingChatLive = () => {
       }
 
       if (data) {
-        setMessages(data);
+        setMessages(data as ChatMessage[]);
       }
     } catch (error) {
       console.error('Error in fetchMessages:', error);
@@ -200,7 +200,7 @@ const TradingChatLive = () => {
       <div className="flex space-x-2">
         <Input
           value={newMessage}
-          onChange={(e) => setNewMessage(e.target.Value)}
+          onChange={(e) => setNewMessage(e.target.value)}
           onKeyPress={handleKeyPress}
           placeholder={user ? "Type your message..." : "Please log in to chat"}
           disabled={!user || isLoading}
