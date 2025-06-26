@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle, X, Send, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
@@ -26,6 +26,10 @@ const MecBot = () => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);
+  const [newMessage, setNewMessage] = useState('');
+  const [isInConversation, setIsInConversation] = useState(false);
+  const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -42,6 +46,15 @@ const MecBot = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [processedReplies, setProcessedReplies] = useState<Set<string>>(new Set());
+
+  // Auto-scroll to bottom when new messages arrive
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   // Set up real-time subscription for admin replies
   useEffect(() => {
@@ -82,6 +95,8 @@ const MecBot = () => {
 
             setMessages(prev => [...prev, adminReplyMessage]);
             setProcessedReplies(prev => new Set([...prev, messageId]));
+            setIsInConversation(true);
+            setCurrentMessageId(messageId);
 
             // Show notification when bot is closed
             if (!isOpen) {
@@ -134,9 +149,14 @@ const MecBot = () => {
             return [...prev, ...newMessages];
           });
 
-          // Mark these as processed
+          // Mark these as processed and set conversation state
           const processedIds = existingMessages.map(msg => msg.id);
           setProcessedReplies(prev => new Set([...prev, ...processedIds]));
+          
+          if (existingMessages.length > 0) {
+            setIsInConversation(true);
+            setCurrentMessageId(existingMessages[existingMessages.length - 1].id);
+          }
         }
       } catch (error) {
         console.error('Error loading existing admin replies:', error);
@@ -210,6 +230,91 @@ const MecBot = () => {
     setMessages(prev => [...prev, userMessage, botResponse]);
   };
 
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !user) return;
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      text: newMessage,
+      isBot: false,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setNewMessage('');
+
+    try {
+      // If this is a follow-up message to an existing conversation
+      if (isInConversation && currentMessageId) {
+        // Update the existing message with the follow-up
+        const { error } = await supabase
+          .from('customer_messages')
+          .update({
+            message: `${newMessage}\n\n--- Follow-up message ---\n\n${newMessage}`,
+            status: 'open',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', currentMessageId);
+
+        if (error) {
+          console.error('Error updating message:', error);
+          toast.error('Failed to send message. Please try again.');
+          return;
+        }
+
+        toast.success('Message sent to admin!');
+        
+        const confirmationMessage: Message = {
+          id: Date.now().toString(),
+          text: "Your message has been sent to our support team! They'll reply shortly.",
+          isBot: true,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, confirmationMessage]);
+      } else {
+        // Send as new message through the edge function
+        const { data, error } = await supabase.functions.invoke('send-contact-email', {
+          body: {
+            firstName: user.user_metadata?.first_name || 'User',
+            lastName: user.user_metadata?.last_name || '',
+            email: user.email,
+            message: `MexcCrypto Bot Direct Message:\n\n${newMessage}`,
+            userId: user.id
+          }
+        });
+
+        if (error) {
+          console.error('Error sending message:', error);
+          toast.error('Failed to send message. Please try again.');
+          return;
+        }
+
+        if (data?.success) {
+          toast.success('Message sent to support team!');
+          setIsInConversation(true);
+          
+          const confirmationMessage: Message = {
+            id: Date.now().toString(),
+            text: "Your message has been sent to our support team! They'll reply shortly and you'll see it here in real-time.",
+            isBot: true,
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, confirmationMessage]);
+        }
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error('An error occurred. Please try again.');
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
   const handleContactFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setContactForm(prev => ({
@@ -232,7 +337,6 @@ const MecBot = () => {
     try {
       console.log('Submitting MexcCrypto support request:', contactForm);
 
-      // Call the same edge function used by the main contact form
       const { data, error } = await supabase.functions.invoke('send-contact-email', {
         body: {
           firstName: contactForm.firstName,
@@ -258,8 +362,8 @@ const MecBot = () => {
           email: user?.email || '',
           message: ''
         });
+        setIsInConversation(true);
 
-        // Add confirmation message to chat
         const confirmationMessage: Message = {
           id: Date.now().toString(),
           text: "Your message has been sent to our support team! We'll get back to you via email and you'll see the reply here in real-time.",
@@ -277,17 +381,6 @@ const MecBot = () => {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleNeedMoreHelp = () => {
-    const botMessage: Message = {
-      id: Date.now().toString(),
-      text: "Would you like to submit your query to our support team?",
-      isBot: true,
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev, botMessage]);
-    setShowContactForm(true);
   };
 
   if (!isOpen) {
@@ -314,7 +407,9 @@ const MecBot = () => {
             </div>
             <div>
               <h3 className="font-semibold">MexcCrypto Bot</h3>
-              <p className="text-xs opacity-90">Online</p>
+              <p className="text-xs opacity-90">
+                {isInConversation ? 'Live Support' : 'Online'}
+              </p>
             </div>
           </div>
           <Button
@@ -359,8 +454,8 @@ const MecBot = () => {
             </div>
           ))}
 
-          {/* Quick Reply Buttons */}
-          {messages.length === 1 && (
+          {/* Quick Reply Buttons - only show initially */}
+          {messages.length === 1 && !isInConversation && (
             <div className="space-y-2">
               {quickReplies.map((reply) => (
                 <Button
@@ -376,20 +471,46 @@ const MecBot = () => {
             </div>
           )}
 
-          {/* Need More Help Button */}
-          {messages.length > 2 && !showContactForm && (
-            <div className="text-center">
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Message Input - Show when in conversation or after initial interaction */}
+        {(isInConversation || messages.length > 1) && (
+          <div className="p-4 border-t border-exchange-border">
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Type your message..."
+                className="flex-1 px-3 py-2 bg-exchange-accent border border-exchange-border rounded text-exchange-text-primary placeholder-exchange-text-secondary focus:outline-none focus:ring-2 focus:ring-exchange-blue text-sm"
+              />
               <Button
-                variant="outline"
+                onClick={handleSendMessage}
+                disabled={!newMessage.trim()}
                 size="sm"
-                onClick={handleNeedMoreHelp}
-                className="border-exchange-border hover:bg-exchange-accent"
+                className="bg-exchange-blue hover:bg-exchange-blue/90 px-3"
               >
-                Need more help?
+                <Send className="w-4 h-4" />
               </Button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {/* Contact Support Button - show when not in conversation */}
+        {!isInConversation && messages.length > 2 && (
+          <div className="p-4 border-t border-exchange-border">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowContactForm(true)}
+              className="w-full border-exchange-border hover:bg-exchange-accent"
+            >
+              Contact Support Team
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Contact Form Modal */}
