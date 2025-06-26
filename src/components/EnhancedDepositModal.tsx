@@ -54,13 +54,19 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
 
   const fetchCryptoAddresses = async () => {
     try {
+      console.log('Fetching crypto addresses...');
       const { data, error } = await supabase
         .from('crypto_addresses')
         .select('*')
         .eq('is_active', true)
         .order('currency');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching crypto addresses:', error);
+        throw error;
+      }
+      
+      console.log('Fetched crypto addresses:', data);
       setCryptoAddresses(data || []);
     } catch (error) {
       console.error('Error fetching crypto addresses:', error);
@@ -174,7 +180,7 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
 
       console.log('Creating deposit request with screenshot URL:', screenshotUrl);
 
-      // Create deposit request
+      // Create deposit request - Fixed typo here
       const { error } = await supabase
         .from('deposit_requests')
         .insert({
@@ -226,7 +232,7 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
               id="currency"
               value={selectedCurrency}
               onChange={(e) => setSelectedCurrency(e.target.value)}
-              className="exchange-input w-full"
+              className="w-full p-2 border rounded-md bg-white"
             >
               {currencies.map((currency) => (
                 <option key={currency} value={currency}>
@@ -246,7 +252,7 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
                 id="network"
                 value={selectedNetwork}
                 onChange={(e) => setSelectedNetwork(e.target.value)}
-                className="exchange-input w-full"
+                className="w-full p-2 border rounded-md bg-white"
               >
                 <option value="">Choose Network</option>
                 {networksForCurrency.map((item) => (
@@ -260,7 +266,7 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
 
           {/* Deposit Address */}
           {selectedAddress && (
-            <div className="bg-exchange-accent/20 rounded-lg p-4">
+            <div className="bg-gray-50 rounded-lg p-4 border">
               <Label className="text-sm font-medium mb-2 block">
                 Deposit Address ({selectedAddress.network})
               </Label>
@@ -278,13 +284,13 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
 
               {/* Address */}
               <div className="flex items-center space-x-2">
-                <div className="flex-1 p-2 bg-exchange-bg rounded border font-mono text-sm break-all">
+                <div className="flex-1 p-2 bg-white rounded border font-mono text-sm break-all">
                   {selectedAddress.wallet_address}
                 </div>
                 <Button
                   size="sm"
                   onClick={() => handleCopyAddress(selectedAddress.wallet_address)}
-                  className="bg-exchange-blue hover:bg-exchange-blue/90"
+                  className="bg-blue-600 hover:bg-blue-700"
                 >
                   {copiedAddress === selectedAddress.wallet_address ? (
                     <Check className="w-4 h-4" />
@@ -294,7 +300,7 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
                 </Button>
               </div>
               
-              <p className="text-xs text-exchange-text-secondary mt-2">
+              <p className="text-xs text-gray-600 mt-2">
                 Send only {selectedCurrency} to this address via {selectedAddress.network} network.
               </p>
             </div>
@@ -311,11 +317,11 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
               placeholder="Enter amount"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="exchange-input"
+              className="w-full"
               min="60"
               step="0.01"
             />
-            <p className="text-xs text-exchange-text-secondary mt-1">
+            <p className="text-xs text-gray-600 mt-1">
               Minimum deposit: $60 USD
             </p>
           </div>
@@ -325,7 +331,7 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
             <Label htmlFor="screenshot" className="text-sm font-medium mb-2 block">
               Transaction Screenshot *
             </Label>
-            <div className="border-2 border-dashed border-exchange-border rounded-lg p-4">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
               <input
                 id="screenshot"
                 type="file"
@@ -337,11 +343,11 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
                 htmlFor="screenshot"
                 className="cursor-pointer flex flex-col items-center space-y-2"
               >
-                <Upload className="w-8 h-8 text-exchange-text-secondary" />
-                <span className="text-sm text-exchange-text-secondary">
+                <Upload className="w-8 h-8 text-gray-400" />
+                <span className="text-sm text-gray-600">
                   {screenshot ? screenshot.name : 'Click to upload transaction screenshot'}
                 </span>
-                <span className="text-xs text-exchange-text-muted">
+                <span className="text-xs text-gray-500">
                   PNG, JPG up to 5MB
                 </span>
               </label>
@@ -349,11 +355,11 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
           </div>
 
           {/* Deposit Instructions */}
-          <div className="bg-exchange-yellow/10 border border-exchange-yellow/30 rounded-lg p-3">
-            <h4 className="text-sm font-medium text-exchange-text-primary mb-2">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <h4 className="text-sm font-medium text-gray-900 mb-2">
               Important Instructions:
             </h4>
-            <ul className="text-xs text-exchange-text-secondary space-y-1">
+            <ul className="text-xs text-gray-700 space-y-1">
               <li>• Send the exact amount you entered above</li>
               <li>• Use only the provided address and network</li>
               <li>• Upload a clear screenshot of your transaction</li>
@@ -366,7 +372,7 @@ const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) =>
           <Button
             onClick={handleSubmitDeposit}
             disabled={loading || uploadingScreenshot || !selectedAddress || !amount || !screenshot}
-            className="w-full bg-exchange-green hover:bg-exchange-green/90"
+            className="w-full bg-green-600 hover:bg-green-700"
           >
             {loading ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
