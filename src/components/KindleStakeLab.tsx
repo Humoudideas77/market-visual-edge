@@ -30,12 +30,12 @@ const KindleStakeLab = ({ selectedPair, onPairChange }: KindleStakeLabProps) => 
   const isPositive = displayChange >= 0;
 
   const timeframes = [
-    { value: '1m', label: '1M' },
-    { value: '2m', label: '2M' },
-    { value: '5m', label: '5M' },
-    { value: '15m', label: '15M' },
-    { value: '30m', label: '30M' },
-    { value: '1h', label: '1H' }
+    { value: '1s', label: '1s' },
+    { value: '15m', label: '15m' },
+    { value: '1h', label: '1H' },
+    { value: '4h', label: '4H' },
+    { value: '1d', label: '1D' },
+    { value: '1w', label: '1W' }
   ];
 
   // Subscribe to real-time updates for the selected pair
@@ -46,7 +46,7 @@ const KindleStakeLab = ({ selectedPair, onPairChange }: KindleStakeLabProps) => 
   return (
     <div className="space-y-6">
       <div className="exchange-panel p-6">
-        {/* Enhanced Header with Real-time Status */}
+        {/* Header with corrected name */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
             <BarChart3 className="w-6 h-6 text-exchange-blue" />
@@ -88,7 +88,40 @@ const KindleStakeLab = ({ selectedPair, onPairChange }: KindleStakeLabProps) => 
           </div>
         </div>
 
-        {/* Enhanced Chart Controls */}
+        {/* Professional Chart Navigation */}
+        <div className="flex items-center justify-between mb-4 p-3 bg-gray-900/50 rounded-lg border border-gray-700">
+          <div className="flex space-x-6">
+            <button className="text-yellow-400 text-sm font-medium border-b-2 border-yellow-400 pb-1">
+              Chart
+            </button>
+            <button className="text-gray-400 text-sm font-medium hover:text-white transition-colors">
+              Info
+            </button>
+            <button className="text-gray-400 text-sm font-medium hover:text-white transition-colors">
+              Trading Data
+            </button>
+            <button className="text-gray-400 text-sm font-medium hover:text-white transition-colors">
+              Trading Analysis
+            </button>
+            <button className="text-gray-400 text-sm font-medium hover:text-white transition-colors">
+              Square
+            </button>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button className="text-gray-400 hover:text-white">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
+              </svg>
+            </button>
+            <button className="text-gray-400 hover:text-white">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M3 4a1 1 0 000 2h.01a1 1 0 100-2H3zM6 4a1 1 0 011-1h8a1 1 0 110 2H7a1 1 0 01-1-1zM3 10a1 1 0 100 2h.01a1 1 0 100-2H3zM6 10a1 1 0 011-1h8a1 1 0 110 2H7a1 1 0 01-1-1zM3 16a1 1 0 100 2h.01a1 1 0 100-2H3zM6 16a1 1 0 011-1h8a1 1 0 110 2H7a1 1 0 01-1-1z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Chart Controls */}
         <ChartControls
           selectedPair={selectedPair}
           onPairChange={onPairChange}
@@ -101,8 +134,8 @@ const KindleStakeLab = ({ selectedPair, onPairChange }: KindleStakeLabProps) => 
           timeframes={timeframes}
         />
 
-        {/* Enhanced Main Chart with Real-time Data */}
-        <div className="mt-6">
+        {/* Professional Trading Chart */}
+        <div className="mt-6 bg-gray-900/30 rounded-lg border border-gray-700">
           <KindleCandlestickChart 
             symbol={selectedPair}
             timeframe={timeframe}
@@ -117,7 +150,7 @@ const KindleStakeLab = ({ selectedPair, onPairChange }: KindleStakeLabProps) => 
           </div>
         )}
 
-        {/* Enhanced Market Stats with Real-time Updates */}
+        {/* Market Stats */}
         {currentCrypto && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
             <div className="bg-exchange-accent/20 p-4 rounded-lg relative">
