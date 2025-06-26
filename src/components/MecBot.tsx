@@ -41,6 +41,7 @@ const MecBot = () => {
     message: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [processedReplies, setProcessedReplies] = useState<Set<string>>(new Set());
 
   // Set up real-time subscription for admin replies
   useEffect(() => {
@@ -62,24 +63,25 @@ const MecBot = () => {
           console.log('MecBot received admin reply:', payload);
           
           const updatedMessage = payload.new;
+          const messageId = updatedMessage.id;
           
-          // Check if this is a new admin reply
-          if (updatedMessage.admin_reply && updatedMessage.status === 'replied') {
+          // Check if this is a new admin reply and we haven't processed it yet
+          if (updatedMessage.admin_reply && 
+              updatedMessage.status === 'replied' && 
+              !processedReplies.has(messageId)) {
+            
+            console.log('Processing new admin reply:', updatedMessage.admin_reply);
+            
             const adminReplyMessage: Message = {
-              id: `admin-reply-${updatedMessage.id}`,
-              text: `📧 Admin Response: ${updatedMessage.admin_reply}`,
+              id: `admin-reply-${messageId}`,
+              text: updatedMessage.admin_reply,
               isBot: true,
               isAdminReply: true,
               timestamp: new Date()
             };
 
-            setMessages(prev => {
-              // Check if we already have this admin reply to avoid duplicates
-              const existingReply = prev.find(msg => msg.id === adminReplyMessage.id);
-              if (existingReply) return prev;
-              
-              return [...prev, adminReplyMessage];
-            });
+            setMessages(prev => [...prev, adminReplyMessage]);
+            setProcessedReplies(prev => new Set([...prev, messageId]));
 
             // Show notification when bot is closed
             if (!isOpen) {
@@ -96,7 +98,53 @@ const MecBot = () => {
       console.log('Cleaning up MecBot admin reply subscription');
       supabase.removeChannel(channel);
     };
-  }, [user, isOpen]);
+  }, [user, isOpen, processedReplies]);
+
+  // Load existing admin replies when component mounts
+  useEffect(() => {
+    const loadExistingReplies = async () => {
+      if (!user) return;
+
+      try {
+        const { data: existingMessages, error } = await supabase
+          .from('customer_messages')
+          .select('*')
+          .eq('user_id', user.id)
+          .not('admin_reply', 'is', null)
+          .eq('status', 'replied')
+          .order('created_at', { ascending: true });
+
+        if (error) {
+          console.error('Error loading existing admin replies:', error);
+          return;
+        }
+
+        if (existingMessages && existingMessages.length > 0) {
+          const adminMessages: Message[] = existingMessages.map(msg => ({
+            id: `admin-reply-${msg.id}`,
+            text: msg.admin_reply,
+            isBot: true,
+            isAdminReply: true,
+            timestamp: new Date(msg.updated_at)
+          }));
+
+          setMessages(prev => {
+            const existingIds = new Set(prev.map(m => m.id));
+            const newMessages = adminMessages.filter(m => !existingIds.has(m.id));
+            return [...prev, ...newMessages];
+          });
+
+          // Mark these as processed
+          const processedIds = existingMessages.map(msg => msg.id);
+          setProcessedReplies(prev => new Set([...prev, ...processedIds]));
+        }
+      } catch (error) {
+        console.error('Error loading existing admin replies:', error);
+      }
+    };
+
+    loadExistingReplies();
+  }, [user]);
 
   const quickReplies = [
     { id: 'deposit', text: 'How to deposit?', action: 'deposit' },
@@ -290,15 +338,21 @@ const MecBot = () => {
                 className={`max-w-[80%] p-3 rounded-lg text-sm ${
                   message.isBot
                     ? message.isAdminReply 
-                      ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30 relative'
                       : 'bg-exchange-accent text-exchange-text-primary'
                     : 'bg-exchange-blue text-white'
                 }`}
               >
-                {message.text}
                 {message.isAdminReply && (
-                  <div className="text-xs mt-1 opacity-75">
-                    Real-time admin response
+                  <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-blue-400">
+                    <User className="w-3 h-3" />
+                    Admin Reply
+                  </div>
+                )}
+                <div className="whitespace-pre-wrap">{message.text}</div>
+                {message.isAdminReply && (
+                  <div className="text-xs mt-2 opacity-75 text-blue-400">
+                    Live response • {message.timestamp.toLocaleTimeString()}
                   </div>
                 )}
               </div>
@@ -435,7 +489,7 @@ const MecBot = () => {
                   <>
                     <Send className="w-4 h-4 mr-2" />
                     Send Message
-                  </>
+                  </Button>
                 )}
               </Button>
             </div>
