@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, MessageCircle, Users } from 'lucide-react';
+import { MessageCircle, Send, Users } from 'lucide-react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -18,258 +20,207 @@ const TradingChatLive = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [onlineUsers, setOnlineUsers] = useState(0);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatChannel = useRef<any>(null);
-
-  // Demo messages for immediate functionality
-  const demoMessages: ChatMessage[] = [
-    {
-      id: '1',
-      user_id: 'demo1',
-      username: 'CryptoTrader88',
-      message: 'BTC looking bullish today! 🚀',
-      created_at: new Date(Date.now() - 300000).toISOString(),
-    },
-    {
-      id: '2',
-      user_id: 'demo2',
-      username: 'DiamondHands',
-      message: 'ETH breaking resistance levels',
-      created_at: new Date(Date.now() - 240000).toISOString(),
-    },
-    {
-      id: '3',
-      user_id: 'demo3',
-      username: 'TechnicalAnalyst',
-      message: 'Watch for the golden cross pattern on the 4H chart',
-      created_at: new Date(Date.now() - 180000).toISOString(),
-    },
-    {
-      id: '4',
-      user_id: 'demo4',
-      username: 'MoonBoy',
-      message: 'HODL strong! 💎🙌',
-      created_at: new Date(Date.now() - 120000).toISOString(),
-    },
-  ];
-
-  useEffect(() => {
-    // Initialize with demo messages
-    setMessages(demoMessages);
-    setOnlineUsers(Math.floor(Math.random() * 500) + 100);
-
-    // Set up real-time chat if user is authenticated
-    if (user) {
-      setupRealTimeChat();
-      loadChatHistory();
-    }
-
-    // Simulate live user count updates
-    const userCountInterval = setInterval(() => {
-      setOnlineUsers(prev => {
-        const change = Math.floor(Math.random() * 21) - 10; // -10 to +10
-        return Math.max(50, prev + change);
-      });
-    }, 30000); // Update every 30 seconds
-
-    // Add demo messages periodically for demonstration
-    const demoInterval = setInterval(() => {
-      const demoUserMessages = [
-        'Just bought the dip! 📈',
-        'Volume is picking up nicely',
-        'Support holding strong at this level',
-        'Nice breakout happening right now',
-        'Time to take some profits? 🤔',
-        'This market is insane! 🎢',
-        'RSI showing oversold conditions',
-        'Perfect entry point imo',
-      ];
-      
-      const demoUsernames = [
-        'TradingPro', 'CryptoMaster', 'BlockchainBull', 'AltcoinAlpha',
-        'FuturesKing', 'ScalpingGuru', 'HODLStrong', 'DefiDegen'
-      ];
-
-      const randomMessage = demoUserMessages[Math.floor(Math.random() * demoUserMessages.length)];
-      const randomUsername = demoUsernames[Math.floor(Math.random() * demoUsernames.length)];
-
-      const newDemoMessage: ChatMessage = {
-        id: `demo_${Date.now()}`,
-        user_id: `demo_${Math.random()}`,
-        username: randomUsername,
-        message: randomMessage,
-        created_at: new Date().toISOString(),
-      };
-
-      setMessages(prev => [...prev.slice(-19), newDemoMessage]); // Keep last 20 messages
-    }, 15000); // Add new message every 15 seconds
-
-    return () => {
-      clearInterval(userCountInterval);
-      clearInterval(demoInterval);
-      if (chatChannel.current) {
-        supabase.removeChannel(chatChannel.current);
-      }
-    };
-  }, [user]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const setupRealTimeChat = () => {
-    chatChannel.current = supabase
-      .channel('trading-chat')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'trading_chat_messages'
-        },
-        (payload) => {
-          const newMessage = payload.new as ChatMessage;
-          setMessages(prev => [...prev.slice(-19), newMessage]);
-        }
-      )
-      .subscribe();
-  };
-
-  const loadChatHistory = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('trading_chat_messages')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        setMessages(prev => [...data.reverse(), ...prev.slice(-10)]); // Merge with demo messages
-      }
-    } catch (error) {
-      console.error('Error loading chat history:', error);
-    }
-  };
-
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !user) {
-      if (!user) {
-        toast.error('Please sign in to participate in chat');
-        return;
-      }
-      return;
-    }
-
-    try {
-      const username = user.email?.split('@')[0] || 'Anonymous';
-      
-      const { error } = await supabase
-        .from('trading_chat_messages')
-        .insert({
-          user_id: user.id,
-          username: username,
-          message: newMessage.trim(),
-        });
-
-      if (error) throw error;
-
-      setNewMessage('');
-      toast.success('Message sent!');
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast.error('Failed to send message');
-    }
-  };
+  const channelRef = useRef<any>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  useEffect(() => {
+    fetchMessages();
+    setupRealtimeSubscription();
+
+    // Cleanup function
+    return () => {
+      if (channelRef.current) {
+        console.log('Cleaning up chat subscription');
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, []);
+
+  const fetchMessages = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .order('created_at', { ascending: true })
+        .limit(50);
+
+      if (error) {
+        console.error('Error fetching messages:', error);
+        return;
+      }
+
+      if (data) {
+        setMessages(data);
+      }
+    } catch (error) {
+      console.error('Error in fetchMessages:', error);
+    }
+  };
+
+  const setupRealtimeSubscription = () => {
+    // Remove existing channel if it exists
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+    }
+
+    console.log('Setting up chat subscription');
+    
+    try {
+      const channel = supabase
+        .channel('trading-chat')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'chat_messages'
+          },
+          (payload) => {
+            console.log('New message received:', payload);
+            const newMessage = payload.new as ChatMessage;
+            setMessages(prev => [...prev, newMessage]);
+          }
+        )
+        .on('presence', { event: 'sync' }, () => {
+          const state = channel.presenceState();
+          setOnlineUsers(Object.keys(state).length);
+        })
+        .subscribe((status) => {
+          console.log('Chat subscription status:', status);
+        });
+
+      channelRef.current = channel;
+
+      // Track user presence if logged in
+      if (user) {
+        channel.track({
+          user_id: user.id,
+          username: user.email?.split('@')[0] || 'Anonymous'
+        });
+      }
+    } catch (error) {
+      console.error('Error setting up realtime subscription:', error);
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!user) {
+      toast.error('Please log in to send messages');
+      return;
+    }
+
+    if (!newMessage.trim()) {
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const { error } = await supabase
+        .from('chat_messages')
+        .insert({
+          user_id: user.id,
+          username: user.email?.split('@')[0] || 'Anonymous',
+          message: newMessage.trim()
+        });
+
+      if (error) {
+        console.error('Error sending message:', error);
+        toast.error('Failed to send message');
+        return;
+      }
+
+      setNewMessage('');
+    } catch (error) {
+      console.error('Error in sendMessage:', error);
+      toast.error('Failed to send message');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
   };
 
   return (
-    <div className={`bg-exchange-panel border border-exchange-border rounded-lg transition-all duration-300 ${
-      isExpanded ? 'h-96' : 'h-16'
-    }`}>
-      {/* Chat Header */}
-      <div 
-        className="flex items-center justify-between p-3 border-b border-exchange-border cursor-pointer hover:bg-exchange-accent/20"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
+    <div className="bg-exchange-panel border border-exchange-border rounded-lg p-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
-          <MessageCircle className="w-4 h-4 text-exchange-blue" />
-          <span className="text-sm font-medium text-exchange-text-primary">Live Trading Chat</span>
-          <div className="flex items-center space-x-1 text-xs text-exchange-text-secondary">
-            <Users className="w-3 h-3" />
-            <span>{onlineUsers.toLocaleString()} online</span>
-          </div>
+          <MessageCircle className="w-5 h-5 text-exchange-blue" />
+          <h3 className="font-semibold text-exchange-text-primary">Live Trading Chat</h3>
         </div>
-        <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <span className="text-xs text-exchange-text-secondary">
-            {isExpanded ? 'Click to minimize' : 'Click to expand'}
-          </span>
+        <div className="flex items-center space-x-2 text-sm text-exchange-text-secondary">
+          <Users className="w-4 h-4" />
+          <span>{onlineUsers} online</span>
         </div>
       </div>
 
-      {/* Chat Messages */}
-      {isExpanded && (
-        <>
-          <div className="h-64 overflow-y-auto p-3 space-y-2">
-            {messages.map((message) => (
-              <div key={message.id} className="text-sm">
-                <div className="flex items-start space-x-2">
-                  <span className="text-xs text-exchange-text-secondary min-w-[3rem]">
-                    {formatTime(message.created_at)}
-                  </span>
-                  <span className="text-exchange-blue font-medium text-xs min-w-fit">
-                    {message.username}:
-                  </span>
-                  <span className="text-exchange-text-primary text-xs break-words">
-                    {message.message}
-                  </span>
-                </div>
+      {/* Messages */}
+      <div className="h-64 overflow-y-auto mb-4 space-y-2 bg-exchange-accent/10 rounded-lg p-3">
+        {messages.length === 0 ? (
+          <div className="text-center text-exchange-text-secondary text-sm py-8">
+            No messages yet. Start the conversation!
+          </div>
+        ) : (
+          messages.map((message) => (
+            <div key={message.id} className="text-sm">
+              <div className="flex items-start space-x-2">
+                <span className="font-medium text-exchange-blue min-w-0 flex-shrink-0">
+                  {message.username}:
+                </span>
+                <span className="text-exchange-text-primary break-words">
+                  {message.message}
+                </span>
               </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Chat Input */}
-          <div className="p-3 border-t border-exchange-border">
-            <div className="flex space-x-2">
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                placeholder={user ? "Type a message..." : "Sign in to chat"}
-                disabled={!user}
-                className="flex-1 px-3 py-2 bg-exchange-bg border border-exchange-border rounded text-exchange-text-primary placeholder:text-exchange-text-secondary text-sm focus:outline-none focus:ring-1 focus:ring-exchange-blue disabled:opacity-50"
-                maxLength={200}
-              />
-              <button
-                onClick={sendMessage}
-                disabled={!user || !newMessage.trim()}
-                className="px-3 py-2 bg-exchange-blue hover:bg-exchange-blue/90 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm transition-colors"
-              >
-                <Send className="w-4 h-4" />
-              </button>
+              <div className="text-xs text-exchange-text-secondary mt-1">
+                {new Date(message.created_at).toLocaleTimeString()}
+              </div>
             </div>
-            {!user && (
-              <p className="text-xs text-exchange-text-secondary mt-2">
-                Please sign in to participate in the trading chat
-              </p>
-            )}
-          </div>
-        </>
+          ))
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Message Input */}
+      <div className="flex space-x-2">
+        <Input
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.Value)}
+          onKeyPress={handleKeyPress}
+          placeholder={user ? "Type your message..." : "Please log in to chat"}
+          disabled={!user || isLoading}
+          className="flex-1 exchange-input"
+          maxLength={500}
+        />
+        <Button
+          onClick={sendMessage}
+          disabled={!user || !newMessage.trim() || isLoading}
+          size="sm"
+          className="bg-exchange-blue hover:bg-exchange-blue/90"
+        >
+          <Send className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {!user && (
+        <p className="text-xs text-exchange-text-secondary mt-2 text-center">
+          Log in to participate in the chat
+        </p>
       )}
     </div>
   );

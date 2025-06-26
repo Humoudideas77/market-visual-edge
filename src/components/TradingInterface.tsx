@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { TrendingUp, TrendingDown, Clock, CheckCircle, BarChart3, Activity } from 'lucide-react';
@@ -171,10 +170,10 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
           onPairChange={handlePairChange}
         />
 
-        {/* Trading Panel for quick trades */}
+        {/* Trading Panel - Only show once here */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
           <TradingPanel selectedPair={selectedPair} />
-          <TradingChatLive />
+          {/* Chat is already included in KindleStakeLab, so don't duplicate it here */}
         </div>
       </div>
     );
@@ -294,7 +293,7 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
             )}
           </div>
 
-          {/* Live Trading Chat */}
+          {/* Live Trading Chat - Only rendered once here */}
           <TradingChatLive />
         </div>
 
@@ -404,4 +403,3 @@ const TradingInterface = ({ initialPair = 'BTC/USDT' }: TradingInterfaceProps) =
 };
 
 export default TradingInterface;
-
