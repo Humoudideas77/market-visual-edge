@@ -489,7 +489,7 @@ const MecBot = () => {
                   <>
                     <Send className="w-4 h-4 mr-2" />
                     Send Message
-                  </Button>
+                  </>
                 )}
               </Button>
             </div>
