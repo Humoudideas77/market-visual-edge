@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MessageCircle, X, Send, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,6 +12,7 @@ interface Message {
   text: string;
   isBot: boolean;
   timestamp: Date;
+  isAdminReply?: boolean;
 }
 
 interface ContactFormData {
@@ -40,6 +41,62 @@ const MecBot = () => {
     message: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Set up real-time subscription for admin replies
+  useEffect(() => {
+    if (!user) return;
+
+    console.log('Setting up MecBot admin reply subscription for user:', user.id);
+
+    const channel = supabase
+      .channel('mecbot-admin-replies')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'customer_messages',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('MecBot received admin reply:', payload);
+          
+          const updatedMessage = payload.new;
+          
+          // Check if this is a new admin reply
+          if (updatedMessage.admin_reply && updatedMessage.status === 'replied') {
+            const adminReplyMessage: Message = {
+              id: `admin-reply-${updatedMessage.id}`,
+              text: `📧 Admin Response: ${updatedMessage.admin_reply}`,
+              isBot: true,
+              isAdminReply: true,
+              timestamp: new Date()
+            };
+
+            setMessages(prev => {
+              // Check if we already have this admin reply to avoid duplicates
+              const existingReply = prev.find(msg => msg.id === adminReplyMessage.id);
+              if (existingReply) return prev;
+              
+              return [...prev, adminReplyMessage];
+            });
+
+            // Show notification when bot is closed
+            if (!isOpen) {
+              toast.success('📧 New admin reply received! Check MexcCrypto Bot.');
+            }
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('MecBot admin reply subscription status:', status);
+      });
+
+    return () => {
+      console.log('Cleaning up MecBot admin reply subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [user, isOpen]);
 
   const quickReplies = [
     { id: 'deposit', text: 'How to deposit?', action: 'deposit' },
@@ -157,7 +214,7 @@ const MecBot = () => {
         // Add confirmation message to chat
         const confirmationMessage: Message = {
           id: Date.now().toString(),
-          text: "Your message has been sent to our support team! We'll get back to you via email soon.",
+          text: "Your message has been sent to our support team! We'll get back to you via email and you'll see the reply here in real-time.",
           isBot: true,
           timestamp: new Date()
         };
@@ -232,11 +289,18 @@ const MecBot = () => {
               <div
                 className={`max-w-[80%] p-3 rounded-lg text-sm ${
                   message.isBot
-                    ? 'bg-exchange-accent text-exchange-text-primary'
+                    ? message.isAdminReply 
+                      ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                      : 'bg-exchange-accent text-exchange-text-primary'
                     : 'bg-exchange-blue text-white'
                 }`}
               >
                 {message.text}
+                {message.isAdminReply && (
+                  <div className="text-xs mt-1 opacity-75">
+                    Real-time admin response
+                  </div>
+                )}
               </div>
             </div>
           ))}
