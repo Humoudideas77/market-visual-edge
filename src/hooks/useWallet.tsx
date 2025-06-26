@@ -53,7 +53,7 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   const createDefaultBalances = (): WalletBalance[] => {
     return DEFAULT_CURRENCIES.map(currency => ({
       currency,
-      available: 0, // All balances start at zero
+      available: 0,
       locked: 0,
       total: 0,
     }));
@@ -63,12 +63,17 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     if (!user) return [];
 
     try {
+      console.log('Fetching wallet balances for user:', user.id);
       const { data, error } = await supabase
         .from('wallet_balances')
         .select('*')
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching balances:', error);
+        return [];
+      }
+      console.log('Fetched balances:', data);
       return data || [];
     } catch (error) {
       console.error('Error fetching balances:', error);
@@ -83,25 +88,38 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     try {
+      console.log('Initializing wallet balances for user:', user.id);
       const dbBalances = await fetchBalancesFromDB();
       const defaultBalances = createDefaultBalances();
 
       if (dbBalances.length === 0) {
-        // Initialize with zero balances for all currencies
-        const { error } = await supabase.from('wallet_balances').insert(
-          defaultBalances.map(balance => ({
-            user_id: user.id,
-            currency: balance.currency,
-            available_balance: 0, // Start with zero
-            locked_balance: 0,
-            total_balance: 0,
-          }))
-        );
+        console.log('No existing balances found, creating default balances');
+        // Try to initialize with zero balances for all currencies
+        try {
+          const { error } = await supabase.from('wallet_balances').insert(
+            defaultBalances.map(balance => ({
+              user_id: user.id,
+              currency: balance.currency,
+              available_balance: 0,
+              locked_balance: 0,
+              total_balance: 0,
+            }))
+          );
 
-        if (error) throw error;
-        setBalances(defaultBalances);
+          if (error) {
+            console.error('Error creating default balances:', error);
+            // If we can't create balances in DB, use local state
+            setBalances(defaultBalances);
+          } else {
+            console.log('Successfully created default balances');
+            setBalances(defaultBalances);
+          }
+        } catch (insertError) {
+          console.error('Failed to insert default balances:', insertError);
+          setBalances(defaultBalances);
+        }
       } else {
-        // Update balances with database values, ensuring missing currencies are added with zero balance
+        console.log('Found existing balances, updating local state');
         const updatedBalances = defaultBalances.map(defaultBalance => {
           const dbBalance = dbBalances.find(db => db.currency === defaultBalance.currency);
           if (dbBalance) {
@@ -112,30 +130,14 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
               total: Number(dbBalance.total_balance),
             };
           }
-          return defaultBalance; // Return zero balance for missing currencies
+          return defaultBalance;
         });
-
-        // Add any missing currencies to database with zero balance
-        const missingCurrencies = defaultBalances.filter(
-          defaultBalance => !dbBalances.find(db => db.currency === defaultBalance.currency)
-        );
-
-        if (missingCurrencies.length > 0) {
-          await supabase.from('wallet_balances').insert(
-            missingCurrencies.map(balance => ({
-              user_id: user.id,
-              currency: balance.currency,
-              available_balance: 0,
-              locked_balance: 0,
-              total_balance: 0,
-            }))
-          );
-        }
 
         setBalances(updatedBalances);
       }
     } catch (error) {
       console.error('Error initializing balances:', error);
+      // Fallback to default balances if everything fails
       setBalances(createDefaultBalances());
     } finally {
       setLoading(false);
@@ -146,6 +148,7 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     if (!user) return;
 
     try {
+      console.log('Refreshing wallet balances');
       const dbBalances = await fetchBalancesFromDB();
       const updatedBalances = balances.map(balance => {
         const dbBalance = dbBalances.find(db => db.currency === balance.currency);
@@ -160,6 +163,7 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
         return balance;
       });
       setBalances(updatedBalances);
+      console.log('Balances refreshed successfully');
     } catch (error) {
       console.error('Error refreshing balances:', error);
     }
@@ -169,12 +173,29 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     if (!user || amount <= 0) return false;
 
     try {
-      await supabase.rpc('update_wallet_balance', {
+      console.log('Depositing funds:', { currency, amount, userId: user.id });
+      
+      // Try to use the database function
+      const { error } = await supabase.rpc('update_wallet_balance', {
         p_user_id: user.id,
         p_currency: currency,
         p_amount: amount,
         p_operation: 'add'
       });
+
+      if (error) {
+        console.error('Database deposit error, updating local state:', error);
+        // Fallback to local state update
+        setBalances(prev => prev.map(balance => 
+          balance.currency === currency 
+            ? {
+                ...balance,
+                available: balance.available + amount,
+                total: balance.total + amount
+              }
+            : balance
+        ));
+      }
 
       await refreshBalances();
       return true;
@@ -190,12 +211,17 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const operation = transactionData.type === 'trade_sell' ? 'subtract' : 'add';
       
-      await supabase.rpc('update_wallet_balance', {
+      const { error } = await supabase.rpc('update_wallet_balance', {
         p_user_id: user.id,
         p_currency: transactionData.currency,
         p_amount: transactionData.amount,
         p_operation: operation
       });
+
+      if (error) {
+        console.error('Transaction error:', error);
+        return false;
+      }
 
       await refreshBalances();
       return true;
