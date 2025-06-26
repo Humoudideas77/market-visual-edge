@@ -22,6 +22,17 @@ interface ContactFormData {
   message: string;
 }
 
+interface DatabaseMessage {
+  id: string;
+  admin_reply: string | null;
+  status: string;
+  updated_at: string;
+  created_at: string;
+  user_id: string;
+  subject: string;
+  message: string;
+}
+
 const MecBot = () => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
@@ -79,9 +90,9 @@ const MecBot = () => {
         console.log('Found existing messages:', existingMessages);
 
         if (existingMessages && existingMessages.length > 0) {
-          const adminMessages: Message[] = existingMessages.map(msg => ({
+          const adminMessages: Message[] = existingMessages.map((msg: DatabaseMessage) => ({
             id: `admin-reply-${msg.id}`,
-            text: msg.admin_reply,
+            text: msg.admin_reply || '',
             isBot: true,
             isAdminReply: true,
             timestamp: new Date(msg.updated_at)
@@ -131,50 +142,65 @@ const MecBot = () => {
         },
         (payload) => {
           console.log('Real-time update received:', payload);
+          console.log('Payload eventType:', payload.eventType);
+          console.log('Payload new:', payload.new);
+          console.log('Payload old:', payload.old);
           
-          const updatedMessage = payload.new;
-          
-          // Check if this is a new admin reply
-          if (updatedMessage && 
-              updatedMessage.admin_reply && 
-              updatedMessage.status === 'replied') {
+          // Handle both INSERT and UPDATE events
+          if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+            const updatedMessage = payload.new as DatabaseMessage;
             
-            console.log('Processing new admin reply:', updatedMessage.admin_reply);
+            console.log('Processing message update:', updatedMessage);
             
-            const adminReplyMessage: Message = {
-              id: `admin-reply-${updatedMessage.id}`,
-              text: updatedMessage.admin_reply,
-              isBot: true,
-              isAdminReply: true,
-              timestamp: new Date(updatedMessage.updated_at || new Date())
-            };
+            // Check if this is a new admin reply
+            if (updatedMessage && 
+                updatedMessage.admin_reply && 
+                updatedMessage.status === 'replied') {
+              
+              console.log('Processing new admin reply:', updatedMessage.admin_reply);
+              
+              const adminReplyMessage: Message = {
+                id: `admin-reply-${updatedMessage.id}`,
+                text: updatedMessage.admin_reply,
+                isBot: true,
+                isAdminReply: true,
+                timestamp: new Date(updatedMessage.updated_at || updatedMessage.created_at)
+              };
 
-            setMessages(prev => {
-              // Check if this message already exists
-              const existingMessageIndex = prev.findIndex(m => m.id === adminReplyMessage.id);
-              if (existingMessageIndex !== -1) {
-                // Update existing message
-                const updated = [...prev];
-                updated[existingMessageIndex] = adminReplyMessage;
-                return updated;
-              } else {
-                // Add new message
-                return [...prev, adminReplyMessage];
+              setMessages(prev => {
+                // Check if this message already exists
+                const existingMessageIndex = prev.findIndex(m => m.id === adminReplyMessage.id);
+                if (existingMessageIndex !== -1) {
+                  // Update existing message
+                  const updated = [...prev];
+                  updated[existingMessageIndex] = adminReplyMessage;
+                  console.log('Updated existing message:', adminReplyMessage);
+                  return updated;
+                } else {
+                  // Add new message
+                  console.log('Adding new admin reply message:', adminReplyMessage);
+                  return [...prev, adminReplyMessage];
+                }
+              });
+
+              setIsInConversation(true);
+              setCurrentMessageId(updatedMessage.id);
+
+              // Show toast notification when bot is closed
+              if (!isOpen) {
+                toast.success('📧 New admin reply received! Check MexcCrypto Bot.');
               }
-            });
-
-            setIsInConversation(true);
-            setCurrentMessageId(updatedMessage.id);
-
-            // Show toast notification when bot is closed
-            if (!isOpen) {
-              toast.success('📧 New admin reply received! Check MexcCrypto Bot.');
             }
           }
         }
       )
       .subscribe((status) => {
         console.log('Real-time subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('Successfully subscribed to real-time updates');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('Channel error in real-time subscription');
+        }
       });
 
     return () => {
