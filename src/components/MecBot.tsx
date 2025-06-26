@@ -45,7 +45,6 @@ const MecBot = () => {
     message: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [processedReplies, setProcessedReplies] = useState<Set<string>>(new Set());
 
   // Auto-scroll to bottom when new messages arrive
   const scrollToBottom = () => {
@@ -56,71 +55,14 @@ const MecBot = () => {
     scrollToBottom();
   }, [messages]);
 
-  // Set up real-time subscription for admin replies
-  useEffect(() => {
-    if (!user) return;
-
-    console.log('Setting up MecBot admin reply subscription for user:', user.id);
-
-    const channel = supabase
-      .channel('mecbot-admin-replies')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'customer_messages',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('MecBot received admin reply:', payload);
-          
-          const updatedMessage = payload.new;
-          const messageId = updatedMessage.id;
-          
-          // Check if this is a new admin reply and we haven't processed it yet
-          if (updatedMessage.admin_reply && 
-              updatedMessage.status === 'replied' && 
-              !processedReplies.has(messageId)) {
-            
-            console.log('Processing new admin reply:', updatedMessage.admin_reply);
-            
-            const adminReplyMessage: Message = {
-              id: `admin-reply-${messageId}`,
-              text: updatedMessage.admin_reply,
-              isBot: true,
-              isAdminReply: true,
-              timestamp: new Date()
-            };
-
-            setMessages(prev => [...prev, adminReplyMessage]);
-            setProcessedReplies(prev => new Set([...prev, messageId]));
-            setIsInConversation(true);
-            setCurrentMessageId(messageId);
-
-            // Show notification when bot is closed
-            if (!isOpen) {
-              toast.success('📧 New admin reply received! Check MexcCrypto Bot.');
-            }
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log('MecBot admin reply subscription status:', status);
-      });
-
-    return () => {
-      console.log('Cleaning up MecBot admin reply subscription');
-      supabase.removeChannel(channel);
-    };
-  }, [user, isOpen, processedReplies]);
-
-  // Load existing admin replies when component mounts
+  // Load existing admin replies when component mounts or user changes
   useEffect(() => {
     const loadExistingReplies = async () => {
       if (!user) return;
 
       try {
+        console.log('Loading existing admin replies for user:', user.id);
+        
         const { data: existingMessages, error } = await supabase
           .from('customer_messages')
           .select('*')
@@ -134,6 +76,8 @@ const MecBot = () => {
           return;
         }
 
+        console.log('Found existing messages:', existingMessages);
+
         if (existingMessages && existingMessages.length > 0) {
           const adminMessages: Message[] = existingMessages.map(msg => ({
             id: `admin-reply-${msg.id}`,
@@ -143,16 +87,19 @@ const MecBot = () => {
             timestamp: new Date(msg.updated_at)
           }));
 
+          console.log('Setting admin messages:', adminMessages);
+
           setMessages(prev => {
             const existingIds = new Set(prev.map(m => m.id));
             const newMessages = adminMessages.filter(m => !existingIds.has(m.id));
-            return [...prev, ...newMessages];
+            if (newMessages.length > 0) {
+              console.log('Adding new admin messages:', newMessages);
+              return [...prev, ...newMessages];
+            }
+            return prev;
           });
 
-          // Mark these as processed and set conversation state
-          const processedIds = existingMessages.map(msg => msg.id);
-          setProcessedReplies(prev => new Set([...prev, ...processedIds]));
-          
+          // Set conversation state
           if (existingMessages.length > 0) {
             setIsInConversation(true);
             setCurrentMessageId(existingMessages[existingMessages.length - 1].id);
@@ -165,6 +112,76 @@ const MecBot = () => {
 
     loadExistingReplies();
   }, [user]);
+
+  // Set up real-time subscription for new admin replies
+  useEffect(() => {
+    if (!user) return;
+
+    console.log('Setting up real-time subscription for user:', user.id);
+
+    const channel = supabase
+      .channel(`mecbot-admin-replies-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'customer_messages',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Real-time update received:', payload);
+          
+          const updatedMessage = payload.new;
+          
+          // Check if this is a new admin reply
+          if (updatedMessage && 
+              updatedMessage.admin_reply && 
+              updatedMessage.status === 'replied') {
+            
+            console.log('Processing new admin reply:', updatedMessage.admin_reply);
+            
+            const adminReplyMessage: Message = {
+              id: `admin-reply-${updatedMessage.id}`,
+              text: updatedMessage.admin_reply,
+              isBot: true,
+              isAdminReply: true,
+              timestamp: new Date(updatedMessage.updated_at || new Date())
+            };
+
+            setMessages(prev => {
+              // Check if this message already exists
+              const existingMessageIndex = prev.findIndex(m => m.id === adminReplyMessage.id);
+              if (existingMessageIndex !== -1) {
+                // Update existing message
+                const updated = [...prev];
+                updated[existingMessageIndex] = adminReplyMessage;
+                return updated;
+              } else {
+                // Add new message
+                return [...prev, adminReplyMessage];
+              }
+            });
+
+            setIsInConversation(true);
+            setCurrentMessageId(updatedMessage.id);
+
+            // Show toast notification when bot is closed
+            if (!isOpen) {
+              toast.success('📧 New admin reply received! Check MexcCrypto Bot.');
+            }
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Real-time subscription status:', status);
+      });
+
+    return () => {
+      console.log('Cleaning up real-time subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [user, isOpen]);
 
   const quickReplies = [
     { id: 'deposit', text: 'How to deposit?', action: 'deposit' },
@@ -244,63 +261,42 @@ const MecBot = () => {
     setNewMessage('');
 
     try {
-      // If this is a follow-up message to an existing conversation
-      if (isInConversation && currentMessageId) {
-        // Update the existing message with the follow-up
-        const { error } = await supabase
-          .from('customer_messages')
-          .update({
-            message: `${newMessage}\n\n--- Follow-up message ---\n\n${newMessage}`,
-            status: 'open',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', currentMessageId);
+      console.log('Sending message to support team...');
 
-        if (error) {
-          console.error('Error updating message:', error);
-          toast.error('Failed to send message. Please try again.');
-          return;
+      // Send message through the edge function
+      const { data, error } = await supabase.functions.invoke('send-contact-email', {
+        body: {
+          firstName: user.user_metadata?.first_name || 'User',
+          lastName: user.user_metadata?.last_name || '',
+          email: user.email,
+          message: `MexcCrypto Bot Message:\n\n${newMessage}`,
+          userId: user.id
         }
+      });
 
-        toast.success('Message sent to admin!');
+      if (error) {
+        console.error('Error sending message:', error);
+        toast.error('Failed to send message. Please try again.');
+        return;
+      }
+
+      if (data?.success) {
+        console.log('Message sent successfully, message ID:', data.messageId);
+        toast.success('Message sent to support team!');
+        setIsInConversation(true);
+        
+        // Set the current message ID if returned
+        if (data.messageId) {
+          setCurrentMessageId(data.messageId);
+        }
         
         const confirmationMessage: Message = {
           id: Date.now().toString(),
-          text: "Your message has been sent to our support team! They'll reply shortly.",
+          text: "Your message has been sent to our support team! They'll reply shortly and you'll see it here in real-time.",
           isBot: true,
           timestamp: new Date()
         };
         setMessages(prev => [...prev, confirmationMessage]);
-      } else {
-        // Send as new message through the edge function
-        const { data, error } = await supabase.functions.invoke('send-contact-email', {
-          body: {
-            firstName: user.user_metadata?.first_name || 'User',
-            lastName: user.user_metadata?.last_name || '',
-            email: user.email,
-            message: `MexcCrypto Bot Direct Message:\n\n${newMessage}`,
-            userId: user.id
-          }
-        });
-
-        if (error) {
-          console.error('Error sending message:', error);
-          toast.error('Failed to send message. Please try again.');
-          return;
-        }
-
-        if (data?.success) {
-          toast.success('Message sent to support team!');
-          setIsInConversation(true);
-          
-          const confirmationMessage: Message = {
-            id: Date.now().toString(),
-            text: "Your message has been sent to our support team! They'll reply shortly and you'll see it here in real-time.",
-            isBot: true,
-            timestamp: new Date()
-          };
-          setMessages(prev => [...prev, confirmationMessage]);
-        }
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -335,7 +331,7 @@ const MecBot = () => {
     setIsSubmitting(true);
 
     try {
-      console.log('Submitting MexcCrypto support request:', contactForm);
+      console.log('Submitting contact form:', contactForm);
 
       const { data, error } = await supabase.functions.invoke('send-contact-email', {
         body: {
@@ -354,6 +350,7 @@ const MecBot = () => {
       }
 
       if (data?.success) {
+        console.log('Contact form submitted successfully, message ID:', data.messageId);
         toast.success('Your message has been sent to our support team!');
         setShowContactForm(false);
         setContactForm({
@@ -363,6 +360,11 @@ const MecBot = () => {
           message: ''
         });
         setIsInConversation(true);
+
+        // Set the current message ID if returned
+        if (data.messageId) {
+          setCurrentMessageId(data.messageId);
+        }
 
         const confirmationMessage: Message = {
           id: Date.now().toString(),
