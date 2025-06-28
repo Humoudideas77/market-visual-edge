@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Check, X, Eye, ExternalLink, Edit } from 'lucide-react';
+import { Check, X, Eye, ExternalLink, Edit, Search } from 'lucide-react';
 import { format } from 'date-fns';
 
 type DepositRequest = {
@@ -41,16 +40,18 @@ const DepositApprovalSection = () => {
   const [adminNotes, setAdminNotes] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editedDeposit, setEditedDeposit] = useState<Partial<DepositRequest>>({});
+  const [searchTerm, setSearchTerm] = useState('');
   const queryClient = useQueryClient();
 
   const { data: deposits, isLoading } = useQuery({
-    queryKey: ['admin-deposits'],
+    queryKey: ['admin-deposits', searchTerm],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('deposit_requests')
         .select('*')
         .order('created_at', { ascending: false });
-      
+
+      const { data, error } = await query;
       if (error) throw error;
       return data as DepositRequest[];
     },
@@ -235,6 +236,20 @@ const DepositApprovalSection = () => {
     }
   };
 
+  // Filter deposits based on search term
+  const filteredDeposits = deposits?.filter(deposit => {
+    if (!searchTerm) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      deposit.currency?.toLowerCase().includes(searchLower) ||
+      deposit.network?.toLowerCase().includes(searchLower) ||
+      deposit.status?.toLowerCase().includes(searchLower) ||
+      deposit.user_id?.toLowerCase().includes(searchLower) ||
+      deposit.amount?.toString().includes(searchLower)
+    );
+  });
+
   if (isLoading) {
     return (
       <Card className="bg-exchange-card-bg border-exchange-border">
@@ -249,7 +264,7 @@ const DepositApprovalSection = () => {
     );
   }
 
-  const pendingDeposits = deposits?.filter(d => d.status === 'pending') || [];
+  const pendingDeposits = filteredDeposits?.filter(d => d.status === 'pending') || [];
 
   return (
     <Card className="bg-exchange-card-bg border-exchange-border">
@@ -262,6 +277,17 @@ const DepositApprovalSection = () => {
             </Badge>
           )}
         </CardTitle>
+        <div className="flex items-center space-x-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-exchange-text-secondary w-4 h-4" />
+            <Input
+              placeholder="Search by currency, network, status, user ID or amount..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-exchange-bg border-exchange-border text-exchange-text-primary"
+            />
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
@@ -278,7 +304,7 @@ const DepositApprovalSection = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {deposits?.map((deposit) => (
+              {filteredDeposits?.map((deposit) => (
                 <TableRow key={deposit.id}>
                   <TableCell className="text-exchange-text-secondary">
                     {format(new Date(deposit.created_at), 'MMM dd, yyyy HH:mm')}
@@ -498,9 +524,9 @@ const DepositApprovalSection = () => {
           </Table>
         </div>
         
-        {(!deposits || deposits.length === 0) && (
+        {(!filteredDeposits || filteredDeposits.length === 0) && (
           <div className="text-center py-8 text-exchange-text-secondary">
-            No deposit requests found
+            {searchTerm ? 'No deposit requests found matching your search' : 'No deposit requests found'}
           </div>
         )}
       </CardContent>

@@ -1,15 +1,15 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Check, X, Eye, CreditCard } from 'lucide-react';
+import { Check, X, Eye, CreditCard, Search } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface WithdrawalRequest {
@@ -47,12 +47,13 @@ interface BankCard {
 const WithdrawalApprovalSection = () => {
   const [selectedWithdrawal, setSelectedWithdrawal] = useState<WithdrawalRequest | null>(null);
   const [adminNotes, setAdminNotes] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const queryClient = useQueryClient();
 
   const { data: withdrawals, isLoading } = useQuery({
-    queryKey: ['admin-withdrawals'],
+    queryKey: ['admin-withdrawals', searchTerm],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('withdrawal_requests')
         .select(`
           *,
@@ -67,7 +68,8 @@ const WithdrawalApprovalSection = () => {
           )
         `)
         .order('created_at', { ascending: false });
-      
+
+      const { data, error } = await query;
       if (error) throw error;
       return data as WithdrawalRequest[];
     },
@@ -156,6 +158,22 @@ const WithdrawalApprovalSection = () => {
     );
   };
 
+  // Filter withdrawals based on search term
+  const filteredWithdrawals = withdrawals?.filter(withdrawal => {
+    if (!searchTerm) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      withdrawal.currency?.toLowerCase().includes(searchLower) ||
+      withdrawal.network?.toLowerCase().includes(searchLower) ||
+      withdrawal.status?.toLowerCase().includes(searchLower) ||
+      withdrawal.user_id?.toLowerCase().includes(searchLower) ||
+      withdrawal.amount?.toString().includes(searchLower) ||
+      withdrawal.bank_cards?.bank_name?.toLowerCase().includes(searchLower) ||
+      withdrawal.bank_cards?.account_holder_name?.toLowerCase().includes(searchLower)
+    );
+  });
+
   if (isLoading) {
     return (
       <Card className="bg-exchange-card-bg border-exchange-border">
@@ -170,7 +188,7 @@ const WithdrawalApprovalSection = () => {
     );
   }
 
-  const pendingWithdrawals = withdrawals?.filter(w => w.status === 'pending') || [];
+  const pendingWithdrawals = filteredWithdrawals?.filter(w => w.status === 'pending') || [];
 
   return (
     <Card className="bg-exchange-card-bg border-exchange-border">
@@ -183,6 +201,17 @@ const WithdrawalApprovalSection = () => {
             </Badge>
           )}
         </CardTitle>
+        <div className="flex items-center space-x-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-exchange-text-secondary w-4 h-4" />
+            <Input
+              placeholder="Search by currency, network, status, user ID, amount or bank details..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-exchange-bg border-exchange-border text-exchange-text-primary"
+            />
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
@@ -199,7 +228,7 @@ const WithdrawalApprovalSection = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {withdrawals?.map((withdrawal) => (
+              {filteredWithdrawals?.map((withdrawal) => (
                 <TableRow key={withdrawal.id}>
                   <TableCell className="text-exchange-text-secondary">
                     {format(new Date(withdrawal.created_at), 'MMM dd, yyyy HH:mm')}
@@ -380,9 +409,9 @@ const WithdrawalApprovalSection = () => {
           </Table>
         </div>
         
-        {(!withdrawals || withdrawals.length === 0) && (
+        {(!filteredWithdrawals || filteredWithdrawals.length === 0) && (
           <div className="text-center py-8 text-exchange-text-secondary">
-            No withdrawal requests found
+            {searchTerm ? 'No withdrawal requests found matching your search' : 'No withdrawal requests found'}
           </div>
         )}
       </CardContent>

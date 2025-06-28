@@ -39,10 +39,6 @@ const UserManagementSection = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (searchTerm) {
-        query = query.or(`email.ilike.%${searchTerm}%,first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%`);
-      }
-
       const { data, error } = await query;
       if (error) throw error;
       return data as UserProfile[];
@@ -122,6 +118,21 @@ const UserManagementSection = () => {
     );
   };
 
+  // Filter users based on search term
+  const filteredUsers = users?.filter(user => {
+    if (!searchTerm) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      user.email?.toLowerCase().includes(searchLower) ||
+      user.first_name?.toLowerCase().includes(searchLower) ||
+      user.last_name?.toLowerCase().includes(searchLower) ||
+      user.id?.toLowerCase().includes(searchLower) ||
+      user.role?.toLowerCase().includes(searchLower) ||
+      user.kyc_status?.toLowerCase().includes(searchLower)
+    );
+  });
+
   if (isLoading) {
     return (
       <Card className="bg-exchange-card-bg border-exchange-border">
@@ -139,15 +150,20 @@ const UserManagementSection = () => {
   return (
     <Card className="bg-exchange-card-bg border-exchange-border">
       <CardHeader>
-        <CardTitle className="text-exchange-text-primary">User Management</CardTitle>
+        <CardTitle className="text-exchange-text-primary">
+          User Management
+          <Badge variant="outline" className="ml-2">
+            {filteredUsers?.length || 0} Users
+          </Badge>
+        </CardTitle>
         <div className="flex items-center space-x-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-exchange-text-secondary w-4 h-4" />
             <Input
-              placeholder="Search users by email or name..."
+              placeholder="Search by email, name, user ID, role or KYC status..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-exchange-bg border-exchange-border"
+              className="pl-10 bg-exchange-bg border-exchange-border text-exchange-text-primary"
             />
           </div>
         </div>
@@ -166,7 +182,7 @@ const UserManagementSection = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users?.map((user) => (
+              {filteredUsers?.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell>
                     <div>
@@ -270,9 +286,9 @@ const UserManagementSection = () => {
           </Table>
         </div>
         
-        {(!users || users.length === 0) && (
+        {(!filteredUsers || filteredUsers.length === 0) && (
           <div className="text-center py-8 text-exchange-text-secondary">
-            No users found
+            {searchTerm ? 'No users found matching your search' : 'No users found'}
           </div>
         )}
       </CardContent>

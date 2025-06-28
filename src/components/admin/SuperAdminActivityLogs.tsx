@@ -1,201 +1,190 @@
 
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { Search, Activity, User, Shield } from 'lucide-react';
 import { format } from 'date-fns';
-import { Activity, Users, Shield, Bell } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import ActivityMonitor from './ActivityMonitor';
 
-type ActivityLog = {
+type AdminActivity = {
   id: string;
   admin_id: string;
   action_type: string;
+  target_user_id: string | null;
   target_table: string | null;
   target_record_id: string | null;
-  target_user_id: string | null;
   action_details: any;
   created_at: string;
+  profiles?: {
+    email: string | null;
+    first_name: string | null;
+    last_name: string | null;
+  } | null;
 };
 
 const SuperAdminActivityLogs = () => {
-  const [newAdminActivitiesCount, setNewAdminActivitiesCount] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const { data: adminActivities, isLoading: adminLoading, refetch: refetchAdmin } = useQuery({
-    queryKey: ['superadmin-activities'],
+  const { data: activities, isLoading } = useQuery({
+    queryKey: ['admin-activities', searchTerm],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('admin_activities')
-        .select('*')
+        .select(`
+          *,
+          profiles!admin_activities_admin_id_fkey (
+            email,
+            first_name,
+            last_name
+          )
+        `)
         .order('created_at', { ascending: false })
         .limit(100);
-      
+
+      const { data, error } = await query;
       if (error) throw error;
-      return data as ActivityLog[];
+      return data as AdminActivity[];
     },
   });
 
-  // Set up real-time subscriptions for admin activity updates
-  useEffect(() => {
-    const adminActivityChannel = supabase
-      .channel('admin-activities-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'admin_activities',
-        },
-        () => {
-          console.log('New admin activity detected, refreshing...');
-          setNewAdminActivitiesCount(prev => prev + 1);
-          refetchAdmin();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(adminActivityChannel);
-    };
-  }, [refetchAdmin]);
-
-  const getActivityBadge = (actionType: string) => {
-    if (actionType.includes('approved')) return 'default';
-    if (actionType.includes('rejected')) return 'destructive';
-    if (actionType.includes('created') || actionType.includes('updated')) return 'secondary';
-    return 'outline';
+  const getActionIcon = (actionType: string) => {
+    if (actionType.includes('user')) return <User className="w-4 h-4" />;
+    if (actionType.includes('deposit') || actionType.includes('withdrawal')) return <Activity className="w-4 h-4" />;
+    if (actionType.includes('kyc')) return <Shield className="w-4 h-4" />;
+    return <Activity className="w-4 h-4" />;
   };
 
-  const formatActionType = (actionType: string) => {
-    return actionType
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+  const getActionBadge = (actionType: string) => {
+    if (actionType.includes('approved')) return <Badge className="bg-green-600">Approved</Badge>;
+    if (actionType.includes('rejected')) return <Badge variant="destructive">Rejected</Badge>;
+    if (actionType.includes('created')) return <Badge variant="secondary">Created</Badge>;
+    if (actionType.includes('updated')) return <Badge className="bg-blue-600">Updated</Badge>;
+    return <Badge variant="outline">{actionType}</Badge>;
   };
 
-  if (adminLoading) {
+  // Filter activities based on search term
+  const filteredActivities = activities?.filter(activity => {
+    if (!searchTerm) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
     return (
-      <div className="space-y-6">
-        <Card className="bg-exchange-card-bg border-exchange-border">
-          <CardContent className="p-6">
-            <div className="animate-pulse space-y-4">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <div key={i} className="h-12 bg-exchange-border rounded"></div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      activity.action_type?.toLowerCase().includes(searchLower) ||
+      activity.target_table?.toLowerCase().includes(searchLower) ||
+      activity.admin_id?.toLowerCase().includes(searchLower) ||
+      activity.profiles?.email?.toLowerCase().includes(searchLower) ||
+      activity.profiles?.first_name?.toLowerCase().includes(searchLower) ||
+      activity.profiles?.last_name?.toLowerCase().includes(searchLower) ||
+      JSON.stringify(activity.action_details)?.toLowerCase().includes(searchLower)
+    );
+  });
+
+  if (isLoading) {
+    return (
+      <Card className="bg-exchange-card-bg border-exchange-border">
+        <CardContent className="p-6">
+          <div className="animate-pulse space-y-4">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div key={i} className="h-12 bg-exchange-border rounded"></div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <Tabs defaultValue="user-activities" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 bg-exchange-card-bg border border-exchange-border">
-          <TabsTrigger 
-            value="user-activities" 
-            className="data-[state=active]:bg-exchange-accent flex items-center gap-2"
-          >
-            <Users className="w-4 h-4" />
-            User Activities
-          </TabsTrigger>
-          <TabsTrigger 
-            value="admin-activities" 
-            className="data-[state=active]:bg-exchange-accent flex items-center gap-2"
-          >
-            <Shield className="w-4 h-4" />
-            Admin Activities
-            {newAdminActivitiesCount > 0 && (
-              <Badge variant="destructive" className="ml-1">
-                <Bell className="w-3 h-3 mr-1" />
-                {newAdminActivitiesCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="user-activities" className="space-y-6">
-          <ActivityMonitor />
-        </TabsContent>
-
-        <TabsContent value="admin-activities" className="space-y-6">
-          <Card className="bg-exchange-card-bg border-exchange-border">
-            <CardHeader>
-              <CardTitle className="text-exchange-text-primary flex items-center gap-2">
-                <Shield className="w-5 h-5" />
-                Admin Activity Logs
-                {newAdminActivitiesCount > 0 && (
-                  <Badge variant="destructive" className="ml-2">
-                    <Bell className="w-3 h-3 mr-1" />
-                    {newAdminActivitiesCount} New
-                  </Badge>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Timestamp</TableHead>
-                      <TableHead>Admin ID</TableHead>
-                      <TableHead>Action</TableHead>
-                      <TableHead>Target</TableHead>
-                      <TableHead>Details</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {adminActivities?.map((activity) => (
-                      <TableRow key={activity.id} className="hover:bg-gray-800/50">
-                        <TableCell className="text-exchange-text-secondary">
-                          {format(new Date(activity.created_at), 'MMM dd, yyyy HH:mm:ss')}
-                        </TableCell>
-                        <TableCell className="font-mono text-sm text-exchange-text-secondary">
-                          {activity.admin_id.slice(0, 8)}...
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Activity className="w-4 h-4 text-exchange-text-secondary" />
-                            <Badge variant={getActivityBadge(activity.action_type)}>
-                              {formatActionType(activity.action_type)}
-                            </Badge>
+    <Card className="bg-exchange-card-bg border-exchange-border">
+      <CardHeader>
+        <CardTitle className="text-exchange-text-primary flex items-center gap-2">
+          <Activity className="w-5 h-5" />
+          Admin Activity Logs
+          <Badge variant="outline" className="ml-2">
+            {filteredActivities?.length || 0} Activities
+          </Badge>
+        </CardTitle>
+        <div className="flex items-center space-x-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-exchange-text-secondary w-4 h-4" />
+            <Input
+              placeholder="Search by action, admin email, table, or details..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-exchange-bg border-exchange-border text-exchange-text-primary"
+            />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Admin</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>Target</TableHead>
+                <TableHead>Details</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredActivities?.map((activity) => (
+                <TableRow key={activity.id}>
+                  <TableCell className="text-exchange-text-secondary">
+                    {format(new Date(activity.created_at), 'MMM dd, yyyy HH:mm:ss')}
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium text-exchange-text-primary">
+                        {activity.profiles?.email || 'Unknown Admin'}
+                      </div>
+                      <div className="text-sm text-exchange-text-secondary font-mono">
+                        {activity.admin_id.slice(0, 8)}...
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {getActionIcon(activity.action_type)}
+                      {getActionBadge(activity.action_type)}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-exchange-text-secondary">
+                    {activity.target_table && (
+                      <div>
+                        <div className="font-medium">{activity.target_table}</div>
+                        {activity.target_record_id && (
+                          <div className="text-xs font-mono">
+                            {activity.target_record_id.slice(0, 8)}...
                           </div>
-                        </TableCell>
-                        <TableCell className="text-exchange-text-secondary">
-                          {activity.target_table || 'N/A'}
-                        </TableCell>
-                        <TableCell className="text-exchange-text-secondary text-sm">
-                          {activity.target_user_id && (
-                            <span className="font-mono">
-                              User: {activity.target_user_id.slice(0, 8)}...
-                            </span>
-                          )}
-                          {activity.action_details && (
-                            <div className="text-xs mt-1 opacity-75">
-                              {JSON.stringify(activity.action_details).slice(0, 50)}...
-                            </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-              
-              {(!adminActivities || adminActivities.length === 0) && (
-                <div className="text-center py-8 text-exchange-text-secondary">
-                  No admin activities found
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+                        )}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {activity.action_details && (
+                      <div className="text-sm text-exchange-text-secondary max-w-xs">
+                        <pre className="whitespace-pre-wrap text-xs bg-exchange-bg p-2 rounded border border-exchange-border overflow-x-auto">
+                          {JSON.stringify(activity.action_details, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        
+        {(!filteredActivities || filteredActivities.length === 0) && (
+          <div className="text-center py-8 text-exchange-text-secondary">
+            {searchTerm ? 'No activity logs found matching your search' : 'No activity logs found'}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 
