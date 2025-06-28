@@ -1,4 +1,3 @@
-
 import { useState, useEffect, createContext, useContext } from 'react';
 import { useAuth } from './useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -73,6 +72,22 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error) {
       console.error('Error fetching balances:', error);
       return [];
+    }
+  };
+
+  const logUserActivity = async (activityType: string, details: any = null) => {
+    if (!user) return;
+    
+    try {
+      await supabase.rpc('log_user_activity', {
+        p_user_id: user.id,
+        p_activity_type: activityType,
+        p_details: details,
+        p_ip_address: null, // Could be captured from request if needed
+        p_user_agent: navigator.userAgent
+      });
+    } catch (error) {
+      console.error('Error logging user activity:', error);
     }
   };
 
@@ -176,6 +191,13 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
         p_operation: 'add'
       });
 
+      // Log the activity
+      await logUserActivity('wallet_deposit', {
+        currency,
+        amount,
+        operation: 'add'
+      });
+
       await refreshBalances();
       return true;
     } catch (error) {
@@ -195,6 +217,14 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
         p_currency: transactionData.currency,
         p_amount: transactionData.amount,
         p_operation: operation
+      });
+
+      // Log the trading activity
+      await logUserActivity('wallet_transaction', {
+        type: transactionData.type,
+        currency: transactionData.currency,
+        amount: transactionData.amount,
+        operation
       });
 
       await refreshBalances();

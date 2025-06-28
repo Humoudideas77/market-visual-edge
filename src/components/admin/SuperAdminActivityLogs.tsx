@@ -1,11 +1,14 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { Activity, Users, LogIn, FileCheck, DollarSign, CreditCard } from 'lucide-react';
-import { useEffect } from 'react';
+import { Activity, Users, Shield, Bell } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import ActivityMonitor from './ActivityMonitor';
 
 type ActivityLog = {
   id: string;
@@ -19,7 +22,9 @@ type ActivityLog = {
 };
 
 const SuperAdminActivityLogs = () => {
-  const { data: activities, isLoading, refetch } = useQuery({
+  const [newAdminActivitiesCount, setNewAdminActivitiesCount] = useState(0);
+
+  const { data: adminActivities, isLoading: adminLoading, refetch: refetchAdmin } = useQuery({
     queryKey: ['superadmin-activities'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -33,24 +38,10 @@ const SuperAdminActivityLogs = () => {
     },
   });
 
-  const { data: userActivities, isLoading: userActivitiesLoading, refetch: refetchUserActivities } = useQuery({
-    queryKey: ['user-activities'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('user_activities')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-      
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Set up real-time subscriptions for activity updates
+  // Set up real-time subscriptions for admin activity updates
   useEffect(() => {
     const adminActivityChannel = supabase
-      .channel('admin-activities-changes')
+      .channel('admin-activities-realtime')
       .on(
         'postgres_changes',
         {
@@ -60,75 +51,16 @@ const SuperAdminActivityLogs = () => {
         },
         () => {
           console.log('New admin activity detected, refreshing...');
-          refetch();
-        }
-      )
-      .subscribe();
-
-    const userActivityChannel = supabase
-      .channel('user-activities-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'user_activities',
-        },
-        () => {
-          console.log('New user activity detected, refreshing...');
-          refetchUserActivities();
-        }
-      )
-      .subscribe();
-
-    const kycSubmissionChannel = supabase
-      .channel('kyc-submission-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'kyc_submissions',
-        },
-        () => {
-          console.log('KYC submission change detected, refreshing activities...');
-          refetch();
-        }
-      )
-      .subscribe();
-
-    const withdrawalRequestChannel = supabase
-      .channel('withdrawal-request-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'withdrawal_requests',
-        },
-        () => {
-          console.log('Withdrawal request change detected, refreshing activities...');
-          refetch();
+          setNewAdminActivitiesCount(prev => prev + 1);
+          refetchAdmin();
         }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(adminActivityChannel);
-      supabase.removeChannel(userActivityChannel);
-      supabase.removeChannel(kycSubmissionChannel);
-      supabase.removeChannel(withdrawalRequestChannel);
     };
-  }, [refetch, refetchUserActivities]);
-
-  const getActivityIcon = (actionType: string) => {
-    if (actionType.includes('user')) return Users;
-    if (actionType.includes('login')) return LogIn;
-    if (actionType.includes('kyc')) return FileCheck;
-    if (actionType.includes('deposit')) return DollarSign;
-    if (actionType.includes('withdrawal')) return CreditCard;
-    return Activity;
-  };
+  }, [refetchAdmin]);
 
   const getActivityBadge = (actionType: string) => {
     if (actionType.includes('approved')) return 'default';
@@ -137,142 +69,132 @@ const SuperAdminActivityLogs = () => {
     return 'outline';
   };
 
-  if (isLoading || userActivitiesLoading) {
+  const formatActionType = (actionType: string) => {
+    return actionType
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  if (adminLoading) {
     return (
-      <Card className="bg-exchange-card-bg border-exchange-border">
-        <CardContent className="p-6">
-          <div className="animate-pulse space-y-4">
-            {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="h-12 bg-exchange-border rounded"></div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <Card className="bg-exchange-card-bg border-exchange-border">
+          <CardContent className="p-6">
+            <div className="animate-pulse space-y-4">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <div key={i} className="h-12 bg-exchange-border rounded"></div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <Card className="bg-exchange-card-bg border-exchange-border">
-        <CardHeader>
-          <CardTitle className="text-exchange-text-primary flex items-center gap-2">
-            <Activity className="w-5 h-5" />
-            Admin Activity Logs
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Timestamp</TableHead>
-                  <TableHead>Admin ID</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Target</TableHead>
-                  <TableHead>Details</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {activities?.map((activity) => {
-                  const Icon = getActivityIcon(activity.action_type);
-                  return (
-                    <TableRow key={activity.id}>
-                      <TableCell className="text-exchange-text-secondary">
-                        {format(new Date(activity.created_at), 'MMM dd, yyyy HH:mm:ss')}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm text-exchange-text-secondary">
-                        {activity.admin_id.slice(0, 8)}...
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Icon className="w-4 h-4 text-exchange-text-secondary" />
-                          <Badge variant={getActivityBadge(activity.action_type)}>
-                            {activity.action_type.replace('_', ' ')}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-exchange-text-secondary">
-                        {activity.target_table || 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-exchange-text-secondary text-sm">
-                        {activity.target_user_id && (
-                          <span className="font-mono">
-                            User: {activity.target_user_id.slice(0, 8)}...
-                          </span>
-                        )}
-                        {activity.action_details && (
-                          <div className="text-xs mt-1 opacity-75">
-                            {JSON.stringify(activity.action_details).slice(0, 50)}...
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-          
-          {(!activities || activities.length === 0) && (
-            <div className="text-center py-8 text-exchange-text-secondary">
-              No admin activities found
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="user-activities" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 bg-exchange-card-bg border border-exchange-border">
+          <TabsTrigger 
+            value="user-activities" 
+            className="data-[state=active]:bg-exchange-accent flex items-center gap-2"
+          >
+            <Users className="w-4 h-4" />
+            User Activities
+          </TabsTrigger>
+          <TabsTrigger 
+            value="admin-activities" 
+            className="data-[state=active]:bg-exchange-accent flex items-center gap-2"
+          >
+            <Shield className="w-4 h-4" />
+            Admin Activities
+            {newAdminActivitiesCount > 0 && (
+              <Badge variant="destructive" className="ml-1">
+                <Bell className="w-3 h-3 mr-1" />
+                {newAdminActivitiesCount}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
 
-      <Card className="bg-exchange-card-bg border-exchange-border">
-        <CardHeader>
-          <CardTitle className="text-exchange-text-primary flex items-center gap-2">
-            <Users className="w-5 h-5" />
-            User Activity Logs
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Timestamp</TableHead>
-                  <TableHead>User ID</TableHead>
-                  <TableHead>Activity Type</TableHead>
-                  <TableHead>IP Address</TableHead>
-                  <TableHead>User Agent</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {userActivities?.map((activity) => (
-                  <TableRow key={activity.id}>
-                    <TableCell className="text-exchange-text-secondary">
-                      {format(new Date(activity.created_at), 'MMM dd, yyyy HH:mm:ss')}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm text-exchange-text-secondary">
-                      {activity.user_id.slice(0, 8)}...
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {activity.activity_type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-exchange-text-secondary">
-                      {activity.ip_address || 'N/A'}
-                    </TableCell>
-                    <TableCell className="text-exchange-text-secondary text-sm">
-                      {activity.user_agent ? activity.user_agent.slice(0, 50) + '...' : 'N/A'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          
-          {(!userActivities || userActivities.length === 0) && (
-            <div className="text-center py-8 text-exchange-text-secondary">
-              No user activities found
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        <TabsContent value="user-activities" className="space-y-6">
+          <ActivityMonitor />
+        </TabsContent>
+
+        <TabsContent value="admin-activities" className="space-y-6">
+          <Card className="bg-exchange-card-bg border-exchange-border">
+            <CardHeader>
+              <CardTitle className="text-exchange-text-primary flex items-center gap-2">
+                <Shield className="w-5 h-5" />
+                Admin Activity Logs
+                {newAdminActivitiesCount > 0 && (
+                  <Badge variant="destructive" className="ml-2">
+                    <Bell className="w-3 h-3 mr-1" />
+                    {newAdminActivitiesCount} New
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Timestamp</TableHead>
+                      <TableHead>Admin ID</TableHead>
+                      <TableHead>Action</TableHead>
+                      <TableHead>Target</TableHead>
+                      <TableHead>Details</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {adminActivities?.map((activity) => (
+                      <TableRow key={activity.id} className="hover:bg-gray-800/50">
+                        <TableCell className="text-exchange-text-secondary">
+                          {format(new Date(activity.created_at), 'MMM dd, yyyy HH:mm:ss')}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm text-exchange-text-secondary">
+                          {activity.admin_id.slice(0, 8)}...
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Activity className="w-4 h-4 text-exchange-text-secondary" />
+                            <Badge variant={getActivityBadge(activity.action_type)}>
+                              {formatActionType(activity.action_type)}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-exchange-text-secondary">
+                          {activity.target_table || 'N/A'}
+                        </TableCell>
+                        <TableCell className="text-exchange-text-secondary text-sm">
+                          {activity.target_user_id && (
+                            <span className="font-mono">
+                              User: {activity.target_user_id.slice(0, 8)}...
+                            </span>
+                          )}
+                          {activity.action_details && (
+                            <div className="text-xs mt-1 opacity-75">
+                              {JSON.stringify(activity.action_details).slice(0, 50)}...
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              
+              {(!adminActivities || adminActivities.length === 0) && (
+                <div className="text-center py-8 text-exchange-text-secondary">
+                  No admin activities found
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,6 +52,22 @@ const KYCUploadForm = ({ onSubmissionComplete }: KYCUploadFormProps) => {
     }
   };
 
+  const logUserActivity = async (activityType: string, details: any = null) => {
+    if (!user) return;
+    
+    try {
+      await supabase.rpc('log_user_activity', {
+        p_user_id: user.id,
+        p_activity_type: activityType,
+        p_details: details,
+        p_ip_address: null,
+        p_user_agent: navigator.userAgent
+      });
+    } catch (error) {
+      console.error('Error logging user activity:', error);
+    }
+  };
+
   const submitKYC = async () => {
     if (!user || !kycData.full_name.trim() || !kycData.date_of_birth || !kycData.nationality.trim() || !kycData.address.trim()) {
       toast.error('Please fill in all required fields');
@@ -66,31 +81,28 @@ const KYCUploadForm = ({ onSubmissionComplete }: KYCUploadFormProps) => {
       let utilityBillUrl = null;
       let selfieWithIdUrl = null;
 
-      // Upload ID card (front document)
+      // Upload documents
       if (kycData.id_card_front) {
         const frontPath = `${user.id}/id_card_${Date.now()}_${kycData.id_card_front.name}`;
         idCardUrl = await uploadFile(kycData.id_card_front, frontPath);
       }
 
-      // Upload passport
       if (kycData.passport) {
         const passportPath = `${user.id}/passport_${Date.now()}_${kycData.passport.name}`;
         passportUrl = await uploadFile(kycData.passport, passportPath);
       }
 
-      // Upload utility bill
       if (kycData.utility_bill) {
         const utilityPath = `${user.id}/utility_${Date.now()}_${kycData.utility_bill.name}`;
         utilityBillUrl = await uploadFile(kycData.utility_bill, utilityPath);
       }
 
-      // Upload selfie with ID
       if (kycData.selfie_with_id) {
         const selfiePath = `${user.id}/selfie_${Date.now()}_${kycData.selfie_with_id.name}`;
         selfieWithIdUrl = await uploadFile(kycData.selfie_with_id, selfiePath);
       }
 
-      // Submit KYC data with correct field names
+      // Submit KYC data
       const { error } = await supabase
         .from('kyc_submissions')
         .insert({
@@ -115,6 +127,18 @@ const KYCUploadForm = ({ onSubmissionComplete }: KYCUploadFormProps) => {
         .update({ kyc_status: 'pending' })
         .eq('id', user.id);
 
+      // Log KYC submission activity
+      await logUserActivity('kyc_document_submitted', {
+        full_name: kycData.full_name,
+        nationality: kycData.nationality,
+        documents_uploaded: {
+          id_card: !!idCardUrl,
+          passport: !!passportUrl,
+          utility_bill: !!utilityBillUrl,
+          selfie_with_id: !!selfieWithIdUrl
+        }
+      });
+
       toast.success('KYC submission successful! You will be notified once your KYC is approved.');
       
       // Reset form
@@ -135,7 +159,6 @@ const KYCUploadForm = ({ onSubmissionComplete }: KYCUploadFormProps) => {
       const fileInputs = document.querySelectorAll('input[type="file"]') as NodeListOf<HTMLInputElement>;
       fileInputs.forEach(input => input.value = '');
 
-      // Call the callback to refresh the parent component
       if (onSubmissionComplete) {
         onSubmissionComplete();
       }

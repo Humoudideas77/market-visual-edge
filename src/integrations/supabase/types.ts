@@ -57,6 +57,33 @@ export type Database = {
           },
         ]
       }
+      admin_notifications: {
+        Row: {
+          admin_id: string
+          created_at: string
+          id: string
+          is_enabled: boolean | null
+          notification_type: string
+          updated_at: string
+        }
+        Insert: {
+          admin_id: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean | null
+          notification_type: string
+          updated_at?: string
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean | null
+          notification_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bank_cards: {
         Row: {
           account_holder_name: string
@@ -766,6 +793,16 @@ export type Database = {
       is_superadmin_user: {
         Args: { user_uuid: string }
         Returns: boolean
+      }
+      log_user_activity: {
+        Args: {
+          p_user_id: string
+          p_activity_type: string
+          p_details?: Json
+          p_ip_address?: string
+          p_user_agent?: string
+        }
+        Returns: undefined
       }
       record_trade_pnl: {
         Args: {
