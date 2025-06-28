@@ -1,14 +1,18 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Check, X, Eye, ExternalLink } from 'lucide-react';
+import { Check, X, Eye, ExternalLink, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 
 type DepositRequest = {
@@ -24,9 +28,19 @@ type DepositRequest = {
   updated_at: string;
 };
 
+const SUPPORTED_CURRENCIES = [
+  'BTC', 'ETH', 'USDT', 'USDC', 'BNB', 'SOL', 'XRP', 'LTC', 'BCH', 'ADA', 'DOT', 'LINK', 'DOGE', 'AVAX'
+];
+
+const NETWORKS = [
+  'Bitcoin', 'Ethereum', 'BSC', 'Polygon', 'Solana', 'Ripple', 'Litecoin', 'Bitcoin Cash', 'Cardano', 'Polkadot', 'Chainlink', 'Dogecoin', 'Avalanche'
+];
+
 const DepositApprovalSection = () => {
   const [selectedDeposit, setSelectedDeposit] = useState<DepositRequest | null>(null);
   const [adminNotes, setAdminNotes] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedDeposit, setEditedDeposit] = useState<Partial<DepositRequest>>({});
   const queryClient = useQueryClient();
 
   const { data: deposits, isLoading } = useQuery({
@@ -39,6 +53,33 @@ const DepositApprovalSection = () => {
       
       if (error) throw error;
       return data as DepositRequest[];
+    },
+  });
+
+  const editDepositMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<DepositRequest> }) => {
+      const { error } = await supabase
+        .from('deposit_requests')
+        .update({
+          amount: updates.amount,
+          currency: updates.currency,
+          network: updates.network,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      return updates;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-deposits'] });
+      toast.success('Deposit request updated successfully');
+      setIsEditing(false);
+      setEditedDeposit({});
+    },
+    onError: (error: any) => {
+      console.error('Edit deposit failed:', error);
+      toast.error(`Failed to update deposit request: ${error.message}`);
     },
   });
 
@@ -125,12 +166,32 @@ const DepositApprovalSection = () => {
       
       setSelectedDeposit(null);
       setAdminNotes('');
+      setIsEditing(false);
+      setEditedDeposit({});
     },
     onError: (error: any) => {
       console.error('Deposit approval failed:', error);
       toast.error(`Failed to update deposit request: ${error.message}`);
     },
   });
+
+  const handleEdit = (deposit: DepositRequest) => {
+    setEditedDeposit({
+      amount: deposit.amount,
+      currency: deposit.currency,
+      network: deposit.network,
+    });
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (selectedDeposit && editedDeposit) {
+      editDepositMutation.mutate({
+        id: selectedDeposit.id,
+        updates: editedDeposit,
+      });
+    }
+  };
 
   const handleApprove = (deposit: DepositRequest) => {
     console.log('Approving deposit:', deposit.id);
@@ -257,37 +318,119 @@ const DepositApprovalSection = () => {
                             onClick={() => {
                               setSelectedDeposit(deposit);
                               setAdminNotes(deposit.admin_notes || '');
+                              setIsEditing(false);
+                              setEditedDeposit({});
                             }}
                           >
                             <Eye className="w-4 h-4 mr-1" />
                             Review
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="bg-exchange-card-bg border-exchange-border">
+                        <DialogContent className="bg-exchange-card-bg border-exchange-border max-w-2xl">
                           <DialogHeader>
                             <DialogTitle className="text-exchange-text-primary">
-                              Review Deposit Request
+                              Review & Edit Deposit Request
                             </DialogTitle>
                           </DialogHeader>
                           <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                              <div>
-                                <span className="text-exchange-text-secondary">Amount:</span>
-                                <span className="ml-2 font-semibold text-exchange-text-primary">
-                                  ${deposit.amount} {deposit.currency}
-                                </span>
+                            {isEditing ? (
+                              <div className="space-y-4 p-4 border border-blue-500 rounded-lg">
+                                <h3 className="text-lg font-semibold text-blue-400 mb-3">Edit Deposit Details</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <Label className="text-exchange-text-secondary">Amount</Label>
+                                    <Input
+                                      type="number"
+                                      value={editedDeposit.amount || ''}
+                                      onChange={(e) => setEditedDeposit(prev => ({ ...prev, amount: parseFloat(e.target.value) }))}
+                                      className="bg-exchange-bg border-exchange-border text-exchange-text-primary"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-exchange-text-secondary">Currency</Label>
+                                    <Select 
+                                      value={editedDeposit.currency || ''} 
+                                      onValueChange={(value) => setEditedDeposit(prev => ({ ...prev, currency: value }))}
+                                    >
+                                      <SelectTrigger className="bg-exchange-bg border-exchange-border text-exchange-text-primary">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent className="bg-exchange-card-bg border-exchange-border">
+                                        {SUPPORTED_CURRENCIES.map((currency) => (
+                                          <SelectItem key={currency} value={currency} className="text-exchange-text-primary">
+                                            {currency}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label className="text-exchange-text-secondary">Network</Label>
+                                  <Select 
+                                    value={editedDeposit.network || ''} 
+                                    onValueChange={(value) => setEditedDeposit(prev => ({ ...prev, network: value }))}
+                                  >
+                                    <SelectTrigger className="bg-exchange-bg border-exchange-border text-exchange-text-primary">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-exchange-card-bg border-exchange-border">
+                                      {NETWORKS.map((network) => (
+                                        <SelectItem key={network} value={network} className="text-exchange-text-primary">
+                                          {network}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button
+                                    onClick={handleSaveEdit}
+                                    disabled={editDepositMutation.isPending}
+                                    className="bg-blue-600 hover:bg-blue-700"
+                                  >
+                                    {editDepositMutation.isPending ? 'Saving...' : 'Save Changes'}
+                                  </Button>
+                                  <Button
+                                    onClick={() => setIsEditing(false)}
+                                    variant="outline"
+                                    className="border-exchange-border text-exchange-text-secondary"
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
                               </div>
-                              <div>
-                                <span className="text-exchange-text-secondary">Network:</span>
-                                <span className="ml-2 text-exchange-text-primary">{deposit.network}</span>
+                            ) : (
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <span className="text-exchange-text-secondary">Amount:</span>
+                                  <span className="ml-2 font-semibold text-exchange-text-primary">
+                                    ${deposit.amount} {deposit.currency}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-exchange-text-secondary">Network:</span>
+                                  <span className="ml-2 text-exchange-text-primary">{deposit.network}</span>
+                                </div>
+                                <div className="col-span-2">
+                                  <span className="text-exchange-text-secondary">User ID:</span>
+                                  <span className="ml-2 font-mono text-sm text-exchange-text-primary">
+                                    {deposit.user_id}
+                                  </span>
+                                </div>
+                                <div className="col-span-2">
+                                  <Button
+                                    onClick={() => handleEdit(deposit)}
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-blue-500 text-blue-400 hover:bg-blue-900/20"
+                                  >
+                                    <Edit className="w-4 h-4 mr-2" />
+                                    Edit Deposit Details
+                                  </Button>
+                                </div>
                               </div>
-                              <div className="col-span-2">
-                                <span className="text-exchange-text-secondary">User ID:</span>
-                                <span className="ml-2 font-mono text-sm text-exchange-text-primary">
-                                  {deposit.user_id}
-                                </span>
-                              </div>
-                            </div>
+                            )}
 
                             {deposit.transaction_screenshot_url && (
                               <div>
@@ -320,24 +463,26 @@ const DepositApprovalSection = () => {
                               />
                             </div>
 
-                            <div className="flex gap-2">
-                              <Button
-                                onClick={() => handleApprove(deposit)}
-                                disabled={updateDepositMutation.isPending}
-                                className="bg-green-600 hover:bg-green-700"
-                              >
-                                <Check className="w-4 h-4 mr-1" />
-                                {updateDepositMutation.isPending ? 'Processing...' : 'Approve & Credit Wallet'}
-                              </Button>
-                              <Button
-                                onClick={() => handleReject(deposit)}
-                                disabled={updateDepositMutation.isPending}
-                                variant="destructive"
-                              >
-                                <X className="w-4 h-4 mr-1" />
-                                {updateDepositMutation.isPending ? 'Processing...' : 'Reject'}
-                              </Button>
-                            </div>
+                            {!isEditing && (
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={() => handleApprove(deposit)}
+                                  disabled={updateDepositMutation.isPending}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  <Check className="w-4 h-4 mr-1" />
+                                  {updateDepositMutation.isPending ? 'Processing...' : 'Approve & Credit Wallet'}
+                                </Button>
+                                <Button
+                                  onClick={() => handleReject(deposit)}
+                                  disabled={updateDepositMutation.isPending}
+                                  variant="destructive"
+                                >
+                                  <X className="w-4 h-4 mr-1" />
+                                  {updateDepositMutation.isPending ? 'Processing...' : 'Reject'}
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         </DialogContent>
                       </Dialog>
