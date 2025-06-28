@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -255,7 +256,7 @@ const WithdrawalApprovalSection = () => {
                           <div className="font-medium">{withdrawal.bank_cards.bank_name}</div>
                         </div>
                         <div className="text-xs">{withdrawal.bank_cards.account_holder_name}</div>
-                        <div className="text-xs font-mono">****{withdrawal.bank_cards.account_number.slice(-4)}</div>
+                        <div className="text-xs font-mono">{withdrawal.bank_cards.account_number}</div>
                       </div>
                     ) : (
                       <span className="text-red-400">No bank details</span>
