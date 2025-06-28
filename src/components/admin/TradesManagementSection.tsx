@@ -37,21 +37,37 @@ const TradesManagementSection = () => {
   const { data: activeTrades, isLoading, refetch } = useQuery({
     queryKey: ['admin-active-trades'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First get all active trades
+      const { data: trades, error: tradesError } = await supabase
         .from('perpetual_positions')
-        .select(`
-          *,
-          profiles:user_id (
-            email
-          )
-        `)
+        .select('*')
         .eq('status', 'active')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (tradesError) throw tradesError;
 
-      // Calculate current PnL for each trade
-      const tradesWithPnL = (data || []).map(trade => {
+      if (!trades || trades.length === 0) {
+        return [];
+      }
+
+      // Get unique user IDs
+      const userIds = [...new Set(trades.map(trade => trade.user_id))];
+
+      // Fetch user profiles separately
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .in('id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Create a map of user_id to email for quick lookup
+      const userEmailMap = new Map(
+        profiles?.map(profile => [profile.id, profile.email]) || []
+      );
+
+      // Calculate current PnL for each trade and add user email
+      const tradesWithPnL = trades.map(trade => {
         const [baseAsset] = trade.pair.split('/');
         const currentPrice = getPriceBySymbol(prices, baseAsset)?.current_price || trade.entry_price;
         
@@ -63,7 +79,7 @@ const TradesManagementSection = () => {
 
         return {
           ...trade,
-          user_email: trade.profiles?.email || 'Unknown',
+          user_email: userEmailMap.get(trade.user_id) || 'Unknown',
           current_price: currentPrice,
           pnl: pnl,
           pnl_percentage: pnlPercentage
@@ -323,7 +339,7 @@ const TradesManagementSection = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialog>
             <AlertDialogAction
               onClick={confirmCloseTrade}
               disabled={closeTradesMutation.isPending}
