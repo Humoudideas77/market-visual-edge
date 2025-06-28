@@ -55,8 +55,17 @@ const ManualDepositUpload = () => {
       // Upload QR code if provided
       if (data.qrCodeFile && data.qrCodeFile.length > 0) {
         const file = data.qrCodeFile[0];
+        
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+          toast.error('Please upload a valid image file for the QR code');
+          return;
+        }
+
         const fileExt = file.name.split('.').pop();
         const fileName = `${data.currency}_${Date.now()}.${fileExt}`;
+
+        console.log('Uploading QR code file:', fileName);
 
         const { error: uploadError } = await supabase.storage
           .from('qr-codes')
@@ -64,7 +73,7 @@ const ManualDepositUpload = () => {
 
         if (uploadError) {
           console.error('Upload error:', uploadError);
-          toast.error('Failed to upload QR code');
+          toast.error(`Failed to upload QR code: ${uploadError.message}`);
           return;
         }
 
@@ -73,6 +82,7 @@ const ManualDepositUpload = () => {
           .getPublicUrl(fileName);
 
         qrCodeUrl = publicUrl;
+        console.log('QR code uploaded successfully:', qrCodeUrl);
       }
 
       // Insert the new crypto address
@@ -88,7 +98,7 @@ const ManualDepositUpload = () => {
 
       if (insertError) {
         console.error('Insert error:', insertError);
-        toast.error('Failed to add deposit address');
+        toast.error(`Failed to add deposit address: ${insertError.message}`);
         return;
       }
 
@@ -118,7 +128,7 @@ const ManualDepositUpload = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="currency" className="text-white">Currency *</Label>
-              <Select onValueChange={(value) => setValue('currency', value)}>
+              <Select onValueChange={(value) => setValue('currency', value)} required>
                 <SelectTrigger>
                   <SelectValue placeholder="Select currency" />
                 </SelectTrigger>
@@ -137,7 +147,7 @@ const ManualDepositUpload = () => {
 
             <div className="space-y-2">
               <Label htmlFor="network" className="text-white">Network *</Label>
-              <Select onValueChange={(value) => setValue('network', value)}>
+              <Select onValueChange={(value) => setValue('network', value)} required>
                 <SelectTrigger>
                   <SelectValue placeholder="Select network" />
                 </SelectTrigger>
@@ -162,6 +172,7 @@ const ManualDepositUpload = () => {
               {...register('walletAddress', { required: 'Wallet address is required' })}
               placeholder="Enter wallet address"
               className="font-mono text-sm"
+              required
             />
             {errors.walletAddress && (
               <p className="text-red-400 text-sm">{errors.walletAddress.message}</p>
