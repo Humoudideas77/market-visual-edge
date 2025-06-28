@@ -13,7 +13,7 @@ export interface CryptoAddress {
   created_at: string;
 }
 
-export const useCryptoAddresses = () => {
+export const useCryptoAddresses = (activeOnly: boolean = true) => {
   const [addresses, setAddresses] = useState<CryptoAddress[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,11 +23,16 @@ export const useCryptoAddresses = () => {
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from('crypto_addresses')
         .select('*')
-        .eq('is_active', true)
         .order('created_at', { ascending: false });
+
+      if (activeOnly) {
+        query = query.eq('is_active', true);
+      }
+
+      const { data, error: fetchError } = await query;
 
       if (fetchError) {
         console.error('Error fetching crypto addresses:', fetchError);
@@ -70,7 +75,7 @@ export const useCryptoAddresses = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [activeOnly]);
 
   return {
     addresses,
