@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ComposedChart, XAxis, YAxis, ResponsiveContainer, LineChart, Line, Bar, BarChart } from 'recharts';
 import { useCryptoPrices } from '@/hooks/useCryptoPrices';
@@ -292,57 +293,6 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
         </div>
       </div>
     </div>
-  );
-};
-
-// Custom Candlestick Bar Component
-const CandlestickBar = (props: any) => {
-  const { payload, x, y, width, height } = props;
-  if (!payload) return null;
-
-  const { open, high, low, close } = payload;
-  const isGreen = close >= open;
-  const color = isGreen ? '#10b981' : '#ef4444';
-  
-  // Calculate positions
-  const minPrice = Math.min(...candleData.map(d => d.low));
-  const maxPrice = Math.max(...candleData.map(d => d.high));
-  const priceRange = maxPrice - minPrice;
-  
-  if (priceRange === 0) return null;
-  
-  const bodyTop = y + ((maxPrice - Math.max(open, close)) / priceRange) * height;
-  const bodyBottom = y + ((maxPrice - Math.min(open, close)) / priceRange) * height;
-  const bodyHeight = Math.max(bodyBottom - bodyTop, 1);
-    
-  const wickTop = y + ((maxPrice - high) / priceRange) * height;
-  const wickBottom = y + ((maxPrice - low) / priceRange) * height;
-  
-  const candleWidth = Math.max(width * 0.6, 3);
-  const candleX = x + (width - candleWidth) / 2;
-  
-  return (
-    <g>
-      {/* Wick */}
-      <line
-        x1={x + width / 2}
-        y1={wickTop}
-        x2={x + width / 2}
-        y2={wickBottom}
-        stroke={color}
-        strokeWidth={1}
-      />
-      {/* Body */}
-      <rect
-        x={candleX}
-        y={bodyTop}
-        width={candleWidth}
-        height={bodyHeight}
-        fill={isGreen ? color : 'transparent'}
-        stroke={color}
-        strokeWidth={1.5}
-      />
-    </g>
   );
 };
 
