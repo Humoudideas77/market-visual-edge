@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Users, CreditCard, FileCheck, Activity, DollarSign, UserCheck, Shield, Settings, RefreshCw, Home } from 'lucide-react';
+import { Users, CreditCard, FileCheck, Activity, DollarSign, UserCheck, Shield, Settings, RefreshCw, Home, Upload } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import DepositApprovalSection from '@/components/admin/DepositApprovalSection';
@@ -16,6 +16,7 @@ import KYCManagementSection from '@/components/admin/KYCManagementSection';
 import AdminStatsSection from '@/components/admin/AdminStatsSection';
 import SuperAdminActivityLogs from '@/components/admin/SuperAdminActivityLogs';
 import SuperAdminPlatformSettings from '@/components/admin/SuperAdminPlatformSettings';
+import ManualDepositUpload from '@/components/admin/ManualDepositUpload';
 import BackButton from '@/components/BackButton';
 import MecBot from '@/components/MecBot';
 import ContactMessagesSection from '@/components/admin/ContactMessagesSection';
@@ -194,7 +195,7 @@ const SuperAdminPage = () => {
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6 sm:space-y-8">
           <div className="w-full overflow-x-auto">
-            <TabsList className="grid grid-cols-4 lg:grid-cols-8 bg-gray-900 border-2 border-gray-700 shadow-2xl rounded-xl p-1 sm:p-2 min-w-full lg:min-w-0">
+            <TabsList className="grid grid-cols-4 lg:grid-cols-9 bg-gray-900 border-2 border-gray-700 shadow-2xl rounded-xl p-1 sm:p-2 min-w-full lg:min-w-0">
               <TabsTrigger 
                 value="overview" 
                 className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive text-xs sm:text-sm px-1 sm:px-2 lg:px-3"
@@ -234,6 +235,14 @@ const SuperAdminPage = () => {
                 <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                 <span className="hidden sm:inline">Deposits</span>
                 <span className="sm:hidden">Dep</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="manual-deposit" 
+                className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive text-xs sm:text-sm px-1 sm:px-2 lg:px-3"
+              >
+                <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Upload</span>
+                <span className="sm:hidden">Up</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="withdrawals" 
@@ -280,6 +289,10 @@ const SuperAdminPage = () => {
 
           <TabsContent value="deposits">
             <DepositApprovalSection />
+          </TabsContent>
+
+          <TabsContent value="manual-deposit">
+            <ManualDepositUpload />
           </TabsContent>
 
           <TabsContent value="withdrawals">
