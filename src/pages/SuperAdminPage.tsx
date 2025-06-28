@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
@@ -78,6 +77,17 @@ const SuperAdminPage = () => {
     window.location.href = '/';
   };
 
+  const handleGoBack = () => {
+    // Check if there's history to go back to
+    if (window.history.length > 1 && document.referrer && document.referrer !== window.location.href) {
+      // If there's a referrer and it's not the same page, go back
+      window.history.back();
+    } else {
+      // Otherwise, navigate to home
+      window.location.href = '/';
+    }
+  };
+
   console.log('SuperAdminPage - Render state:', {
     user: user?.email,
     authLoading,
@@ -154,13 +164,13 @@ const SuperAdminPage = () => {
               <span className="hidden sm:inline">Refresh</span>
             </Button>
             <Button 
-              onClick={handleLandingPageRedirect}
+              onClick={handleGoBack}
               variant="outline" 
               size="sm"
               className="border-gray-600 text-gray-300 hover:bg-gray-800 flex-1 sm:flex-none"
             >
               <Home className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline">Dashboard</span>
+              <span className="hidden sm:inline">Go Back</span>
             </Button>
           </div>
         </div>

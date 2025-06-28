@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Settings, User, ChevronDown, Globe, LogOut, Shield, MessageCircle, Menu, X } from 'lucide-react';
@@ -49,18 +48,16 @@ const Header = () => {
     setIsMobileMenuOpen(false);
   };
 
-  const handleSuperAdminClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    navigate('/superadmin');
+  const handleGoBack = () => {
+    // Check if there's history to go back to
+    if (window.history.length > 1 && document.referrer && document.referrer !== window.location.href) {
+      // If there's a referrer and it's not the same page, go back
+      window.history.back();
+    } else {
+      // Otherwise, navigate to home
+      navigate('/');
+    }
     setIsMobileMenuOpen(false);
-  };
-
-  const handleNotificationClick = () => {
-    toast.info('Notifications feature coming soon!');
-  };
-
-  const handleSettingsClick = () => {
-    toast.info('Settings panel coming soon!');
   };
 
   const handleSupportClick = () => {
@@ -106,16 +103,6 @@ const Header = () => {
             <Link to="/gold-mining" className="text-gray-300 hover:text-red-400 transition-colors font-medium">Gold Mining</Link>
             <Link to="/launchpad" className="text-gray-300 hover:text-red-400 transition-colors font-medium">Launchpad</Link>
             <Link to="/dashboard" className="text-gray-300 hover:text-red-400 transition-colors font-medium">Assets</Link>
-            
-            {userProfile?.role === 'superadmin' && (
-              <button 
-                onClick={handleSuperAdminClick}
-                className="text-red-400 hover:text-red-300 transition-colors flex items-center space-x-1 font-medium"
-              >
-                <Shield className="w-4 h-4" />
-                <span>Super Admin</span>
-              </button>
-            )}
           </>
         ) : (
           <>
@@ -141,27 +128,13 @@ const Header = () => {
           <>
             {/* Desktop Controls */}
             <div className="hidden sm:flex items-center space-x-2">
-              {/* Show these controls only for superadmins */}
+              {/* Language Selector - Only for superadmins */}
               {userProfile?.role === 'superadmin' && (
-                <>
-                  {/* Language Selector */}
-                  <div className="flex items-center space-x-1 text-gray-400 hover:text-white cursor-pointer transition-colors">
-                    <Globe className="w-4 h-4" />
-                    <span className="text-sm">EN</span>
-                    <ChevronDown className="w-3 h-3" />
-                  </div>
-
-                  {/* Notifications */}
-                  <button onClick={handleNotificationClick} className="hover:bg-gray-800 p-2 rounded-lg transition-colors relative">
-                    <Bell className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
-                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
-                  </button>
-
-                  {/* Settings */}
-                  <button onClick={handleSettingsClick} className="hover:bg-gray-800 p-2 rounded-lg transition-colors">
-                    <Settings className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
-                  </button>
-                </>
+                <div className="flex items-center space-x-1 text-gray-400 hover:text-white cursor-pointer transition-colors">
+                  <Globe className="w-4 h-4" />
+                  <span className="text-sm">EN</span>
+                  <ChevronDown className="w-3 h-3" />
+                </div>
               )}
 
               {/* User Profile */}
@@ -263,16 +236,6 @@ const Header = () => {
                   Assets
                 </Link>
                 
-                {userProfile?.role === 'superadmin' && (
-                  <button 
-                    onClick={handleSuperAdminClick}
-                    className="flex items-center space-x-2 text-red-400 hover:text-red-300 transition-colors font-medium py-3 border-b border-gray-700 w-full text-left"
-                  >
-                    <Shield className="w-4 h-4" />
-                    <span>Super Admin</span>
-                  </button>
-                )}
-                
                 <button 
                   onClick={handleSupportClick}
                   className="flex items-center space-x-2 text-gray-300 hover:text-blue-400 transition-colors font-medium py-3 border-b border-gray-700 w-full text-left"
@@ -284,20 +247,6 @@ const Header = () => {
 
               <div className="border-t border-gray-700 pt-4 space-y-3">
                 {/* Mobile User Actions */}
-                {userProfile?.role === 'superadmin' && (
-                  <>
-                    <button onClick={handleNotificationClick} className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors py-3 w-full text-left">
-                      <Bell className="w-5 h-5" />
-                      <span>Notifications</span>
-                    </button>
-                    
-                    <button onClick={handleSettingsClick} className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors py-3 w-full text-left">
-                      <Settings className="w-5 h-5" />
-                      <span>Settings</span>
-                    </button>
-                  </>
-                )}
-                
                 <button 
                   onClick={handleProfileClick}
                   className="flex items-center space-x-2 text-white hover:text-red-400 transition-colors py-3 w-full text-left"
