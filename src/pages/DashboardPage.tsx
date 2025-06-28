@@ -1,509 +1,284 @@
 
-import React, { useState } from 'react';
-import Header from '../components/Header';
-import KYCSection from '../components/KYCSection';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useWallet } from '@/hooks/useWallet';
-import { useMiningInvestments } from '@/hooks/useMiningInvestments';
-import { useCryptoPrices, formatPrice, formatVolume } from '@/hooks/useCryptoPrices';
-import EnhancedDepositModal from '@/components/EnhancedDepositModal';
-import WithdrawModal from '@/components/WithdrawModal';
-import CountdownTimer from '@/components/CountdownTimer';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useNavigate } from 'react-router-dom';
+import Header from '../components/Header';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { 
   Wallet, 
   TrendingUp, 
-  TrendingDown, 
-  Plus, 
-  Minus, 
   ArrowUpRight, 
-  ArrowDownLeft,
+  ArrowDownLeft, 
+  DollarSign, 
+  FileCheck, 
+  Activity,
+  Plus,
+  Minus,
   Eye,
-  EyeOff,
-  DollarSign,
-  Pickaxe,
-  User,
-  Shield
+  EyeOff
 } from 'lucide-react';
+import { useWallet } from '@/hooks/useWallet';
+import EnhancedDepositModal from '@/components/EnhancedDepositModal';
+import WithdrawModal from '@/components/WithdrawModal';
+import KYCSection from '@/components/KYCSection';
+import UserActivitySection from '@/components/UserActivitySection';
 
 const DashboardPage = () => {
-  const { user } = useAuth();
-  const { balances, transactions } = useWallet();
-  const { investments, getTotalEarnings } = useMiningInvestments();
-  const { prices } = useCryptoPrices();
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const { balances, loading: walletLoading } = useWallet();
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const [hideBalances, setHideBalances] = useState(false);
+  const [showBalances, setShowBalances] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
 
-  // Calculate total portfolio value in USD
-  const totalPortfolioValue = balances.reduce((total, balance) => {
-    if (balance.currency === 'USDT') {
-      return total + balance.total;
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/auth');
     }
-    const cryptoPrice = prices.find(p => p.symbol.toUpperCase() === balance.currency);
-    return total + (balance.total * (cryptoPrice?.current_price || 0));
+  }, [user, loading, navigate]);
+
+  if (loading || walletLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-900 text-base font-medium">Loading dashboard...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  const totalUSDValue = balances.reduce((total, balance) => {
+    if (balance.currency === 'USDT') {
+      return total + balance.available;
+    }
+    return total + (balance.available * 50000); // Mock conversion rate
   }, 0);
 
-  // Get recent transactions
-  const recentTransactions = transactions.slice(0, 8);
-
-  // Get active mining data
-  const activeInvestments = investments.filter(inv => inv.status === 'active');
-  const totalMiningEarnings = getTotalEarnings();
-  const dailyMiningReturn = activeInvestments.reduce((sum, inv) => 
-    sum + (inv.investment_amount * inv.daily_return_rate / 100), 0
-  );
-
-  // Get next payout time for the earliest investment
-  const nextActivePayout = activeInvestments.length > 0 
-    ? activeInvestments.reduce((earliest, current) => 
-        new Date(current.next_payout_date) < new Date(earliest.next_payout_date) ? current : earliest
-      )
-    : null;
+  const nonZeroBalances = balances.filter(balance => balance.available > 0 || balance.locked > 0);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gray-50">
       <Header />
       
-      <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        {/* Welcome Section */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-            Welcome back, {user?.email?.split('@')[0]}!
+      <div className="container mx-auto px-6 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Welcome back, {user.email?.split('@')[0]}!
           </h1>
-          <p className="text-gray-600 text-sm sm:text-base">
+          <p className="text-gray-700 text-base">
             Monitor your portfolio and manage your investments
           </p>
         </div>
 
-        {/* Main Dashboard Tabs */}
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="assets">My Assets</TabsTrigger>
-            <TabsTrigger value="profile">Profile & KYC</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4 bg-white border border-gray-200 shadow-sm">
+            <TabsTrigger 
+              value="overview" 
+              className="data-[state=active]:bg-red-600 data-[state=active]:text-white"
+            >
+              Overview
+            </TabsTrigger>
+            <TabsTrigger 
+              value="assets" 
+              className="data-[state=active]:bg-red-600 data-[state=active]:text-white"
+            >
+              My Assets
+            </TabsTrigger>
+            <TabsTrigger 
+              value="kyc" 
+              className="data-[state=active]:bg-red-600 data-[state=active]:text-white"
+            >
+              Profile & KYC
+            </TabsTrigger>
+            <TabsTrigger 
+              value="activity" 
+              className="data-[state=active]:bg-red-600 data-[state=active]:text-white"
+            >
+              Activity
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
-            {/* Portfolio Overview */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-              <Card className="col-span-1 sm:col-span-2 bg-white border border-gray-200 shadow-sm">
-                <CardHeader className="flex flex-row items-center justify-between pb-3">
-                  <CardTitle className="text-gray-900 text-lg sm:text-xl">Total Portfolio Value</CardTitle>
-                  <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setHideBalances(!hideBalances)}
-                      className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 order-3 sm:order-1"
-                    >
-                      {hideBalances ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </Button>
-                    <div className="flex gap-2 order-1 sm:order-2">
-                      <Button
-                        size="sm"
-                        onClick={() => setShowDepositModal(true)}
-                        className="bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm px-2 sm:px-3"
-                      >
-                        <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                        <span className="hidden sm:inline">Deposit</span>
-                        <span className="sm:hidden">Dep</span>
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => setShowWithdrawModal(true)}
-                        className="bg-gray-600 hover:bg-gray-700 text-white text-xs sm:text-sm px-2 sm:px-3"
-                      >
-                        <Minus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                        <span className="hidden sm:inline">Withdraw</span>
-                        <span className="sm:hidden">With</span>
-                      </Button>
-                    </div>
-                  </div>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <Card className="border border-gray-200 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-700">Total Balance</CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowBalances(!showBalances)}
+                    className="h-8 w-8 p-0"
+                  >
+                    {showBalances ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-                    {hideBalances ? '••••••' : `$${totalPortfolioValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                  <div className="text-2xl font-bold text-gray-900">
+                    {showBalances ? `$${totalUSDValue.toFixed(2)}` : '****'}
                   </div>
-                  <div className="flex items-center text-green-600 text-sm">
-                    <TrendingUp className="w-4 h-4 mr-1" />
-                    <span>Portfolio tracking active</span>
-                  </div>
+                  <p className="text-xs text-gray-600">
+                    +2.5% from last month
+                  </p>
                 </CardContent>
               </Card>
 
-              <Card className="bg-white border border-gray-200 shadow-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-gray-900 flex items-center text-base sm:text-lg">
-                    <ArrowDownLeft className="w-4 h-4 mr-2 text-green-600" />
-                    Total Deposits
-                  </CardTitle>
+              <Card className="border border-gray-200 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-700">Active Assets</CardTitle>
+                  <Wallet className="h-4 w-4 text-gray-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
-                    {hideBalances ? '••••••' : `$${transactions.filter(t => t.type === 'deposit' && t.status === 'completed').reduce((sum, t) => sum + t.amount, 0).toLocaleString()}`}
+                  <div className="text-2xl font-bold text-gray-900">
+                    {nonZeroBalances.length}
                   </div>
-                  <div className="text-xs text-gray-500">
-                    {transactions.filter(t => t.type === 'deposit').length} deposits
-                  </div>
+                  <p className="text-xs text-gray-600">
+                    Currencies with balance
+                  </p>
                 </CardContent>
               </Card>
 
-              <Card className="bg-white border border-gray-200 shadow-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-gray-900 flex items-center text-base sm:text-lg">
-                    <Pickaxe className="w-4 h-4 mr-2 text-red-600" />
-                    Mining Returns
-                  </CardTitle>
+              <Card className="border border-gray-200 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-700">Portfolio Growth</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-green-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
-                    {hideBalances ? '••••••' : `$${totalMiningEarnings.toFixed(2)}`}
+                  <div className="text-2xl font-bold text-green-600">
+                    +12.5%
                   </div>
-                  <div className="text-xs text-gray-500">
-                    Daily: ${dailyMiningReturn.toFixed(2)}/day
-                  </div>
+                  <p className="text-xs text-gray-600">
+                    This month
+                  </p>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Active Mining Plan */}
-            {activeInvestments.length > 0 && nextActivePayout && (
-              <Card className="mb-6 sm:mb-8 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200">
+            <div className="grid gap-6 md:grid-cols-2 mt-6">
+              <Card className="border border-gray-200 shadow-sm">
                 <CardHeader>
-                  <CardTitle className="text-gray-900 flex items-center">
-                    <Pickaxe className="w-5 h-5 mr-2 text-red-600" />
-                    Next Mining Payout
+                  <CardTitle className="flex items-center gap-2">
+                    <Plus className="h-5 w-5 text-green-600" />
+                    Quick Deposit
                   </CardTitle>
+                  <CardDescription>
+                    Fund your account instantly
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                    <div>
-                      <div className="text-sm text-gray-600 mb-1">Plan Type</div>
-                      <div className="text-lg font-semibold text-gray-900">{nextActivePayout.plan_name}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-600 mb-1">Investment Amount</div>
-                      <div className="text-lg font-semibold text-gray-900">${nextActivePayout.investment_amount.toLocaleString()}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-600 mb-1">Daily Return</div>
-                      <div className="text-lg font-semibold text-green-600">
-                        +${((nextActivePayout.investment_amount * nextActivePayout.daily_return_rate) / 100).toFixed(2)}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-600 mb-1">Next Payout</div>
-                      <CountdownTimer
-                        targetDate={new Date(nextActivePayout.next_payout_date)}
-                        className="text-lg font-semibold"
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-red-200">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">
-                        Days Active: {Math.floor((new Date().getTime() - new Date(nextActivePayout.start_date).getTime()) / (1000 * 60 * 60 * 24))}
-                      </span>
-                      <span className="text-sm font-semibold text-green-600">
-                        Total Earned: ${nextActivePayout.total_earned.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Quick Actions */}
-            <Card className="bg-white border border-gray-200 shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-gray-900">Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                   <Button 
                     onClick={() => setShowDepositModal(true)}
-                    className="h-16 sm:h-20 flex flex-col items-center justify-center bg-red-600 hover:bg-red-700 text-white"
+                    className="w-full bg-green-600 hover:bg-green-700"
                   >
-                    <Plus className="w-5 h-5 sm:w-6 sm:h-6 mb-1 sm:mb-2" />
-                    <span className="text-xs sm:text-sm">Deposit Funds</span>
+                    <ArrowDownLeft className="h-4 w-4 mr-2" />
+                    Deposit Funds
                   </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="border border-gray-200 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Minus className="h-5 w-5 text-red-600" />
+                    Quick Withdrawal
+                  </CardTitle>
+                  <CardDescription>
+                    Withdraw your funds securely
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
                   <Button 
                     onClick={() => setShowWithdrawModal(true)}
-                    className="h-16 sm:h-20 flex flex-col items-center justify-center bg-gray-600 hover:bg-gray-700 text-white"
+                    variant="outline" 
+                    className="w-full border-red-200 text-red-600 hover:bg-red-50"
                   >
-                    <Minus className="w-5 h-5 sm:w-6 sm:h-6 mb-1 sm:mb-2" />
-                    <span className="text-xs sm:text-sm">Withdraw Funds</span>
+                    <ArrowUpRight className="h-4 w-4 mr-2" />
+                    Withdraw Funds
                   </Button>
-                  <Button 
-                    variant="outline"
-                    className="h-16 sm:h-20 flex flex-col items-center justify-center border-gray-300 text-gray-700 hover:bg-gray-50"
-                    onClick={() => window.location.href = '/exchange'}
-                  >
-                    <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 mb-1 sm:mb-2" />
-                    <span className="text-xs sm:text-sm">View Markets</span>
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    className="h-16 sm:h-20 flex flex-col items-center justify-center border-red-300 text-red-600 hover:bg-red-50"
-                    onClick={() => window.location.href = '/gold-mining'}
-                  >
-                    <Pickaxe className="w-5 h-5 sm:w-6 sm:h-6 mb-1 sm:mb-2" />
-                    <span className="text-xs sm:text-sm">Gold Mining</span>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="assets">
-            {/* Wallet and Transactions */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-              <Card className="bg-white border border-gray-200 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-gray-900 flex items-center">
-                    <Wallet className="w-5 h-5 mr-2" />
-                    Wallet Balances
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {balances.filter(balance => balance.total > 0).map((balance) => {
-                      const cryptoPrice = prices.find(p => p.symbol.toUpperCase() === balance.currency);
-                      const usdValue = balance.currency === 'USDT' 
-                        ? balance.total 
-                        : balance.total * (cryptoPrice?.current_price || 0);
-
-                      return (
-                        <div key={balance.currency} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-                              <span className="text-xs font-bold text-red-600">
-                                {balance.currency.slice(0, 2)}
-                              </span>
-                            </div>
-                            <div>
-                              <div className="font-medium text-gray-900">
-                                {balance.currency}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                Available: {hideBalances ? '••••••' : balance.available.toFixed(8)}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-mono text-gray-900">
-                              {hideBalances ? '••••••' : balance.total.toFixed(8)}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {hideBalances ? '••••••' : `≈ $${usdValue.toFixed(2)}`}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    
-                    {balances.filter(balance => balance.total > 0).length === 0 && (
-                      <div className="text-center py-8 text-gray-500">
-                        <Wallet className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>No balances yet</p>
-                        <Button 
-                          onClick={() => setShowDepositModal(true)}
-                          className="mt-4 bg-red-600 hover:bg-red-700 text-white"
-                          size="sm"
-                        >
-                          Make your first deposit
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Recent Transactions */}
-              <Card className="bg-white border border-gray-200 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-gray-900">Recent Activity</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {recentTransactions.map((transaction) => (
-                      <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <Card className="border border-gray-200 shadow-sm">
+              <CardHeader>
+                <CardTitle>My Assets</CardTitle>
+                <CardDescription>
+                  Overview of your cryptocurrency holdings
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {nonZeroBalances.length > 0 ? (
+                    nonZeroBalances.map((balance) => (
+                      <div key={balance.currency} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex items-center space-x-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            transaction.type === 'deposit' ? 'bg-green-100' :
-                            transaction.type === 'trade_buy' ? 'bg-blue-100' :
-                            transaction.type === 'trade_sell' ? 'bg-red-100' :
-                            'bg-gray-100'
-                          }`}>
-                            {transaction.type === 'deposit' ? (
-                              <ArrowDownLeft className="w-4 h-4 text-green-600" />
-                            ) : transaction.type === 'trade_buy' ? (
-                              <TrendingUp className="w-4 h-4 text-blue-600" />
-                            ) : transaction.type === 'trade_sell' ? (
-                              <TrendingDown className="w-4 h-4 text-red-600" />
-                            ) : (
-                              <ArrowUpRight className="w-4 h-4 text-gray-500" />
-                            )}
+                          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                            <span className="font-semibold text-gray-900">
+                              {balance.currency.charAt(0)}
+                            </span>
                           </div>
                           <div>
-                            <div className="font-medium text-gray-900 capitalize text-sm">
-                              {transaction.type.replace('_', ' ')}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {transaction.timestamp.toLocaleString()}
+                            <div className="font-semibold text-gray-900">{balance.currency}</div>
+                            <div className="text-sm text-gray-600">
+                              Available: {showBalances ? balance.available.toFixed(8) : '****'}
                             </div>
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className={`font-mono text-sm ${
-                            transaction.type === 'deposit' || transaction.type === 'trade_buy' 
-                              ? 'text-green-600' 
-                              : 'text-red-600'
-                          }`}>
-                            {transaction.type === 'deposit' || transaction.type === 'trade_buy' ? '+' : '-'}
-                            {transaction.amount.toFixed(4)} {transaction.currency}
+                          <div className="font-semibold text-gray-900">
+                            {showBalances ? `$${(balance.available * (balance.currency === 'USDT' ? 1 : 50000)).toFixed(2)}` : '****'}
                           </div>
-                          <div className={`text-xs px-2 py-1 rounded ${
-                            transaction.status === 'completed' ? 'bg-green-100 text-green-600' :
-                            transaction.status === 'pending' ? 'bg-yellow-100 text-yellow-600' :
-                            'bg-red-100 text-red-600'
-                          }`}>
-                            {transaction.status}
-                          </div>
+                          <div className="text-sm text-green-600">+2.5%</div>
                         </div>
                       </div>
-                    ))}
-                    
-                    {recentTransactions.length === 0 && (
-                      <div className="text-center py-8 text-gray-500">
-                        <ArrowUpRight className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>No recent activity</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="profile">
-            <div className="space-y-6">
-              {/* Profile Information Card */}
-              <Card className="bg-white border border-gray-200 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-gray-900 flex items-center">
-                    <User className="w-5 h-5 mr-2 text-blue-600" />
-                    Profile Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-600">Email Address</p>
-                      <p className="font-medium text-gray-900">{user?.email}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Account Status</p>
-                      <p className="font-medium text-green-600">Active</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Member Since</p>
-                      <p className="font-medium text-gray-900">
-                        {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* KYC Section */}
-              <KYCSection />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="activity">
-            <Card className="bg-white border border-gray-200 shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-gray-900">Transaction History</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {transactions.map((transaction) => (
-                    <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          transaction.type === 'deposit' ? 'bg-green-100' :
-                          transaction.type === 'trade_buy' ? 'bg-blue-100' :
-                          transaction.type === 'trade_sell' ? 'bg-red-100' :
-                          'bg-gray-100'
-                        }`}>
-                          {transaction.type === 'deposit' ? (
-                            <ArrowDownLeft className="w-4 h-4 text-green-600" />
-                          ) : transaction.type === 'trade_buy' ? (
-                            <TrendingUp className="w-4 h-4 text-blue-600" />
-                          ) : transaction.type === 'trade_sell' ? (
-                            <TrendingDown className="w-4 h-4 text-red-600" />
-                          ) : (
-                            <ArrowUpRight className="w-4 h-4 text-gray-500" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="font-medium text-gray-900 capitalize text-sm">
-                            {transaction.type.replace('_', ' ')}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {transaction.timestamp.toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className={`font-mono text-sm ${
-                          transaction.type === 'deposit' || transaction.type === 'trade_buy' 
-                            ? 'text-green-600' 
-                            : 'text-red-600'
-                        }`}>
-                          {transaction.type === 'deposit' || transaction.type === 'trade_buy' ? '+' : '-'}
-                          {transaction.amount.toFixed(4)} {transaction.currency}
-                        </div>
-                        <div className={`text-xs px-2 py-1 rounded ${
-                          transaction.status === 'completed' ? 'bg-green-100 text-green-600' :
-                          transaction.status === 'pending' ? 'bg-yellow-100 text-yellow-600' :
-                          'bg-red-100 text-red-600'
-                        }`}>
-                          {transaction.status}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {transactions.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      <ArrowUpRight className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>No transactions yet</p>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <Wallet className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600">No assets found. Make your first deposit to get started.</p>
+                      <Button 
+                        onClick={() => setShowDepositModal(true)}
+                        className="mt-4 bg-red-600 hover:bg-red-700"
+                      >
+                        Make First Deposit
+                      </Button>
                     </div>
                   )}
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="kyc">
+            <KYCSection />
+          </TabsContent>
+
+          <TabsContent value="activity">
+            <UserActivitySection />
+          </TabsContent>
         </Tabs>
       </div>
 
-      {/* Enhanced Deposit Modal */}
-      <EnhancedDepositModal 
-        isOpen={showDepositModal} 
-        onClose={() => setShowDepositModal(false)} 
-      />
+      {showDepositModal && (
+        <EnhancedDepositModal 
+          isOpen={showDepositModal} 
+          onClose={() => setShowDepositModal(false)} 
+        />
+      )}
 
-      {/* Withdraw Modal */}
-      <WithdrawModal 
-        isOpen={showWithdrawModal} 
-        onClose={() => setShowWithdrawModal(false)} 
-      />
+      {showWithdrawModal && (
+        <WithdrawModal 
+          isOpen={showWithdrawModal} 
+          onClose={() => setShowWithdrawModal(false)} 
+        />
+      )}
     </div>
   );
 };
