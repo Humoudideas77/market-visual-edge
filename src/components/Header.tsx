@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Settings, User, ChevronDown, Globe, LogOut, Shield, MessageCircle, Menu, X } from 'lucide-react';
@@ -82,6 +83,9 @@ const Header = () => {
     setIsMobileMenuOpen(false);
   };
 
+  // Check if user is superadmin
+  const isSuperAdmin = userProfile?.role === 'superadmin';
+
   return (
     <header className="bg-gray-900 border-b border-gray-700 w-full px-4 sm:px-6 py-3 flex items-center justify-between shadow-xl relative">
       {/* Logo */}
@@ -106,7 +110,7 @@ const Header = () => {
             <Link to="/launchpad" className="text-gray-300 hover:text-red-400 transition-colors font-medium">Launchpad</Link>
             <Link to="/dashboard" className="text-gray-300 hover:text-red-400 transition-colors font-medium">Assets</Link>
             
-            {userProfile?.role === 'superadmin' && (
+            {isSuperAdmin && (
               <button 
                 onClick={handleSuperAdminClick}
                 className="text-red-400 hover:text-red-300 transition-colors flex items-center space-x-1 font-medium"
@@ -136,40 +140,46 @@ const Header = () => {
 
       {/* Right Side Controls */}
       <div className="flex items-center space-x-1 sm:space-x-3">
-        {/* Language Selector - Hidden on small screens */}
-        <div className="hidden sm:flex items-center space-x-1 text-gray-400 hover:text-white cursor-pointer transition-colors">
-          <Globe className="w-4 h-4" />
-          <span className="text-sm">EN</span>
-          <ChevronDown className="w-3 h-3" />
-        </div>
+        {/* Language Selector - Hidden on small screens and hidden for non-superadmin users */}
+        {isSuperAdmin && (
+          <div className="hidden sm:flex items-center space-x-1 text-gray-400 hover:text-white cursor-pointer transition-colors">
+            <Globe className="w-4 h-4" />
+            <span className="text-sm">EN</span>
+            <ChevronDown className="w-3 h-3" />
+          </div>
+        )}
 
         {user ? (
           <>
             {/* Desktop Controls */}
             <div className="hidden sm:flex items-center space-x-2">
-              {/* Notifications */}
-              <button onClick={handleNotificationClick} className="hover:bg-gray-800 p-2 rounded-lg transition-colors relative">
-                <Bell className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
-              </button>
+              {/* Notifications - Only show for superadmin */}
+              {isSuperAdmin && (
+                <button onClick={handleNotificationClick} className="hover:bg-gray-800 p-2 rounded-lg transition-colors relative">
+                  <Bell className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
+                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+                </button>
+              )}
 
-              {/* Settings */}
-              <button onClick={handleSettingsClick} className="hover:bg-gray-800 p-2 rounded-lg transition-colors">
-                <Settings className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
-              </button>
+              {/* Settings - Only show for superadmin */}
+              {isSuperAdmin && (
+                <button onClick={handleSettingsClick} className="hover:bg-gray-800 p-2 rounded-lg transition-colors">
+                  <Settings className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
+                </button>
+              )}
 
               {/* User Profile */}
               <button 
                 onClick={handleProfileClick}
                 className="flex items-center space-x-2 bg-gray-800 border border-gray-600 px-3 py-2 rounded-lg cursor-pointer hover:bg-gray-700 transition-all duration-200"
               >
-                {userProfile?.role === 'superadmin' ? (
+                {isSuperAdmin ? (
                   <Shield className="w-4 h-4 text-red-400" />
                 ) : (
                   <User className="w-4 h-4 text-white" />
                 )}
                 <span className="text-sm text-white font-medium">
-                  {userProfile?.role === 'superadmin' ? 'Super Admin' : 'Profile'}
+                  {isSuperAdmin ? 'Super Admin' : 'Profile'}
                 </span>
                 <ChevronDown className="w-3 h-3 text-gray-400" />
               </button>
@@ -257,7 +267,7 @@ const Header = () => {
                   Assets
                 </Link>
                 
-                {userProfile?.role === 'superadmin' && (
+                {isSuperAdmin && (
                   <button 
                     onClick={handleSuperAdminClick}
                     className="flex items-center space-x-2 text-red-400 hover:text-red-300 transition-colors font-medium py-3 border-b border-gray-700 w-full text-left"
@@ -277,27 +287,31 @@ const Header = () => {
               </div>
 
               <div className="border-t border-gray-700 pt-4 space-y-3">
-                {/* Mobile User Actions */}
-                <button onClick={handleNotificationClick} className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors py-3 w-full text-left">
-                  <Bell className="w-5 h-5" />
-                  <span>Notifications</span>
-                </button>
-                
-                <button onClick={handleSettingsClick} className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors py-3 w-full text-left">
-                  <Settings className="w-5 h-5" />
-                  <span>Settings</span>
-                </button>
+                {/* Mobile User Actions - Only show notifications and settings for superadmin */}
+                {isSuperAdmin && (
+                  <>
+                    <button onClick={handleNotificationClick} className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors py-3 w-full text-left">
+                      <Bell className="w-5 h-5" />
+                      <span>Notifications</span>
+                    </button>
+                    
+                    <button onClick={handleSettingsClick} className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors py-3 w-full text-left">
+                      <Settings className="w-5 h-5" />
+                      <span>Settings</span>
+                    </button>
+                  </>
+                )}
                 
                 <button 
                   onClick={handleProfileClick}
                   className="flex items-center space-x-2 text-white hover:text-red-400 transition-colors py-3 w-full text-left"
                 >
-                  {userProfile?.role === 'superadmin' ? (
+                  {isSuperAdmin ? (
                     <Shield className="w-5 h-5 text-red-400" />
                   ) : (
                     <User className="w-5 h-5" />
                   )}
-                  <span>{userProfile?.role === 'superadmin' ? 'Super Admin Panel' : 'My Profile'}</span>
+                  <span>{isSuperAdmin ? 'Super Admin Panel' : 'My Profile'}</span>
                 </button>
                 
                 <button
@@ -308,12 +322,14 @@ const Header = () => {
                   <span>Sign Out</span>
                 </button>
 
-                {/* Language Selector in Mobile */}
-                <div className="flex items-center space-x-2 text-gray-400 hover:text-white cursor-pointer transition-colors py-3">
-                  <Globe className="w-5 h-5" />
-                  <span>English</span>
-                  <ChevronDown className="w-4 h-4" />
-                </div>
+                {/* Language Selector in Mobile - Only show for superadmin */}
+                {isSuperAdmin && (
+                  <div className="flex items-center space-x-2 text-gray-400 hover:text-white cursor-pointer transition-colors py-3">
+                    <Globe className="w-5 h-5" />
+                    <span>English</span>
+                    <ChevronDown className="w-4 h-4" />
+                  </div>
+                )}
               </div>
             </div>
           </div>

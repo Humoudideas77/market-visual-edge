@@ -136,6 +136,9 @@ const SuperAdminPage = () => {
 
   console.log('SuperAdminPage - Rendering SuperAdmin dashboard for:', userProfile.email);
 
+  // Check if user is superadmin for hiding Activity tab
+  const isSuperAdmin = userProfile?.role === 'superadmin';
+
   return (
     <div className="admin-dashboard-bg min-h-screen w-full overflow-x-hidden">
       <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 max-w-7xl">
@@ -195,7 +198,7 @@ const SuperAdminPage = () => {
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6 sm:space-y-8">
           <div className="w-full overflow-x-auto">
-            <TabsList className="grid grid-cols-4 lg:grid-cols-9 bg-gray-900 border-2 border-gray-700 shadow-2xl rounded-xl p-1 sm:p-2 min-w-full lg:min-w-0">
+            <TabsList className="grid grid-cols-4 lg:grid-cols-8 bg-gray-900 border-2 border-gray-700 shadow-2xl rounded-xl p-1 sm:p-2 min-w-full lg:min-w-0">
               <TabsTrigger 
                 value="overview" 
                 className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive text-xs sm:text-sm px-1 sm:px-2 lg:px-3"
@@ -253,14 +256,6 @@ const SuperAdminPage = () => {
                 <span className="sm:hidden">With</span>
               </TabsTrigger>
               <TabsTrigger 
-                value="activity" 
-                className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive text-xs sm:text-sm px-1 sm:px-2 lg:px-3"
-              >
-                <UserCheck className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                <span className="hidden sm:inline">Activity</span>
-                <span className="sm:hidden">Act</span>
-              </TabsTrigger>
-              <TabsTrigger 
                 value="settings" 
                 className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive text-xs sm:text-sm px-1 sm:px-2 lg:px-3"
               >
@@ -297,10 +292,6 @@ const SuperAdminPage = () => {
 
           <TabsContent value="withdrawals">
             <WithdrawalApprovalSection />
-          </TabsContent>
-
-          <TabsContent value="activity">
-            <SuperAdminActivityLogs />
           </TabsContent>
 
           <TabsContent value="settings">
