@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Settings, User, ChevronDown, Globe, LogOut, Shield, MessageCircle, Menu, X } from 'lucide-react';
@@ -136,27 +137,32 @@ const Header = () => {
 
       {/* Right Side Controls */}
       <div className="flex items-center space-x-1 sm:space-x-3">
-        {/* Language Selector - Hidden on small screens */}
-        <div className="hidden sm:flex items-center space-x-1 text-gray-400 hover:text-white cursor-pointer transition-colors">
-          <Globe className="w-4 h-4" />
-          <span className="text-sm">EN</span>
-          <ChevronDown className="w-3 h-3" />
-        </div>
-
         {user ? (
           <>
             {/* Desktop Controls */}
             <div className="hidden sm:flex items-center space-x-2">
-              {/* Notifications */}
-              <button onClick={handleNotificationClick} className="hover:bg-gray-800 p-2 rounded-lg transition-colors relative">
-                <Bell className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
-              </button>
+              {/* Show these controls only for superadmins */}
+              {userProfile?.role === 'superadmin' && (
+                <>
+                  {/* Language Selector */}
+                  <div className="flex items-center space-x-1 text-gray-400 hover:text-white cursor-pointer transition-colors">
+                    <Globe className="w-4 h-4" />
+                    <span className="text-sm">EN</span>
+                    <ChevronDown className="w-3 h-3" />
+                  </div>
 
-              {/* Settings */}
-              <button onClick={handleSettingsClick} className="hover:bg-gray-800 p-2 rounded-lg transition-colors">
-                <Settings className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
-              </button>
+                  {/* Notifications */}
+                  <button onClick={handleNotificationClick} className="hover:bg-gray-800 p-2 rounded-lg transition-colors relative">
+                    <Bell className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
+                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+                  </button>
+
+                  {/* Settings */}
+                  <button onClick={handleSettingsClick} className="hover:bg-gray-800 p-2 rounded-lg transition-colors">
+                    <Settings className="w-5 h-5 text-gray-400 hover:text-white cursor-pointer transition-colors" />
+                  </button>
+                </>
+              )}
 
               {/* User Profile */}
               <button 
@@ -278,15 +284,19 @@ const Header = () => {
 
               <div className="border-t border-gray-700 pt-4 space-y-3">
                 {/* Mobile User Actions */}
-                <button onClick={handleNotificationClick} className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors py-3 w-full text-left">
-                  <Bell className="w-5 h-5" />
-                  <span>Notifications</span>
-                </button>
-                
-                <button onClick={handleSettingsClick} className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors py-3 w-full text-left">
-                  <Settings className="w-5 h-5" />
-                  <span>Settings</span>
-                </button>
+                {userProfile?.role === 'superadmin' && (
+                  <>
+                    <button onClick={handleNotificationClick} className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors py-3 w-full text-left">
+                      <Bell className="w-5 h-5" />
+                      <span>Notifications</span>
+                    </button>
+                    
+                    <button onClick={handleSettingsClick} className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors py-3 w-full text-left">
+                      <Settings className="w-5 h-5" />
+                      <span>Settings</span>
+                    </button>
+                  </>
+                )}
                 
                 <button 
                   onClick={handleProfileClick}
@@ -308,12 +318,14 @@ const Header = () => {
                   <span>Sign Out</span>
                 </button>
 
-                {/* Language Selector in Mobile */}
-                <div className="flex items-center space-x-2 text-gray-400 hover:text-white cursor-pointer transition-colors py-3">
-                  <Globe className="w-5 h-5" />
-                  <span>English</span>
-                  <ChevronDown className="w-4 h-4" />
-                </div>
+                {/* Language Selector in Mobile - Only for superadmins */}
+                {userProfile?.role === 'superadmin' && (
+                  <div className="flex items-center space-x-2 text-gray-400 hover:text-white cursor-pointer transition-colors py-3">
+                    <Globe className="w-5 h-5" />
+                    <span>English</span>
+                    <ChevronDown className="w-4 h-4" />
+                  </div>
+                )}
               </div>
             </div>
           </div>
