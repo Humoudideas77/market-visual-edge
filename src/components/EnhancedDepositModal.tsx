@@ -1,21 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Copy, Upload, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { Loader2, Upload, QrCode, Copy, Check } from 'lucide-react';
-
-interface CryptoAddress {
-  id: string;
-  currency: string;
-  network: string;
-  wallet_address: string;
-  qr_code_url: string | null;
-}
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useCryptoAddresses } from '@/hooks/useCryptoAddresses';
 
 interface EnhancedDepositModalProps {
   isOpen: boolean;
@@ -24,358 +20,313 @@ interface EnhancedDepositModalProps {
 
 const EnhancedDepositModal = ({ isOpen, onClose }: EnhancedDepositModalProps) => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
-  const [cryptoAddresses, setCryptoAddresses] = useState<CryptoAddress[]>([]);
-  const [selectedCurrency, setSelectedCurrency] = useState('USDT');
-  const [selectedNetwork, setSelectedNetwork] = useState('');
-  const [amount, setAmount] = useState('');
+  const { addresses, loading: addressesLoading, error: addressesError, refetch } = useCryptoAddresses();
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('');
+  const [selectedNetwork, setSelectedNetwork] = useState<string>('');
+  const [amount, setAmount] = useState<string>('');
   const [screenshot, setScreenshot] = useState<File | null>(null);
-  const [copiedAddress, setCopiedAddress] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const currencies = ['USDT', 'BTC', 'ETH', 'BNB', 'SOL'];
+  // Get unique currencies and networks from addresses
+  const availableCurrencies = [...new Set(addresses.map(addr => addr.currency))];
+  const availableNetworks = addresses
+    .filter(addr => !selectedCurrency || addr.currency === selectedCurrency)
+    .map(addr => addr.network);
+  const uniqueNetworks = [...new Set(availableNetworks)];
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchCryptoAddresses();
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    // Reset network selection when currency changes
-    setSelectedNetwork('');
-    const networksForCurrency = cryptoAddresses
-      .filter(addr => addr.currency === selectedCurrency)
-      .map(addr => addr.network);
-    if (networksForCurrency.length === 1) {
-      setSelectedNetwork(networksForCurrency[0]);
-    }
-  }, [selectedCurrency, cryptoAddresses]);
-
-  const fetchCryptoAddresses = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('crypto_addresses')
-        .select('*')
-        .eq('is_active', true)
-        .order('currency');
-
-      if (error) throw error;
-      setCryptoAddresses(data || []);
-    } catch (error) {
-      console.error('Error fetching crypto addresses:', error);
-      toast.error('Failed to load deposit addresses');
-    }
-  };
-
-  const selectedAddress = cryptoAddresses.find(
+  // Get the selected address
+  const selectedAddress = addresses.find(
     addr => addr.currency === selectedCurrency && addr.network === selectedNetwork
   );
 
   const handleCopyAddress = async (address: string) => {
     try {
       await navigator.clipboard.writeText(address);
-      setCopiedAddress(address);
       toast.success('Address copied to clipboard');
-      setTimeout(() => setCopiedAddress(''), 2000);
     } catch (error) {
       toast.error('Failed to copy address');
     }
   };
 
-  const handleScreenshotUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please upload a valid image file');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
         toast.error('File size must be less than 5MB');
         return;
       }
-      if (!file.type.startsWith('image/')) {
-        toast.error('Please upload an image file');
-        return;
-      }
+      
       setScreenshot(file);
+      toast.success('Screenshot uploaded successfully');
     }
   };
 
-  const uploadScreenshot = async (file: File): Promise<string | null> => {
-    if (!user) return null;
-    
-    setUploadingScreenshot(true);
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-      
-      console.log('Uploading screenshot to:', fileName);
-      
-      const { data, error } = await supabase.storage
-        .from('deposit-screenshots')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (error) {
-        console.error('Upload error:', error);
-        throw error;
-      }
-
-      console.log('Upload successful:', data);
-
-      const { data: urlData } = supabase.storage
-        .from('deposit-screenshots')
-        .getPublicUrl(data.path);
-
-      console.log('Public URL:', urlData.publicUrl);
-      return urlData.publicUrl;
-    } catch (error) {
-      console.error('Error uploading screenshot:', error);
-      toast.error('Failed to upload screenshot');
-      return null;
-    } finally {
-      setUploadingScreenshot(false);
-    }
-  };
-
-  const handleSubmitDeposit = async () => {
+  const handleSubmit = async () => {
     if (!user) {
-      toast.error('You must be logged in to make a deposit');
+      toast.error('Please log in to make a deposit');
+      return;
+    }
+
+    if (!selectedCurrency || !selectedNetwork || !amount || !screenshot) {
+      toast.error('Please fill in all required fields');
       return;
     }
 
     if (!selectedAddress) {
-      toast.error('Please select a currency and network');
+      toast.error('Invalid currency/network combination');
       return;
     }
-
-    if (!amount || parseFloat(amount) <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-
-    if (parseFloat(amount) < 60) {
-      toast.error('Minimum deposit amount is $60');
-      return;
-    }
-
-    if (!screenshot) {
-      toast.error('Please upload a transaction screenshot');
-      return;
-    }
-
-    setLoading(true);
 
     try {
-      // Upload screenshot first
-      const screenshotUrl = await uploadScreenshot(screenshot);
-      if (!screenshotUrl) {
-        throw new Error('Failed to upload screenshot');
+      setIsSubmitting(true);
+
+      // Upload screenshot
+      const fileExt = screenshot.name.split('.').pop();
+      const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('deposit-screenshots')
+        .upload(fileName, screenshot);
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        toast.error('Failed to upload screenshot');
+        return;
       }
 
-      console.log('Creating deposit request with screenshot URL:', screenshotUrl);
+      const { data: { publicUrl } } = supabase.storage
+        .from('deposit-screenshots')
+        .getPublicUrl(fileName);
 
       // Create deposit request
-      const { error } = await supabase
+      const { error: insertError } = await supabase
         .from('deposit_requests')
         .insert({
           user_id: user.id,
           currency: selectedCurrency,
           network: selectedNetwork,
           amount: parseFloat(amount),
-          transaction_screenshot_url: screenshotUrl,
+          transaction_screenshot_url: publicUrl,
           status: 'pending'
         });
 
-      if (error) {
-        console.error('Database error:', error);
-        throw error;
+      if (insertError) {
+        console.error('Insert error:', insertError);
+        toast.error('Failed to submit deposit request');
+        return;
       }
 
-      toast.success('Deposit request submitted successfully. We will review and process it within 24 hours.');
+      toast.success('Deposit request submitted successfully');
       
       // Reset form
+      setSelectedCurrency('');
+      setSelectedNetwork('');
       setAmount('');
       setScreenshot(null);
       onClose();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error submitting deposit:', error);
-      toast.error(error.message || 'Failed to submit deposit request');
+      toast.error('Failed to submit deposit request');
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  const networksForCurrency = cryptoAddresses
-    .filter(addr => addr.currency === selectedCurrency)
-    .map(addr => ({ network: addr.network, id: addr.id }));
+  // Reset network when currency changes
+  useEffect(() => {
+    setSelectedNetwork('');
+  }, [selectedCurrency]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Crypto Deposit</DialogTitle>
+          <DialogTitle className="text-2xl font-bold text-white flex items-center gap-2">
+            <Upload className="w-6 h-6 text-red-500" />
+            Make a Deposit
+          </DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-6">
           {/* Currency Selection */}
-          <div>
-            <Label htmlFor="currency" className="text-sm font-medium mb-2 block">
-              Select Currency
+          <div className="space-y-2">
+            <Label htmlFor="currency" className="text-white font-semibold">
+              Select Currency *
             </Label>
-            <select
-              id="currency"
-              value={selectedCurrency}
-              onChange={(e) => setSelectedCurrency(e.target.value)}
-              className="exchange-input w-full"
-            >
-              {currencies.map((currency) => (
-                <option key={currency} value={currency}>
-                  {currency}
-                </option>
-              ))}
-            </select>
+            {addressesLoading ? (
+              <div className="flex items-center gap-2 text-gray-400">
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Loading available currencies...
+              </div>
+            ) : addressesError ? (
+              <div className="flex items-center gap-2 text-red-400">
+                <AlertCircle className="w-4 h-4" />
+                Failed to load currencies
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={refetch}
+                  className="ml-2"
+                >
+                  Retry
+                </Button>
+              </div>
+            ) : availableCurrencies.length === 0 ? (
+              <div className="text-gray-400 text-center py-4">
+                No deposit addresses available. Please contact support.
+              </div>
+            ) : (
+              <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a cryptocurrency" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableCurrencies.map((currency) => (
+                    <SelectItem key={currency} value={currency}>
+                      {currency}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {/* Network Selection */}
-          {networksForCurrency.length > 1 && (
-            <div>
-              <Label htmlFor="network" className="text-sm font-medium mb-2 block">
-                Select Network
+          {selectedCurrency && (
+            <div className="space-y-2">
+              <Label htmlFor="network" className="text-white font-semibold">
+                Select Network *
               </Label>
-              <select
-                id="network"
-                value={selectedNetwork}
-                onChange={(e) => setSelectedNetwork(e.target.value)}
-                className="exchange-input w-full"
-              >
-                <option value="">Choose Network</option>
-                {networksForCurrency.map((item) => (
-                  <option key={item.id} value={item.network}>
-                    {item.network}
-                  </option>
-                ))}
-              </select>
+              <Select value={selectedNetwork} onValueChange={setSelectedNetwork}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a network" />
+                </SelectTrigger>
+                <SelectContent>
+                  {uniqueNetworks.map((network) => (
+                    <SelectItem key={network} value={network}>
+                      {network}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
-          {/* Deposit Address */}
+          {/* Deposit Address Display */}
           {selectedAddress && (
-            <div className="bg-exchange-accent/20 rounded-lg p-4">
-              <Label className="text-sm font-medium mb-2 block">
-                Deposit Address ({selectedAddress.network})
-              </Label>
-              
-              {/* QR Code */}
-              {selectedAddress.qr_code_url && (
-                <div className="flex justify-center mb-4">
-                  <img 
-                    src={selectedAddress.qr_code_url} 
-                    alt="QR Code"
-                    className="w-32 h-32 border rounded"
-                  />
+            <Card className="border-2 border-red-500/20 bg-gray-900/50">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  Deposit Address
+                  <Badge variant="secondary" className="ml-auto">
+                    {selectedAddress.currency} - {selectedAddress.network}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-gray-300">Wallet Address</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={selectedAddress.wallet_address}
+                      readOnly
+                      className="font-mono text-sm bg-gray-800 border-gray-600"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleCopyAddress(selectedAddress.wallet_address)}
+                      className="border-gray-600 hover:bg-gray-700"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-              )}
 
-              {/* Address */}
-              <div className="flex items-center space-x-2">
-                <div className="flex-1 p-2 bg-exchange-bg rounded border font-mono text-sm break-all">
-                  {selectedAddress.wallet_address}
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => handleCopyAddress(selectedAddress.wallet_address)}
-                  className="bg-exchange-blue hover:bg-exchange-blue/90"
-                >
-                  {copiedAddress === selectedAddress.wallet_address ? (
-                    <Check className="w-4 h-4" />
-                  ) : (
-                    <Copy className="w-4 h-4" />
-                  )}
-                </Button>
-              </div>
-              
-              <p className="text-xs text-exchange-text-secondary mt-2">
-                Send only {selectedCurrency} to this address via {selectedAddress.network} network.
-              </p>
-            </div>
+                {/* QR Code */}
+                {selectedAddress.qr_code_url && (
+                  <div className="space-y-2">
+                    <Label className="text-gray-300">QR Code</Label>
+                    <div className="flex justify-center">
+                      <img
+                        src={selectedAddress.qr_code_url}
+                        alt="QR Code"
+                        className="w-48 h-48 border border-gray-600 rounded-lg bg-white p-2"
+                      />
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           )}
 
           {/* Amount Input */}
-          <div>
-            <Label htmlFor="amount" className="text-sm font-medium mb-2 block">
-              Amount
-            </Label>
-            <Input
-              id="amount"
-              type="number"
-              placeholder="Enter amount"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="exchange-input"
-              min="60"
-              step="0.01"
-            />
-            <p className="text-xs text-exchange-text-secondary mt-1">
-              Minimum deposit: $60 USD
-            </p>
-          </div>
+          {selectedAddress && (
+            <div className="space-y-2">
+              <Label htmlFor="amount" className="text-white font-semibold">
+                Deposit Amount *
+              </Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.00000001"
+                min="0"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder={`Enter ${selectedCurrency} amount`}
+                className="bg-gray-800 border-gray-600 text-white"
+              />
+            </div>
+          )}
 
           {/* Screenshot Upload */}
-          <div>
-            <Label htmlFor="screenshot" className="text-sm font-medium mb-2 block">
-              Transaction Screenshot *
-            </Label>
-            <div className="border-2 border-dashed border-exchange-border rounded-lg p-4">
-              <input
+          {selectedAddress && (
+            <div className="space-y-2">
+              <Label htmlFor="screenshot" className="text-white font-semibold">
+                Transaction Screenshot *
+              </Label>
+              <Input
                 id="screenshot"
                 type="file"
                 accept="image/*"
-                onChange={handleScreenshotUpload}
-                className="hidden"
+                onChange={handleFileChange}
+                className="bg-gray-800 border-gray-600 text-white file:bg-red-600 file:text-white file:border-0 file:rounded-md file:px-4 file:py-2 file:mr-4"
               />
-              <label 
-                htmlFor="screenshot"
-                className="cursor-pointer flex flex-col items-center space-y-2"
-              >
-                <Upload className="w-8 h-8 text-exchange-text-secondary" />
-                <span className="text-sm text-exchange-text-secondary">
-                  {screenshot ? screenshot.name : 'Click to upload transaction screenshot'}
-                </span>
-                <span className="text-xs text-exchange-text-muted">
-                  PNG, JPG up to 5MB
-                </span>
-              </label>
+              {screenshot && (
+                <div className="text-green-400 text-sm flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4" />
+                  Screenshot uploaded: {screenshot.name}
+                </div>
+              )}
             </div>
-          </div>
-
-          {/* Deposit Instructions */}
-          <div className="bg-exchange-yellow/10 border border-exchange-yellow/30 rounded-lg p-3">
-            <h4 className="text-sm font-medium text-exchange-text-primary mb-2">
-              Important Instructions:
-            </h4>
-            <ul className="text-xs text-exchange-text-secondary space-y-1">
-              <li>• Send the exact amount you entered above</li>
-              <li>• Use only the provided address and network</li>
-              <li>• Upload a clear screenshot of your transaction</li>
-              <li>• Processing time: 1-24 hours after confirmation</li>
-              <li>• Do not send from an exchange wallet</li>
-            </ul>
-          </div>
+          )}
 
           {/* Submit Button */}
           <Button
-            onClick={handleSubmitDeposit}
-            disabled={loading || uploadingScreenshot || !selectedAddress || !amount || !screenshot}
-            className="w-full bg-exchange-green hover:bg-exchange-green/90"
+            onClick={handleSubmit}
+            disabled={!selectedAddress || isSubmitting || !amount || !screenshot}
+            className="w-full bg-red-600 hover:bg-red-700 text-white"
           >
-            {loading ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : uploadingScreenshot ? (
-              <Upload className="w-4 h-4 mr-2" />
+            {isSubmitting ? (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                Submitting Deposit Request...
+              </>
             ) : (
-              <QrCode className="w-4 h-4 mr-2" />
+              <>
+                <Upload className="w-4 h-4 mr-2" />
+                Submit Deposit Request
+              </>
             )}
-            {uploadingScreenshot ? 'Uploading...' : 'Submit Deposit Request'}
           </Button>
         </div>
       </DialogContent>
