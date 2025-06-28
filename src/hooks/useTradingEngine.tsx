@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useCryptoPrices, getPriceBySymbol } from './useCryptoPrices';
 import { useWallet } from './useWallet';
 import { useAuth } from './useAuth';
@@ -42,6 +41,10 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
   const [recentTrades, setRecentTrades] = useState<Trade[]>([]);
   const [userTrades, setUserTrades] = useState<Trade[]>([]);
   const [tradingPair, setTradingPair] = useState<TradingPair | null>(null);
+  
+  // Refs to manage intervals
+  const orderBookIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const tradesIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Update trading pair data from crypto prices
   useEffect(() => {
@@ -62,7 +65,7 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
     }
   }, [selectedPair, prices]);
 
-  // Generate mock order book data with controlled updates
+  // Generate realistic order book with controlled updates
   useEffect(() => {
     if (!tradingPair) return;
 
@@ -119,22 +122,99 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
       setRecentTrades(trades.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()));
     };
 
+    // Clear existing intervals
+    if (orderBookIntervalRef.current) {
+      clearInterval(orderBookIntervalRef.current);
+    }
+    if (tradesIntervalRef.current) {
+      clearInterval(tradesIntervalRef.current);
+    }
+
     // Initial generation
     generateOrderBook();
     generateRecentTrades();
 
-    // Controlled updates every 8 seconds instead of constant updates
-    const orderBookInterval = setInterval(() => {
-      generateOrderBook();
-    }, 8000);
+    // Professional-grade update intervals (similar to Binance)
+    // Order book updates every 3-5 seconds for stability
+    orderBookIntervalRef.current = setInterval(() => {
+      // Only update a few orders at a time to prevent flickering
+      setBuyOrders(prev => {
+        const newOrders = [...prev];
+        // Update 2-3 random orders
+        const indicesToUpdate = Math.floor(Math.random() * 3) + 1;
+        for (let i = 0; i < indicesToUpdate; i++) {
+          const randomIndex = Math.floor(Math.random() * newOrders.length);
+          const order = newOrders[randomIndex];
+          const priceVariation = (Math.random() - 0.5) * 0.0001;
+          const amountVariation = (Math.random() - 0.5) * 0.1;
+          
+          newOrders[randomIndex] = {
+            ...order,
+            price: parseFloat((order.price * (1 + priceVariation)).toFixed(8)),
+            amount: Math.max(0.01, parseFloat((order.amount + amountVariation).toFixed(8))),
+            total: parseFloat(((order.price * (1 + priceVariation)) * Math.max(0.01, order.amount + amountVariation)).toFixed(2))
+          };
+        }
+        return newOrders;
+      });
 
-    const tradesInterval = setInterval(() => {
-      generateRecentTrades();
-    }, 12000);
+      setSellOrders(prev => {
+        const newOrders = [...prev];
+        // Update 2-3 random orders
+        const indicesToUpdate = Math.floor(Math.random() * 3) + 1;
+        for (let i = 0; i < indicesToUpdate; i++) {
+          const randomIndex = Math.floor(Math.random() * newOrders.length);
+          const order = newOrders[randomIndex];
+          const priceVariation = (Math.random() - 0.5) * 0.0001;
+          const amountVariation = (Math.random() - 0.5) * 0.1;
+          
+          newOrders[randomIndex] = {
+            ...order,
+            price: parseFloat((order.price * (1 + priceVariation)).toFixed(8)),
+            amount: Math.max(0.01, parseFloat((order.amount + amountVariation).toFixed(8))),
+            total: parseFloat(((order.price * (1 + priceVariation)) * Math.max(0.01, order.amount + amountVariation)).toFixed(2))
+          };
+        }
+        return newOrders;
+      });
+    }, 4000); // Update every 4 seconds
+
+    // Trade history updates every 8-15 seconds for realism
+    tradesIntervalRef.current = setInterval(() => {
+      // Add 1-2 new trades occasionally
+      const shouldAddTrade = Math.random() > 0.6;
+      if (shouldAddTrade) {
+        setRecentTrades(prev => {
+          const newTrades = [...prev];
+          const isBuy = Math.random() > 0.5;
+          const price = tradingPair.currentPrice + (Math.random() - 0.5) * tradingPair.currentPrice * 0.001;
+          const amount = Math.random() * 0.5 + 0.01;
+          
+          const newTrade: Trade = {
+            id: `trade_${Date.now()}_${Math.random()}`,
+            pair: selectedPair,
+            side: isBuy ? 'buy' : 'sell',
+            type: 'market',
+            price: parseFloat(price.toFixed(8)),
+            amount: parseFloat(amount.toFixed(8)),
+            total: parseFloat((price * amount).toFixed(2)),
+            status: 'completed',
+            timestamp: new Date()
+          };
+          
+          // Keep only the last 20 trades
+          return [newTrade, ...newTrades.slice(0, 19)];
+        });
+      }
+    }, 12000); // Update every 12 seconds
 
     return () => {
-      clearInterval(orderBookInterval);
-      clearInterval(tradesInterval);
+      if (orderBookIntervalRef.current) {
+        clearInterval(orderBookIntervalRef.current);
+      }
+      if (tradesIntervalRef.current) {
+        clearInterval(tradesIntervalRef.current);
+      }
     };
 
   }, [tradingPair, selectedPair]);

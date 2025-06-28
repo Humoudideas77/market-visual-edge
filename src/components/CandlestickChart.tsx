@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ComposedChart, XAxis, YAxis, ResponsiveContainer, Rectangle } from 'recharts';
 import { useCryptoPrices } from '@/hooks/useCryptoPrices';
 
@@ -20,6 +20,20 @@ const CandlestickChart = ({ symbol }: CandlestickProps) => {
   const [candleData, setCandleData] = useState<CandlestickData[]>([]);
   const [timeframe, setTimeframe] = useState('5m');
   const { prices } = useCryptoPrices();
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Get proper update interval based on timeframe
+  const getUpdateInterval = (tf: string) => {
+    switch (tf) {
+      case '1m': return 60000;    // 1 minute
+      case '5m': return 300000;   // 5 minutes
+      case '15m': return 900000;  // 15 minutes
+      case '1h': return 3600000;  // 1 hour
+      case '4h': return 14400000; // 4 hours
+      case '1D': return 86400000; // 1 day
+      default: return 300000;     // 5 minutes default
+    }
+  };
 
   // Generate realistic candlestick data
   useEffect(() => {
@@ -32,24 +46,35 @@ const CandlestickChart = ({ symbol }: CandlestickProps) => {
       
       // Generate 100 candles
       for (let i = 0; i < 100; i++) {
-        const timestamp = new Date(Date.now() - (100 - i) * 5 * 60 * 1000); // 5-minute intervals
+        const interval = getUpdateInterval(timeframe);
+        const timestamp = new Date(Date.now() - (100 - i) * interval);
         
-        // Generate realistic OHLC data
-        const volatility = 0.003; // 0.3% volatility
-        const trend = (Math.random() - 0.5) * 0.001; // Small random trend
+        // Generate realistic OHLC data based on timeframe
+        const baseVolatility = timeframe === '1m' ? 0.001 : 
+                              timeframe === '5m' ? 0.003 : 
+                              timeframe === '15m' ? 0.005 :
+                              timeframe === '1h' ? 0.008 :
+                              timeframe === '4h' ? 0.015 : 0.025;
+        
+        const trend = (Math.random() - 0.5) * 0.0005; // Small random trend
         
         const open = price;
-        const changePercent = (Math.random() - 0.5) * volatility + trend;
+        const changePercent = (Math.random() - 0.5) * baseVolatility + trend;
         const close = open * (1 + changePercent);
         
         // High and low based on open/close with some random extension
-        const high = Math.max(open, close) * (1 + Math.random() * volatility * 0.5);
-        const low = Math.min(open, close) * (1 - Math.random() * volatility * 0.5);
+        const wickRange = baseVolatility * 0.3;
+        const high = Math.max(open, close) * (1 + Math.random() * wickRange);
+        const low = Math.min(open, close) * (1 - Math.random() * wickRange);
         
         const volume = Math.random() * 1000000 + 100000;
         
         data.push({
-          time: timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          time: timeframe === '1m' || timeframe === '5m' ? 
+            timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) :
+            timeframe === '15m' || timeframe === '1h' ?
+            timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) :
+            timestamp.toLocaleDateString([], { month: 'short', day: '2-digit' }),
           open: parseFloat(open.toFixed(2)),
           high: parseFloat(high.toFixed(2)),
           low: parseFloat(low.toFixed(2)),
@@ -65,30 +90,47 @@ const CandlestickChart = ({ symbol }: CandlestickProps) => {
 
     setCandleData(generateCandlestickData());
     
-    // Update data every 5 seconds to simulate real-time updates
-    const interval = setInterval(() => {
+    // Clear existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+    
+    // Update data based on timeframe - much more realistic intervals
+    const updateInterval = Math.min(getUpdateInterval(timeframe) / 10, 30000); // Max 30 seconds for demo
+    
+    intervalRef.current = setInterval(() => {
       setCandleData(prev => {
         const newData = [...prev];
         const lastCandle = newData[newData.length - 1];
         
-        // Update the last candle with new close price
-        const volatility = 0.002;
+        // Realistic volatility based on timeframe
+        const volatility = timeframe === '1m' ? 0.0005 : 
+                          timeframe === '5m' ? 0.001 : 
+                          timeframe === '15m' ? 0.002 :
+                          timeframe === '1h' ? 0.003 :
+                          timeframe === '4h' ? 0.005 : 0.008;
+        
         const priceChange = (Math.random() - 0.5) * volatility;
-        const newClose = lastCandle.close * (1 + priceChange);
+        const newClose = Math.max(lastCandle.close * (1 + priceChange), 0.01);
         
         newData[newData.length - 1] = {
           ...lastCandle,
           close: parseFloat(newClose.toFixed(2)),
           high: Math.max(lastCandle.high, newClose),
           low: Math.min(lastCandle.low, newClose),
+          volume: lastCandle.volume + Math.round(Math.abs(priceChange) * 50000),
         };
         
         return newData;
       });
-    }, 5000);
+    }, updateInterval);
     
-    return () => clearInterval(interval);
-  }, [symbol, prices]);
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [symbol, timeframe, prices]);
 
   // Custom Candlestick component
   const CustomCandlestick = (props: any) => {
@@ -150,7 +192,9 @@ const CandlestickChart = ({ symbol }: CandlestickProps) => {
           ))}
         </div>
         <div className="text-xs text-exchange-text-secondary">
-          Live • Updates every 5s
+          Live • Updates every {getUpdateInterval(timeframe) >= 60000 ? 
+            `${Math.min(getUpdateInterval(timeframe) / 10000, 30)}s` : 
+            `${getUpdateInterval(timeframe) / 1000}s`}
         </div>
       </div>
 
