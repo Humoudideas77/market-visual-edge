@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -5,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { TrendingUp, TrendingDown, DollarSign, Clock, X, RefreshCw } from 'lucide-react';
 import { useCryptoPrices, getPriceBySymbol } from '@/hooks/useCryptoPrices';
@@ -32,33 +33,46 @@ const TradesManagementSection = () => {
   const queryClient = useQueryClient();
   const { prices } = useCryptoPrices();
 
-  // Fetch all active trades with user information
+  // Fetch all active trades with user information for SuperAdmin
   const { data: activeTrades, isLoading, refetch } = useQuery({
     queryKey: ['admin-active-trades'],
     queryFn: async () => {
-      // First get all active trades
+      console.log('Fetching active trades for SuperAdmin...');
+      
+      // First, get all active trades
       const { data: trades, error: tradesError } = await supabase
         .from('perpetual_positions')
         .select('*')
         .eq('status', 'active')
         .order('created_at', { ascending: false });
 
-      if (tradesError) throw tradesError;
+      if (tradesError) {
+        console.error('Error fetching trades:', tradesError);
+        throw tradesError;
+      }
+
+      console.log('Active trades found:', trades?.length || 0);
 
       if (!trades || trades.length === 0) {
         return [];
       }
 
-      // Get unique user IDs
+      // Get unique user IDs from trades
       const userIds = [...new Set(trades.map(trade => trade.user_id))];
+      console.log('Unique user IDs:', userIds.length);
 
-      // Fetch user profiles separately
+      // Fetch user profiles for the users who have active trades
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, email')
         .in('id', userIds);
 
-      if (profilesError) throw profilesError;
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        // Don't throw here, just log and continue with empty profiles
+      }
+
+      console.log('User profiles found:', profiles?.length || 0);
 
       // Create a map of user_id to email for quick lookup
       const userEmailMap = new Map(
@@ -78,23 +92,30 @@ const TradesManagementSection = () => {
 
         return {
           ...trade,
-          user_email: userEmailMap.get(trade.user_id) || 'Unknown',
+          user_email: userEmailMap.get(trade.user_id) || 'Unknown User',
           current_price: currentPrice,
           pnl: pnl,
           pnl_percentage: pnlPercentage
         };
       });
 
+      console.log('Processed trades with PnL:', tradesWithPnL.length);
       return tradesWithPnL as ActiveTrade[];
     },
-    refetchInterval: 5000, // Update every 5 seconds
+    refetchInterval: 10000, // Update every 10 seconds for stability
   });
 
-  // Mutation to close a trade
+  // Mutation to close a trade as SuperAdmin
   const closeTradesMutation = useMutation({
     mutationFn: async (tradeId: string) => {
+      console.log('SuperAdmin closing trade:', tradeId);
+      
       const trade = activeTrades?.find(t => t.id === tradeId);
-      if (!trade) throw new Error('Trade not found');
+      if (!trade) {
+        throw new Error('Trade not found');
+      }
+
+      console.log('Trade details:', trade);
 
       // Update position status in database
       const { error: updateError } = await supabase
@@ -106,10 +127,13 @@ const TradesManagementSection = () => {
         })
         .eq('id', tradeId);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Error updating trade status:', updateError);
+        throw updateError;
+      }
 
       // Record PnL using the existing function
-      const pnlResult = await supabase.rpc('record_trade_pnl', {
+      const { data: pnlResult, error: pnlError } = await supabase.rpc('record_trade_pnl', {
         p_user_id: trade.user_id,
         p_trade_pair: trade.pair,
         p_trade_side: trade.side,
@@ -119,12 +143,15 @@ const TradesManagementSection = () => {
         p_currency: 'USDT'
       });
 
-      if (pnlResult.error) {
-        console.error('Error recording PnL:', pnlResult.error);
+      if (pnlError) {
+        console.error('Error recording PnL:', pnlError);
+      } else {
+        console.log('PnL recorded successfully:', pnlResult);
       }
 
-      // Update user's wallet balance
+      // Update user's wallet balance with margin return + PnL
       const totalReturn = trade.margin + (trade.pnl || 0);
+      console.log('Returning to user balance:', totalReturn);
       
       if (totalReturn > 0) {
         const { error: balanceError } = await supabase.rpc('update_wallet_balance', {
@@ -136,17 +163,20 @@ const TradesManagementSection = () => {
 
         if (balanceError) {
           console.error('Error updating balance:', balanceError);
+        } else {
+          console.log('Balance updated successfully');
         }
       }
 
-      return { tradeId, pnl: trade.pnl };
+      return { tradeId, pnl: trade.pnl, userEmail: trade.user_email };
     },
     onSuccess: (data) => {
-      toast.success(`Trade closed successfully! PnL: ${data.pnl >= 0 ? '+' : ''}$${data.pnl.toFixed(2)} USDT`);
+      toast.success(`Trade closed successfully! User: ${data.userEmail}, P&L: ${data.pnl >= 0 ? '+' : ''}$${data.pnl.toFixed(2)} USDT`);
       queryClient.invalidateQueries({ queryKey: ['admin-active-trades'] });
       setSelectedTrade(null);
     },
     onError: (error) => {
+      console.error('Close trade error:', error);
       toast.error(`Failed to close trade: ${error.message}`);
     },
   });
@@ -167,7 +197,7 @@ const TradesManagementSection = () => {
         <CardContent className="flex items-center justify-center p-8">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading active trades...</p>
+            <p className="text-gray-600">Loading active perpetual trades...</p>
           </div>
         </CardContent>
       </Card>
@@ -293,6 +323,7 @@ const TradesManagementSection = () => {
                           size="sm"
                           variant="outline"
                           className="text-red-600 border-red-300 hover:bg-red-50"
+                          disabled={closeTradesMutation.isPending}
                         >
                           <X className="w-4 h-4 mr-1" />
                           Close
