@@ -3,12 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Check, X, Eye, ExternalLink, FileImage } from 'lucide-react';
+import { Check, X, Eye, ExternalLink, FileImage, Search } from 'lucide-react';
 import { format } from 'date-fns';
 
 type KYCSubmission = {
@@ -28,24 +29,45 @@ type KYCSubmission = {
   reviewed_at: string | null;
   created_at: string;
   updated_at: string;
+  user_email?: string | null;
+  user_first_name?: string | null;
+  user_last_name?: string | null;
 };
 
 const KYCManagementSection = () => {
   const [selectedKYC, setSelectedKYC] = useState<KYCSubmission | null>(null);
   const [adminNotes, setAdminNotes] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const queryClient = useQueryClient();
 
   const { data: kycSubmissions, isLoading } = useQuery({
-    queryKey: ['admin-kyc'],
+    queryKey: ['admin-kyc', searchTerm],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('kyc_submissions')
-        .select('*')
+        .select(`
+          *,
+          profiles!inner(email, first_name, last_name)
+        `)
         .order('created_at', { ascending: false });
+
+      if (searchTerm) {
+        query = query.or(`full_name.ilike.%${searchTerm}%,nationality.ilike.%${searchTerm}%,address.ilike.%${searchTerm}%,user_id.ilike.%${searchTerm}%`);
+      }
+      
+      const { data, error } = await query;
       
       if (error) throw error;
-      return data as KYCSubmission[];
+      
+      // Transform the data to match our type
+      return data.map(item => ({
+        ...item,
+        user_email: item.profiles?.email || null,
+        user_first_name: item.profiles?.first_name || null,
+        user_last_name: item.profiles?.last_name || null,
+        profiles: undefined, // Remove the profiles object to avoid type conflicts
+      })) as KYCSubmission[];
     },
   });
 
@@ -216,6 +238,17 @@ const KYCManagementSection = () => {
             </Badge>
           )}
         </CardTitle>
+        <div className="flex items-center space-x-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-exchange-text-secondary w-4 h-4" />
+            <Input
+              placeholder="Search by name, nationality, address, or user ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-exchange-bg border-exchange-border"
+            />
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
@@ -237,8 +270,15 @@ const KYCManagementSection = () => {
                   <TableCell className="text-exchange-text-secondary">
                     {format(new Date(kyc.created_at), 'MMM dd, yyyy HH:mm')}
                   </TableCell>
-                  <TableCell className="font-mono text-sm text-exchange-text-secondary">
-                    {kyc.user_id.slice(0, 8)}...
+                  <TableCell>
+                    <div>
+                      <div className="font-medium text-exchange-text-primary">
+                        {kyc.user_email || 'No email'}
+                      </div>
+                      <div className="text-sm font-mono text-exchange-text-secondary">
+                        {kyc.user_id.slice(0, 8)}...
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell className="font-medium text-exchange-text-primary">
                     {kyc.full_name}
@@ -340,6 +380,12 @@ const KYCManagementSection = () => {
                                 <div className="col-span-2">
                                   <span className="text-exchange-text-secondary">Address:</span>
                                   <span className="ml-2 text-exchange-text-primary">{selectedKYC.address}</span>
+                                </div>
+                                <div className="col-span-2">
+                                  <span className="text-exchange-text-secondary">User Email:</span>
+                                  <span className="ml-2 text-exchange-text-primary">
+                                    {selectedKYC.user_email || 'No email'}
+                                  </span>
                                 </div>
                                 <div className="col-span-2">
                                   <span className="text-exchange-text-secondary">User ID:</span>
