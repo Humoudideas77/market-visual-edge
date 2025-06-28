@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -68,9 +69,50 @@ const KYCUploadForm = ({ onSubmissionComplete }: KYCUploadFormProps) => {
     }
   };
 
+  const validateForm = (): { isValid: boolean; message: string } => {
+    // Check required text fields
+    if (!kycData.full_name.trim()) {
+      return { isValid: false, message: 'Full name is required' };
+    }
+    if (!kycData.date_of_birth) {
+      return { isValid: false, message: 'Date of birth is required' };
+    }
+    if (!kycData.nationality.trim()) {
+      return { isValid: false, message: 'Nationality is required' };
+    }
+    if (!kycData.address.trim()) {
+      return { isValid: false, message: 'Address is required' };
+    }
+
+    // Check required documents - at least one ID document is required
+    const hasIdDocument = kycData.id_card_front || kycData.passport;
+    if (!hasIdDocument) {
+      return { isValid: false, message: 'Please upload either an ID Card or Passport' };
+    }
+
+    // Utility bill is required
+    if (!kycData.utility_bill) {
+      return { isValid: false, message: 'Utility bill document is required' };
+    }
+
+    // Selfie with ID is required
+    if (!kycData.selfie_with_id) {
+      return { isValid: false, message: 'Selfie with ID document is required' };
+    }
+
+    return { isValid: true, message: '' };
+  };
+
   const submitKYC = async () => {
-    if (!user || !kycData.full_name.trim() || !kycData.date_of_birth || !kycData.nationality.trim() || !kycData.address.trim()) {
-      toast.error('Please fill in all required fields');
+    if (!user) {
+      toast.error('User not authenticated');
+      return;
+    }
+
+    // Validate form
+    const validation = validateForm();
+    if (!validation.isValid) {
+      toast.error(validation.message);
       return;
     }
 
@@ -85,21 +127,33 @@ const KYCUploadForm = ({ onSubmissionComplete }: KYCUploadFormProps) => {
       if (kycData.id_card_front) {
         const frontPath = `${user.id}/id_card_${Date.now()}_${kycData.id_card_front.name}`;
         idCardUrl = await uploadFile(kycData.id_card_front, frontPath);
+        if (!idCardUrl) {
+          throw new Error('Failed to upload ID card');
+        }
       }
 
       if (kycData.passport) {
         const passportPath = `${user.id}/passport_${Date.now()}_${kycData.passport.name}`;
         passportUrl = await uploadFile(kycData.passport, passportPath);
+        if (!passportUrl) {
+          throw new Error('Failed to upload passport');
+        }
       }
 
       if (kycData.utility_bill) {
         const utilityPath = `${user.id}/utility_${Date.now()}_${kycData.utility_bill.name}`;
         utilityBillUrl = await uploadFile(kycData.utility_bill, utilityPath);
+        if (!utilityBillUrl) {
+          throw new Error('Failed to upload utility bill');
+        }
       }
 
       if (kycData.selfie_with_id) {
         const selfiePath = `${user.id}/selfie_${Date.now()}_${kycData.selfie_with_id.name}`;
         selfieWithIdUrl = await uploadFile(kycData.selfie_with_id, selfiePath);
+        if (!selfieWithIdUrl) {
+          throw new Error('Failed to upload selfie with ID');
+        }
       }
 
       // Submit KYC data
@@ -165,10 +219,15 @@ const KYCUploadForm = ({ onSubmissionComplete }: KYCUploadFormProps) => {
       
     } catch (error) {
       console.error('KYC submission error:', error);
-      toast.error('Failed to submit KYC. Please try again.');
+      toast.error(`Failed to submit KYC: ${error instanceof Error ? error.message : 'Please try again.'}`);
     } finally {
       setLoading(false);
     }
+  };
+
+  const isFormValid = () => {
+    const validation = validateForm();
+    return validation.isValid;
   };
 
   return (
@@ -191,6 +250,18 @@ const KYCUploadForm = ({ onSubmissionComplete }: KYCUploadFormProps) => {
           <p className="text-base text-gray-700 font-medium leading-relaxed">
             Complete KYC verification to unlock higher withdrawal limits and enhanced trading features on MecCrypto.
           </p>
+        </div>
+
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertCircle className="w-4 h-4 text-red-500" />
+            <span className="text-sm font-bold text-red-600">Required Documents</span>
+          </div>
+          <ul className="text-sm text-red-700 space-y-1">
+            <li>• Either ID Card OR Passport (at least one required)</li>
+            <li>• Utility Bill (required)</li>
+            <li>• Selfie with ID (required)</li>
+          </ul>
         </div>
 
         <div className="space-y-6">
@@ -252,7 +323,10 @@ const KYCUploadForm = ({ onSubmissionComplete }: KYCUploadFormProps) => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label className="text-gray-900 font-bold text-base mb-3 block">ID Card (Front)</Label>
+              <Label className="text-gray-900 font-bold text-base mb-3 block">
+                ID Card (Front) *
+                <span className="text-sm font-normal text-gray-600 ml-2">(Required if no passport)</span>
+              </Label>
               <div className="mt-2 border-2 border-dashed border-exchange-border rounded-lg p-4 text-center">
                 <Upload className="w-8 h-8 text-exchange-text-secondary mx-auto mb-2" />
                 <p className="text-sm text-exchange-text-secondary mb-2">
@@ -273,7 +347,10 @@ const KYCUploadForm = ({ onSubmissionComplete }: KYCUploadFormProps) => {
             </div>
 
             <div>
-              <Label className="text-gray-900 font-bold text-base mb-3 block">Passport</Label>
+              <Label className="text-gray-900 font-bold text-base mb-3 block">
+                Passport *
+                <span className="text-sm font-normal text-gray-600 ml-2">(Required if no ID card)</span>
+              </Label>
               <div className="mt-2 border-2 border-dashed border-exchange-border rounded-lg p-4 text-center">
                 <Upload className="w-8 h-8 text-exchange-text-secondary mx-auto mb-2" />
                 <p className="text-sm text-exchange-text-secondary mb-2">
@@ -296,17 +373,18 @@ const KYCUploadForm = ({ onSubmissionComplete }: KYCUploadFormProps) => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label className="text-gray-900 font-bold text-base mb-3 block">Utility Bill</Label>
+              <Label className="text-gray-900 font-bold text-base mb-3 block">Utility Bill *</Label>
               <div className="mt-2 border-2 border-dashed border-exchange-border rounded-lg p-4 text-center">
                 <Upload className="w-8 h-8 text-exchange-text-secondary mx-auto mb-2" />
                 <p className="text-sm text-exchange-text-secondary mb-2">
-                  Upload recent utility bill
+                  Upload recent utility bill (required)
                 </p>
                 <input
                   type="file"
                   accept="image/*,.pdf"
                   onChange={(e) => handleFileUpload('utility_bill', e.target.files?.[0] || null)}
                   className="w-full text-sm text-exchange-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-exchange-blue file:text-white hover:file:bg-exchange-blue/90"
+                  required
                 />
                 {kycData.utility_bill && (
                   <p className="text-xs text-green-400 mt-2">
@@ -317,17 +395,18 @@ const KYCUploadForm = ({ onSubmissionComplete }: KYCUploadFormProps) => {
             </div>
 
             <div>
-              <Label className="text-gray-900 font-bold text-base mb-3 block">Selfie with ID</Label>
+              <Label className="text-gray-900 font-bold text-base mb-3 block">Selfie with ID *</Label>
               <div className="mt-2 border-2 border-dashed border-exchange-border rounded-lg p-4 text-center">
                 <Upload className="w-8 h-8 text-exchange-text-secondary mx-auto mb-2" />
                 <p className="text-sm text-exchange-text-secondary mb-2">
-                  Upload selfie holding your ID
+                  Upload selfie holding your ID (required)
                 </p>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={(e) => handleFileUpload('selfie_with_id', e.target.files?.[0] || null)}
                   className="w-full text-sm text-exchange-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-exchange-blue file:text-white hover:file:bg-exchange-blue/90"
+                  required
                 />
                 {kycData.selfie_with_id && (
                   <p className="text-xs text-green-400 mt-2">
@@ -341,8 +420,8 @@ const KYCUploadForm = ({ onSubmissionComplete }: KYCUploadFormProps) => {
           <div className="flex justify-end pt-4">
             <Button
               onClick={submitKYC}
-              disabled={loading || !kycData.full_name.trim() || !kycData.date_of_birth || !kycData.nationality.trim() || !kycData.address.trim()}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-3 text-base"
+              disabled={loading || !isFormValid()}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Submitting Documents...' : 'Submit KYC Documents'}
             </Button>
