@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -69,7 +68,30 @@ const WithdrawalApprovalSection = () => {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as WithdrawalRequest[];
+
+      // Get user details for each withdrawal
+      const userIds = data.map(w => w.user_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, email, first_name, last_name')
+        .in('id', userIds);
+
+      // Combine withdrawal data with user profiles
+      const enrichedData = data.map(withdrawal => {
+        const profile = profiles?.find(p => p.id === withdrawal.user_id);
+        return {
+          ...withdrawal,
+          user_email: profile?.email,
+          user_first_name: profile?.first_name,
+          user_last_name: profile?.last_name,
+        };
+      });
+
+      return enrichedData as (WithdrawalRequest & {
+        user_email?: string;
+        user_first_name?: string;
+        user_last_name?: string;
+      })[];
     },
   });
 
@@ -190,7 +212,7 @@ const WithdrawalApprovalSection = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
-                <TableHead>User ID</TableHead>
+                <TableHead>User Details</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Currency/Network</TableHead>
                 <TableHead>Bank Details</TableHead>
@@ -204,8 +226,20 @@ const WithdrawalApprovalSection = () => {
                   <TableCell className="text-exchange-text-secondary">
                     {format(new Date(withdrawal.created_at), 'MMM dd, yyyy HH:mm')}
                   </TableCell>
-                  <TableCell className="font-mono text-sm text-exchange-text-secondary">
-                    {withdrawal.user_id.slice(0, 8)}...
+                  <TableCell>
+                    <div className="space-y-1">
+                      <div className="font-medium text-exchange-text-primary">
+                        {withdrawal.user_email || 'No email'}
+                      </div>
+                      <div className="text-sm text-exchange-text-secondary">
+                        {withdrawal.user_first_name && withdrawal.user_last_name
+                          ? `${withdrawal.user_first_name} ${withdrawal.user_last_name}`
+                          : 'No name'}
+                      </div>
+                      <div className="text-xs font-mono text-exchange-text-secondary">
+                        {withdrawal.user_id}
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell className="font-semibold text-exchange-text-primary">
                     ${withdrawal.amount}
@@ -215,12 +249,13 @@ const WithdrawalApprovalSection = () => {
                   </TableCell>
                   <TableCell className="text-exchange-text-secondary">
                     {withdrawal.bank_cards ? (
-                      <div className="flex items-center gap-2">
-                        <CreditCard className="w-4 h-4" />
-                        <div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="w-4 h-4" />
                           <div className="font-medium">{withdrawal.bank_cards.bank_name}</div>
-                          <div className="text-xs">****{withdrawal.bank_cards.account_number.slice(-4)}</div>
                         </div>
+                        <div className="text-xs">{withdrawal.bank_cards.account_holder_name}</div>
+                        <div className="text-xs font-mono">****{withdrawal.bank_cards.account_number.slice(-4)}</div>
                       </div>
                     ) : (
                       <span className="text-red-400">No bank details</span>

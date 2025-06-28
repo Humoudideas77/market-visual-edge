@@ -291,9 +291,8 @@ const KYCManagementSection = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
-                <TableHead>User</TableHead>
-                <TableHead>Full Name</TableHead>
-                <TableHead>Nationality</TableHead>
+                <TableHead>User Details</TableHead>
+                <TableHead>Personal Info</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Documents</TableHead>
                 <TableHead>Actions</TableHead>
@@ -306,20 +305,32 @@ const KYCManagementSection = () => {
                     {format(new Date(kyc.created_at), 'MMM dd, yyyy HH:mm')}
                   </TableCell>
                   <TableCell>
-                    <div>
+                    <div className="space-y-1">
                       <div className="font-medium text-exchange-text-primary">
                         {kyc.user_email || 'No email'}
                       </div>
-                      <div className="text-sm font-mono text-exchange-text-secondary">
-                        {kyc.user_id.slice(0, 8)}...
+                      <div className="text-sm text-exchange-text-secondary">
+                        {kyc.user_first_name && kyc.user_last_name
+                          ? `${kyc.user_first_name} ${kyc.user_last_name}`
+                          : 'No name'}
+                      </div>
+                      <div className="text-xs font-mono text-exchange-text-secondary">
+                        {kyc.user_id}
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="font-medium text-exchange-text-primary">
-                    {kyc.full_name}
-                  </TableCell>
-                  <TableCell className="text-exchange-text-secondary">
-                    {kyc.nationality}
+                  <TableCell>
+                    <div className="space-y-1">
+                      <div className="font-medium text-exchange-text-primary">
+                        {kyc.full_name}
+                      </div>
+                      <div className="text-sm text-exchange-text-secondary">
+                        {kyc.nationality}
+                      </div>
+                      <div className="text-xs text-exchange-text-secondary">
+                        DOB: {format(new Date(kyc.date_of_birth), 'MMM dd, yyyy')}
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell>
                     {getStatusBadge(kyc.status)}

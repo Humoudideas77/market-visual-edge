@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,6 +25,9 @@ type DepositRequest = {
   admin_notes: string | null;
   created_at: string;
   updated_at: string;
+  user_email?: string;
+  user_first_name?: string;
+  user_last_name?: string;
 };
 
 const SUPPORTED_CURRENCIES = [
@@ -52,7 +54,26 @@ const DepositApprovalSection = () => {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as DepositRequest[];
+
+      // Get user details for each deposit
+      const userIds = data.map(d => d.user_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, email, first_name, last_name')
+        .in('id', userIds);
+
+      // Combine deposit data with user profiles
+      const enrichedData = data.map(deposit => {
+        const profile = profiles?.find(p => p.id === deposit.user_id);
+        return {
+          ...deposit,
+          user_email: profile?.email,
+          user_first_name: profile?.first_name,
+          user_last_name: profile?.last_name,
+        };
+      });
+
+      return enrichedData as DepositRequest[];
     },
   });
 
@@ -269,7 +290,7 @@ const DepositApprovalSection = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
-                <TableHead>User ID</TableHead>
+                <TableHead>User Details</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Currency/Network</TableHead>
                 <TableHead>Status</TableHead>
@@ -283,8 +304,20 @@ const DepositApprovalSection = () => {
                   <TableCell className="text-exchange-text-secondary">
                     {format(new Date(deposit.created_at), 'MMM dd, yyyy HH:mm')}
                   </TableCell>
-                  <TableCell className="font-mono text-sm text-exchange-text-secondary">
-                    {deposit.user_id.slice(0, 8)}...
+                  <TableCell>
+                    <div className="space-y-1">
+                      <div className="font-medium text-exchange-text-primary">
+                        {deposit.user_email || 'No email'}
+                      </div>
+                      <div className="text-sm text-exchange-text-secondary">
+                        {deposit.user_first_name && deposit.user_last_name
+                          ? `${deposit.user_first_name} ${deposit.user_last_name}`
+                          : 'No name'}
+                      </div>
+                      <div className="text-xs font-mono text-exchange-text-secondary">
+                        {deposit.user_id}
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell className="font-semibold text-exchange-text-primary">
                     ${deposit.amount}
