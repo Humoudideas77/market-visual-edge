@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,11 +23,14 @@ const KYCUploadForm = ({ onSubmissionComplete }: KYCUploadFormProps) => {
     nationality: '',
     address: '',
     personal_id_number: '',
-    front_document: null as File | null,
-    back_document: null as File | null
+    id_card_front: null as File | null,
+    id_card_back: null as File | null,
+    passport: null as File | null,
+    utility_bill: null as File | null,
+    selfie_with_id: null as File | null
   });
 
-  const handleFileUpload = (field: 'front_document' | 'back_document', file: File | null) => {
+  const handleFileUpload = (field: keyof typeof kycData, file: File | null) => {
     setKycData(prev => ({ ...prev, [field]: file }));
   };
 
@@ -57,22 +61,36 @@ const KYCUploadForm = ({ onSubmissionComplete }: KYCUploadFormProps) => {
 
     setLoading(true);
     try {
-      let frontDocUrl = null;
-      let backDocUrl = null;
+      let idCardUrl = null;
+      let passportUrl = null;
+      let utilityBillUrl = null;
+      let selfieWithIdUrl = null;
 
-      // Upload front document if provided
-      if (kycData.front_document) {
-        const frontPath = `${user.id}/front_${Date.now()}_${kycData.front_document.name}`;
-        frontDocUrl = await uploadFile(kycData.front_document, frontPath);
+      // Upload ID card (front document)
+      if (kycData.id_card_front) {
+        const frontPath = `${user.id}/id_card_${Date.now()}_${kycData.id_card_front.name}`;
+        idCardUrl = await uploadFile(kycData.id_card_front, frontPath);
       }
 
-      // Upload back document if provided
-      if (kycData.back_document) {
-        const backPath = `${user.id}/back_${Date.now()}_${kycData.back_document.name}`;
-        backDocUrl = await uploadFile(kycData.back_document, backPath);
+      // Upload passport
+      if (kycData.passport) {
+        const passportPath = `${user.id}/passport_${Date.now()}_${kycData.passport.name}`;
+        passportUrl = await uploadFile(kycData.passport, passportPath);
       }
 
-      // Submit KYC data
+      // Upload utility bill
+      if (kycData.utility_bill) {
+        const utilityPath = `${user.id}/utility_${Date.now()}_${kycData.utility_bill.name}`;
+        utilityBillUrl = await uploadFile(kycData.utility_bill, utilityPath);
+      }
+
+      // Upload selfie with ID
+      if (kycData.selfie_with_id) {
+        const selfiePath = `${user.id}/selfie_${Date.now()}_${kycData.selfie_with_id.name}`;
+        selfieWithIdUrl = await uploadFile(kycData.selfie_with_id, selfiePath);
+      }
+
+      // Submit KYC data with correct field names
       const { error } = await supabase
         .from('kyc_submissions')
         .insert({
@@ -82,8 +100,10 @@ const KYCUploadForm = ({ onSubmissionComplete }: KYCUploadFormProps) => {
           nationality: kycData.nationality,
           address: kycData.address,
           personal_id_number: kycData.personal_id_number || null,
-          front_document_url: frontDocUrl,
-          back_document_url: backDocUrl,
+          id_card_url: idCardUrl,
+          passport_url: passportUrl,
+          utility_bill_url: utilityBillUrl,
+          selfie_with_id_url: selfieWithIdUrl,
           status: 'pending'
         });
 
@@ -104,8 +124,11 @@ const KYCUploadForm = ({ onSubmissionComplete }: KYCUploadFormProps) => {
         nationality: '',
         address: '',
         personal_id_number: '',
-        front_document: null,
-        back_document: null
+        id_card_front: null,
+        id_card_back: null,
+        passport: null,
+        utility_bill: null,
+        selfie_with_id: null
       });
 
       // Reset file inputs
@@ -206,42 +229,86 @@ const KYCUploadForm = ({ onSubmissionComplete }: KYCUploadFormProps) => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label className="text-gray-900 font-bold text-base mb-3 block">Front of Document</Label>
+              <Label className="text-gray-900 font-bold text-base mb-3 block">ID Card (Front)</Label>
               <div className="mt-2 border-2 border-dashed border-exchange-border rounded-lg p-4 text-center">
                 <Upload className="w-8 h-8 text-exchange-text-secondary mx-auto mb-2" />
                 <p className="text-sm text-exchange-text-secondary mb-2">
-                  Upload front side of ID/Passport
+                  Upload front side of ID Card
                 </p>
                 <input
                   type="file"
                   accept="image/*,.pdf"
-                  onChange={(e) => handleFileUpload('front_document', e.target.files?.[0] || null)}
+                  onChange={(e) => handleFileUpload('id_card_front', e.target.files?.[0] || null)}
                   className="w-full text-sm text-exchange-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-exchange-blue file:text-white hover:file:bg-exchange-blue/90"
                 />
-                {kycData.front_document && (
+                {kycData.id_card_front && (
                   <p className="text-xs text-green-400 mt-2">
-                    ✓ {kycData.front_document.name}
+                    ✓ {kycData.id_card_front.name}
                   </p>
                 )}
               </div>
             </div>
 
             <div>
-              <Label className="text-gray-900 font-bold text-base mb-3 block">Back of Document</Label>
+              <Label className="text-gray-900 font-bold text-base mb-3 block">Passport</Label>
               <div className="mt-2 border-2 border-dashed border-exchange-border rounded-lg p-4 text-center">
                 <Upload className="w-8 h-8 text-exchange-text-secondary mx-auto mb-2" />
                 <p className="text-sm text-exchange-text-secondary mb-2">
-                  Upload back side of ID/Passport
+                  Upload passport document
                 </p>
                 <input
                   type="file"
                   accept="image/*,.pdf"
-                  onChange={(e) => handleFileUpload('back_document', e.target.files?.[0] || null)}
+                  onChange={(e) => handleFileUpload('passport', e.target.files?.[0] || null)}
                   className="w-full text-sm text-exchange-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-exchange-blue file:text-white hover:file:bg-exchange-blue/90"
                 />
-                {kycData.back_document && (
+                {kycData.passport && (
                   <p className="text-xs text-green-400 mt-2">
-                    ✓ {kycData.back_document.name}
+                    ✓ {kycData.passport.name}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label className="text-gray-900 font-bold text-base mb-3 block">Utility Bill</Label>
+              <div className="mt-2 border-2 border-dashed border-exchange-border rounded-lg p-4 text-center">
+                <Upload className="w-8 h-8 text-exchange-text-secondary mx-auto mb-2" />
+                <p className="text-sm text-exchange-text-secondary mb-2">
+                  Upload recent utility bill
+                </p>
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => handleFileUpload('utility_bill', e.target.files?.[0] || null)}
+                  className="w-full text-sm text-exchange-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-exchange-blue file:text-white hover:file:bg-exchange-blue/90"
+                />
+                {kycData.utility_bill && (
+                  <p className="text-xs text-green-400 mt-2">
+                    ✓ {kycData.utility_bill.name}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-gray-900 font-bold text-base mb-3 block">Selfie with ID</Label>
+              <div className="mt-2 border-2 border-dashed border-exchange-border rounded-lg p-4 text-center">
+                <Upload className="w-8 h-8 text-exchange-text-secondary mx-auto mb-2" />
+                <p className="text-sm text-exchange-text-secondary mb-2">
+                  Upload selfie holding your ID
+                </p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleFileUpload('selfie_with_id', e.target.files?.[0] || null)}
+                  className="w-full text-sm text-exchange-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-exchange-blue file:text-white hover:file:bg-exchange-blue/90"
+                />
+                {kycData.selfie_with_id && (
+                  <p className="text-xs text-green-400 mt-2">
+                    ✓ {kycData.selfie_with_id.name}
                   </p>
                 )}
               </div>
