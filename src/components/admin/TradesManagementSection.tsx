@@ -37,10 +37,10 @@ const TradesManagementSection = () => {
   const { data: activeTrades, isLoading, refetch } = useQuery({
     queryKey: ['admin-active-trades'],
     queryFn: async () => {
-      console.log('SuperAdmin fetching active trades...');
+      console.log('Fetching active trades for SuperAdmin...');
       
       try {
-        // Use RPC function to get current user role for debugging
+        // First verify current user is superadmin
         const { data: currentUser, error: userError } = await supabase.auth.getUser();
         if (userError) {
           console.error('Auth error:', userError);
@@ -49,7 +49,7 @@ const TradesManagementSection = () => {
         
         console.log('Current user ID:', currentUser.user?.id);
         
-        // Check if user is superadmin
+        // Check user role
         const { data: userProfile, error: profileError } = await supabase
           .from('profiles')
           .select('role, email')
@@ -64,26 +64,13 @@ const TradesManagementSection = () => {
         console.log('User profile:', userProfile);
         
         if (userProfile.role !== 'superadmin') {
-          console.log('User is not superadmin, role:', userProfile.role);
           return [];
         }
 
-        // Fetch all active trades using a more direct approach
+        // Fetch active trades using RPC or direct query
         const { data: trades, error: tradesError } = await supabase
           .from('perpetual_positions')
-          .select(`
-            id,
-            user_id,
-            pair,
-            side,
-            size,
-            entry_price,
-            leverage,
-            margin,
-            liquidation_price,
-            created_at,
-            status
-          `)
+          .select('*')
           .eq('status', 'active')
           .order('created_at', { ascending: false });
 
@@ -92,37 +79,29 @@ const TradesManagementSection = () => {
           throw tradesError;
         }
 
-        console.log('Raw trades found:', trades?.length || 0);
-        console.log('Trades data:', trades);
+        console.log('Trades found:', trades?.length || 0);
 
         if (!trades || trades.length === 0) {
-          console.log('No active trades found');
           return [];
         }
 
-        // Get unique user IDs from trades
+        // Get user emails for all traders
         const userIds = [...new Set(trades.map(trade => trade.user_id))];
-        console.log('Unique user IDs:', userIds);
-
-        // Fetch user profiles for the users who have active trades
+        
         const { data: profiles, error: profilesError } = await supabase
           .from('profiles')
           .select('id, email')
           .in('id', userIds);
 
         if (profilesError) {
-          console.error('Error fetching user profiles:', profilesError);
-          // Continue without profiles rather than failing
+          console.error('Error fetching profiles:', profilesError);
         }
 
-        console.log('User profiles found:', profiles?.length || 0);
-
-        // Create a map of user_id to email for quick lookup
         const userEmailMap = new Map(
           profiles?.map(profile => [profile.id, profile.email]) || []
         );
 
-        // Calculate current PnL for each trade and add user email
+        // Calculate PnL for each trade
         const tradesWithPnL = trades.map(trade => {
           const [baseAsset] = trade.pair.split('/');
           const currentPrice = getPriceBySymbol(prices, baseAsset)?.current_price || trade.entry_price;
@@ -142,32 +121,30 @@ const TradesManagementSection = () => {
           };
         });
 
-        console.log('Processed trades with PnL:', tradesWithPnL.length);
+        console.log('Final trades with PnL:', tradesWithPnL.length);
         return tradesWithPnL as ActiveTrade[];
         
       } catch (error) {
-        console.error('Error in query function:', error);
+        console.error('Error in trades query:', error);
         throw error;
       }
     },
-    refetchInterval: 10000, // Update every 10 seconds
-    retry: 3,
+    refetchInterval: 10000,
+    retry: 2,
     retryDelay: 1000,
   });
 
   // Mutation to close a trade as SuperAdmin
   const closeTradesMutation = useMutation({
     mutationFn: async (tradeId: string) => {
-      console.log('SuperAdmin closing trade:', tradeId);
-      
       const trade = activeTrades?.find(t => t.id === tradeId);
       if (!trade) {
         throw new Error('Trade not found');
       }
 
-      console.log('Trade details:', trade);
+      console.log('Closing trade:', tradeId);
 
-      // Update position status in database
+      // Update position status
       const { error: updateError } = await supabase
         .from('perpetual_positions')
         .update({
@@ -178,12 +155,12 @@ const TradesManagementSection = () => {
         .eq('id', tradeId);
 
       if (updateError) {
-        console.error('Error updating trade status:', updateError);
+        console.error('Error updating trade:', updateError);
         throw updateError;
       }
 
-      // Record PnL using the existing function
-      const { data: pnlResult, error: pnlError } = await supabase.rpc('record_trade_pnl', {
+      // Record PnL
+      const { error: pnlError } = await supabase.rpc('record_trade_pnl', {
         p_user_id: trade.user_id,
         p_trade_pair: trade.pair,
         p_trade_side: trade.side,
@@ -195,13 +172,10 @@ const TradesManagementSection = () => {
 
       if (pnlError) {
         console.error('Error recording PnL:', pnlError);
-      } else {
-        console.log('PnL recorded successfully:', pnlResult);
       }
 
-      // Update user's wallet balance with margin return + PnL
+      // Return margin + PnL to user balance
       const totalReturn = trade.margin + (trade.pnl || 0);
-      console.log('Returning to user balance:', totalReturn);
       
       if (totalReturn > 0) {
         const { error: balanceError } = await supabase.rpc('update_wallet_balance', {
@@ -213,15 +187,13 @@ const TradesManagementSection = () => {
 
         if (balanceError) {
           console.error('Error updating balance:', balanceError);
-        } else {
-          console.log('Balance updated successfully');
         }
       }
 
       return { tradeId, pnl: trade.pnl, userEmail: trade.user_email };
     },
     onSuccess: (data) => {
-      toast.success(`Trade closed successfully! User: ${data.userEmail}, P&L: ${data.pnl >= 0 ? '+' : ''}$${data.pnl?.toFixed(2)} USDT`);
+      toast.success(`Trade closed! User: ${data.userEmail}, P&L: ${data.pnl >= 0 ? '+' : ''}$${data.pnl?.toFixed(2)} USDT`);
       queryClient.invalidateQueries({ queryKey: ['admin-active-trades'] });
       setSelectedTrade(null);
     },
