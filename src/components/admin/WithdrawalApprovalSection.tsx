@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Check, X, Eye } from 'lucide-react';
+import { Check, X, Eye, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface WithdrawalRequest {
@@ -23,6 +23,25 @@ interface WithdrawalRequest {
   admin_notes: string | null;
   created_at: string;
   updated_at: string;
+  bank_cards?: {
+    id: string;
+    bank_name: string;
+    account_number: string;
+    account_holder_name: string;
+    swift_code: string;
+    routing_number: string | null;
+    bank_address: string | null;
+  } | null;
+}
+
+interface BankCard {
+  id: string;
+  bank_name: string;
+  account_number: string;
+  account_holder_name: string;
+  swift_code: string;
+  routing_number: string | null;
+  bank_address: string | null;
 }
 
 const WithdrawalApprovalSection = () => {
@@ -35,7 +54,18 @@ const WithdrawalApprovalSection = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('withdrawal_requests')
-        .select('*')
+        .select(`
+          *,
+          bank_cards (
+            id,
+            bank_name,
+            account_number,
+            account_holder_name,
+            swift_code,
+            routing_number,
+            bank_address
+          )
+        `)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -163,6 +193,7 @@ const WithdrawalApprovalSection = () => {
                 <TableHead>User ID</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Currency/Network</TableHead>
+                <TableHead>Bank Details</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -181,6 +212,19 @@ const WithdrawalApprovalSection = () => {
                   </TableCell>
                   <TableCell className="text-exchange-text-secondary">
                     {withdrawal.currency} ({withdrawal.network})
+                  </TableCell>
+                  <TableCell className="text-exchange-text-secondary">
+                    {withdrawal.bank_cards ? (
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-4 h-4" />
+                        <div>
+                          <div className="font-medium">{withdrawal.bank_cards.bank_name}</div>
+                          <div className="text-xs">****{withdrawal.bank_cards.account_number.slice(-4)}</div>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-red-400">No bank details</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     {getStatusBadge(withdrawal.status)}
@@ -201,13 +245,13 @@ const WithdrawalApprovalSection = () => {
                             Review
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="bg-exchange-card-bg border-exchange-border">
+                        <DialogContent className="bg-exchange-card-bg border-exchange-border max-w-2xl">
                           <DialogHeader>
                             <DialogTitle className="text-exchange-text-primary">
                               Review Withdrawal Request
                             </DialogTitle>
                           </DialogHeader>
-                          <div className="space-y-4">
+                          <div className="space-y-6">
                             <div className="grid grid-cols-2 gap-4 text-sm">
                               <div>
                                 <span className="text-exchange-text-secondary">Amount:</span>
@@ -219,7 +263,77 @@ const WithdrawalApprovalSection = () => {
                                 <span className="text-exchange-text-secondary">Network:</span>
                                 <span className="ml-2 text-exchange-text-primary">{withdrawal.network}</span>
                               </div>
+                              <div className="col-span-2">
+                                <span className="text-exchange-text-secondary">User ID:</span>
+                                <span className="ml-2 font-mono text-sm text-exchange-text-primary">
+                                  {withdrawal.user_id}
+                                </span>
+                              </div>
                             </div>
+
+                            {/* Bank Card Details Section */}
+                            {withdrawal.bank_cards && (
+                              <div className="bg-exchange-accent/20 rounded-lg p-4">
+                                <h4 className="text-sm font-medium text-exchange-text-primary mb-3 flex items-center gap-2">
+                                  <CreditCard className="w-4 h-4" />
+                                  Bank Account Details
+                                </h4>
+                                <div className="grid grid-cols-2 gap-3 text-sm">
+                                  <div>
+                                    <span className="text-exchange-text-secondary">Bank Name:</span>
+                                    <div className="font-medium text-exchange-text-primary">
+                                      {withdrawal.bank_cards.bank_name}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <span className="text-exchange-text-secondary">Account Holder:</span>
+                                    <div className="font-medium text-exchange-text-primary">
+                                      {withdrawal.bank_cards.account_holder_name}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <span className="text-exchange-text-secondary">Account Number:</span>
+                                    <div className="font-mono text-exchange-text-primary">
+                                      {withdrawal.bank_cards.account_number}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <span className="text-exchange-text-secondary">SWIFT Code:</span>
+                                    <div className="font-mono text-exchange-text-primary">
+                                      {withdrawal.bank_cards.swift_code}
+                                    </div>
+                                  </div>
+                                  {withdrawal.bank_cards.routing_number && (
+                                    <div>
+                                      <span className="text-exchange-text-secondary">Routing Number:</span>
+                                      <div className="font-mono text-exchange-text-primary">
+                                        {withdrawal.bank_cards.routing_number}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {withdrawal.bank_cards.bank_address && (
+                                    <div className="col-span-2">
+                                      <span className="text-exchange-text-secondary">Bank Address:</span>
+                                      <div className="text-exchange-text-primary">
+                                        {withdrawal.bank_cards.bank_address}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {!withdrawal.bank_cards && (
+                              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                                <div className="flex items-center gap-2 text-red-400">
+                                  <X className="w-4 h-4" />
+                                  <span className="font-medium">No Bank Details Found</span>
+                                </div>
+                                <p className="text-sm text-red-300 mt-1">
+                                  This withdrawal request does not have associated bank account details.
+                                </p>
+                              </div>
+                            )}
                             
                             <div>
                               <label className="text-sm font-medium text-exchange-text-secondary">
@@ -236,7 +350,7 @@ const WithdrawalApprovalSection = () => {
                             <div className="flex gap-2">
                               <Button
                                 onClick={() => handleApprove(withdrawal)}
-                                disabled={updateWithdrawalMutation.isPending}
+                                disabled={updateWithdrawalMutation.isPending || !withdrawal.bank_cards}
                                 className="bg-green-600 hover:bg-green-700"
                               >
                                 <Check className="w-4 h-4 mr-1" />
