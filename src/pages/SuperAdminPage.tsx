@@ -19,6 +19,7 @@ import ManualDepositUpload from '@/components/admin/ManualDepositUpload';
 import BackButton from '@/components/BackButton';
 import MecBot from '@/components/MecBot';
 import ContactMessagesSection from '@/components/admin/ContactMessagesSection';
+import TradesManagementSection from '@/components/admin/TradesManagementSection';
 import { toast } from 'sonner';
 
 const SuperAdminPage = () => {
@@ -205,7 +206,7 @@ const SuperAdminPage = () => {
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6 sm:space-y-8">
           <div className="w-full overflow-x-auto">
-            <TabsList className="grid grid-cols-4 lg:grid-cols-9 bg-gray-900 border-2 border-gray-700 shadow-2xl rounded-xl p-1 sm:p-2 min-w-full lg:min-w-0">
+            <TabsList className="grid grid-cols-4 lg:grid-cols-10 bg-gray-900 border-2 border-gray-700 shadow-2xl rounded-xl p-1 sm:p-2 min-w-full lg:min-w-0">
               <TabsTrigger 
                 value="overview" 
                 className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive text-xs sm:text-sm px-1 sm:px-2 lg:px-3"
@@ -229,6 +230,14 @@ const SuperAdminPage = () => {
                 <Users className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                 <span className="hidden sm:inline">Users</span>
                 <span className="sm:hidden">User</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="trades" 
+                className="admin-tab-button data-[state=active]:admin-tab-active admin-tab-inactive text-xs sm:text-sm px-1 sm:px-2 lg:px-3"
+              >
+                <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Trades</span>
+                <span className="sm:hidden">Trade</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="kyc" 
@@ -291,6 +300,10 @@ const SuperAdminPage = () => {
 
           <TabsContent value="users">
             <UserManagementSection />
+          </TabsContent>
+
+          <TabsContent value="trades">
+            <TradesManagementSection />
           </TabsContent>
 
           <TabsContent value="kyc">
