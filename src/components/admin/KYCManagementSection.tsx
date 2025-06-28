@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,30 +45,64 @@ const KYCManagementSection = () => {
   const { data: kycSubmissions, isLoading } = useQuery({
     queryKey: ['admin-kyc', searchTerm],
     queryFn: async () => {
-      let query = supabase
+      console.log('Fetching KYC submissions with search term:', searchTerm);
+      
+      // First, get all KYC submissions
+      let kycQuery = supabase
         .from('kyc_submissions')
-        .select(`
-          *,
-          profiles!inner(email, first_name, last_name)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (searchTerm) {
-        query = query.or(`full_name.ilike.%${searchTerm}%,nationality.ilike.%${searchTerm}%,address.ilike.%${searchTerm}%,user_id.ilike.%${searchTerm}%`);
+        kycQuery = kycQuery.or(`full_name.ilike.%${searchTerm}%,nationality.ilike.%${searchTerm}%,address.ilike.%${searchTerm}%,user_id.ilike.%${searchTerm}%`);
       }
       
-      const { data, error } = await query;
+      const { data: kycData, error: kycError } = await kycQuery;
       
-      if (error) throw error;
+      if (kycError) {
+        console.error('Error fetching KYC submissions:', kycError);
+        throw kycError;
+      }
+
+      if (!kycData || kycData.length === 0) {
+        return [];
+      }
+
+      // Get user IDs from KYC submissions
+      const userIds = kycData.map(kyc => kyc.user_id);
       
-      // Transform the data to match our type
-      return data.map(item => ({
-        ...item,
-        user_email: item.profiles?.email || null,
-        user_first_name: item.profiles?.first_name || null,
-        user_last_name: item.profiles?.last_name || null,
-        profiles: undefined, // Remove the profiles object to avoid type conflicts
-      })) as KYCSubmission[];
+      // Fetch profiles for these users
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, email, first_name, last_name')
+        .in('id', userIds);
+      
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        // Don't throw here, just continue without profile data
+      }
+
+      // Create a map of user_id to profile data
+      const profileMap = new Map();
+      if (profiles) {
+        profiles.forEach(profile => {
+          profileMap.set(profile.id, profile);
+        });
+      }
+
+      // Combine KYC data with profile data
+      const enrichedData = kycData.map(kyc => {
+        const profile = profileMap.get(kyc.user_id);
+        return {
+          ...kyc,
+          user_email: profile?.email || null,
+          user_first_name: profile?.first_name || null,
+          user_last_name: profile?.last_name || null,
+        };
+      });
+
+      console.log('Enriched KYC data:', enrichedData);
+      return enrichedData as KYCSubmission[];
     },
   });
 
