@@ -35,7 +35,7 @@ export const useRealtimePrices = (): UseRealtimePricesReturn => {
     });
   }, []);
 
-  // Simulate real-time price updates
+  // Controlled price updates - slower and more realistic
   useEffect(() => {
     if (subscribedSymbols.size === 0) return;
 
@@ -52,10 +52,10 @@ export const useRealtimePrices = (): UseRealtimePricesReturn => {
             const previousUpdate = newPrices.get(symbol);
             const lastPrice = previousUpdate?.price || currentPrice;
             
-            // Generate realistic price movement
-            const volatility = 0.001; // 0.1% volatility
+            // More controlled price movement - less volatile
+            const volatility = 0.0008; // Reduced volatility
             const randomChange = (Math.random() - 0.5) * volatility;
-            const marketTrend = (cryptoData.price_change_percentage_24h / 100) * 0.001;
+            const marketTrend = (cryptoData.price_change_percentage_24h / 100) * 0.0005; // Reduced trend impact
             
             const newPrice = lastPrice * (1 + randomChange + marketTrend);
             const priceChange = newPrice - lastPrice;
@@ -73,7 +73,7 @@ export const useRealtimePrices = (): UseRealtimePricesReturn => {
         
         return newPrices;
       });
-    }, 1000); // Update every second for real-time feel
+    }, 3000); // Update every 3 seconds instead of 1 second
 
     return () => clearInterval(updateInterval);
   }, [subscribedSymbols, prices]);

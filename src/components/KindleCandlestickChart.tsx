@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ComposedChart, XAxis, YAxis, ResponsiveContainer, LineChart, Line, Bar, BarChart } from 'recharts';
 import { useCryptoPrices } from '@/hooks/useCryptoPrices';
@@ -24,7 +23,20 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
   const [isLoading, setIsLoading] = useState(true);
   const { prices } = useCryptoPrices();
 
-  // Generate realistic candlestick data with real-time updates
+  // Get update interval based on timeframe
+  const getUpdateInterval = (tf: string) => {
+    switch (tf) {
+      case '1s': return 1000;
+      case '15m': return 15000; // 15 seconds for demo
+      case '1h': return 30000; // 30 seconds for demo
+      case '4h': return 60000; // 1 minute for demo
+      case '1d': return 120000; // 2 minutes for demo
+      case '1w': return 300000; // 5 minutes for demo
+      default: return 5000;
+    }
+  };
+
+  // Generate realistic candlestick data based on timeframe
   useEffect(() => {
     setIsLoading(true);
     
@@ -36,12 +48,15 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
       const data: CandlestickData[] = [];
       let price = currentPrice * (0.98 + Math.random() * 0.04);
       
-      // Generate 100 candles for better visualization
-      for (let i = 0; i < 100; i++) {
-        const timestamp = Date.now() - (100 - i) * 5 * 60 * 1000;
+      // Generate different number of candles based on timeframe
+      const candleCount = timeframe === '1s' ? 60 : timeframe === '15m' ? 100 : 80;
+      
+      for (let i = 0; i < candleCount; i++) {
+        const timestamp = Date.now() - (candleCount - i) * getUpdateInterval(timeframe);
         const date = new Date(timestamp);
         
-        const volatility = 0.002;
+        // Adjust volatility based on timeframe
+        const volatility = timeframe === '1s' ? 0.0005 : timeframe === '15m' ? 0.002 : 0.003;
         const open = price;
         const priceChange = (Math.random() - 0.5) * volatility;
         const close = Math.max(open * (1 + priceChange), 0.01);
@@ -53,7 +68,9 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
         const volume = 100000 + Math.random() * 200000;
         
         data.push({
-          time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          time: timeframe === '1s' ? 
+            date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) :
+            date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           timestamp,
           open: parseFloat(open.toFixed(2)),
           high: parseFloat(high.toFixed(2)),
@@ -72,13 +89,15 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
     setCandleData(newData);
     setIsLoading(false);
     
-    // Real-time updates every 3 seconds
+    // Real-time updates based on timeframe
+    const updateInterval = getUpdateInterval(timeframe);
     const interval = setInterval(() => {
       setCandleData(prev => {
         const newData = [...prev];
         const lastCandle = newData[newData.length - 1];
         
-        const volatility = 0.001;
+        // Adjust volatility based on timeframe
+        const volatility = timeframe === '1s' ? 0.0002 : timeframe === '15m' ? 0.001 : 0.0008;
         const realTimeChange = (Math.random() - 0.5) * volatility;
         const newClose = Math.max(lastCandle.close * (1 + realTimeChange), 0.01);
         
@@ -87,12 +106,12 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
           close: parseFloat(newClose.toFixed(2)),
           high: Math.max(lastCandle.high, newClose),
           low: Math.min(lastCandle.low, newClose),
-          volume: lastCandle.volume + Math.round(Math.abs(realTimeChange) * 50000),
+          volume: lastCandle.volume + Math.round(Math.abs(realTimeChange) * 30000),
         };
         
         return newData;
       });
-    }, 3000);
+    }, updateInterval);
     
     return () => clearInterval(interval);
   }, [symbol, timeframe, prices]);
@@ -169,7 +188,7 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
         <div className="flex items-center space-x-6">
           <div className="flex items-center space-x-2">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-xs text-gray-400">LIVE</span>
+            <span className="text-xs text-gray-400">LIVE • {timeframe.toUpperCase()}</span>
           </div>
           <div className="text-sm">
             <span className="text-gray-400">O: </span>
@@ -197,7 +216,7 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
           </div>
         </div>
         <div className="text-xs text-gray-400">
-          📊 {timeframe} • Real-time updates
+          📊 {timeframe} • Updates every {getUpdateInterval(timeframe) / 1000}s
         </div>
       </div>
 
@@ -273,6 +292,57 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
         </div>
       </div>
     </div>
+  );
+};
+
+// Custom Candlestick Bar Component
+const CandlestickBar = (props: any) => {
+  const { payload, x, y, width, height } = props;
+  if (!payload) return null;
+
+  const { open, high, low, close } = payload;
+  const isGreen = close >= open;
+  const color = isGreen ? '#10b981' : '#ef4444';
+  
+  // Calculate positions
+  const minPrice = Math.min(...candleData.map(d => d.low));
+  const maxPrice = Math.max(...candleData.map(d => d.high));
+  const priceRange = maxPrice - minPrice;
+  
+  if (priceRange === 0) return null;
+  
+  const bodyTop = y + ((maxPrice - Math.max(open, close)) / priceRange) * height;
+  const bodyBottom = y + ((maxPrice - Math.min(open, close)) / priceRange) * height;
+  const bodyHeight = Math.max(bodyBottom - bodyTop, 1);
+    
+  const wickTop = y + ((maxPrice - high) / priceRange) * height;
+  const wickBottom = y + ((maxPrice - low) / priceRange) * height;
+  
+  const candleWidth = Math.max(width * 0.6, 3);
+  const candleX = x + (width - candleWidth) / 2;
+  
+  return (
+    <g>
+      {/* Wick */}
+      <line
+        x1={x + width / 2}
+        y1={wickTop}
+        x2={x + width / 2}
+        y2={wickBottom}
+        stroke={color}
+        strokeWidth={1}
+      />
+      {/* Body */}
+      <rect
+        x={candleX}
+        y={bodyTop}
+        width={candleWidth}
+        height={bodyHeight}
+        fill={isGreen ? color : 'transparent'}
+        stroke={color}
+        strokeWidth={1.5}
+      />
+    </g>
   );
 };
 

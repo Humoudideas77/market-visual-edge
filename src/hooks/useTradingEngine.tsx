@@ -62,59 +62,80 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
     }
   }, [selectedPair, prices]);
 
-  // Generate mock order book data
+  // Generate mock order book data with controlled updates
   useEffect(() => {
     if (!tradingPair) return;
 
-    const currentPrice = tradingPair.currentPrice;
-    const spread = currentPrice * 0.001; // 0.1% spread
+    const generateOrderBook = () => {
+      const currentPrice = tradingPair.currentPrice;
+      const spread = currentPrice * 0.001; // 0.1% spread
 
-    // Generate buy orders (below current price)
-    const buyOrdersData: OrderBookEntry[] = [];
-    for (let i = 0; i < 10; i++) {
-      const price = currentPrice - spread - (i * currentPrice * 0.0005);
-      const amount = Math.random() * 2 + 0.1;
-      buyOrdersData.push({
-        price: parseFloat(price.toFixed(8)),
-        amount: parseFloat(amount.toFixed(8)),
-        total: parseFloat((price * amount).toFixed(2))
-      });
-    }
+      // Generate buy orders (below current price)
+      const buyOrdersData: OrderBookEntry[] = [];
+      for (let i = 0; i < 10; i++) {
+        const price = currentPrice - spread - (i * currentPrice * 0.0005);
+        const amount = Math.random() * 2 + 0.1;
+        buyOrdersData.push({
+          price: parseFloat(price.toFixed(8)),
+          amount: parseFloat(amount.toFixed(8)),
+          total: parseFloat((price * amount).toFixed(2))
+        });
+      }
 
-    // Generate sell orders (above current price)
-    const sellOrdersData: OrderBookEntry[] = [];
-    for (let i = 0; i < 10; i++) {
-      const price = currentPrice + spread + (i * currentPrice * 0.0005);
-      const amount = Math.random() * 2 + 0.1;
-      sellOrdersData.push({
-        price: parseFloat(price.toFixed(8)),
-        amount: parseFloat(amount.toFixed(8)),
-        total: parseFloat((price * amount).toFixed(2))
-      });
-    }
+      // Generate sell orders (above current price)
+      const sellOrdersData: OrderBookEntry[] = [];
+      for (let i = 0; i < 10; i++) {
+        const price = currentPrice + spread + (i * currentPrice * 0.0005);
+        const amount = Math.random() * 2 + 0.1;
+        sellOrdersData.push({
+          price: parseFloat(price.toFixed(8)),
+          amount: parseFloat(amount.toFixed(8)),
+          total: parseFloat((price * amount).toFixed(2))
+        });
+      }
 
-    setBuyOrders(buyOrdersData);
-    setSellOrders(sellOrdersData);
+      setBuyOrders(buyOrdersData);
+      setSellOrders(sellOrdersData);
+    };
 
-    // Generate recent trades
-    const trades: Trade[] = [];
-    for (let i = 0; i < 20; i++) {
-      const isBuy = Math.random() > 0.5;
-      const price = currentPrice + (Math.random() - 0.5) * currentPrice * 0.002;
-      const amount = Math.random() * 1 + 0.01;
-      trades.push({
-        id: `trade_${Date.now()}_${i}`,
-        pair: selectedPair,
-        side: isBuy ? 'buy' : 'sell',
-        type: 'market',
-        price: parseFloat(price.toFixed(8)),
-        amount: parseFloat(amount.toFixed(8)),
-        total: parseFloat((price * amount).toFixed(2)),
-        status: 'completed',
-        timestamp: new Date(Date.now() - Math.random() * 3600000)
-      });
-    }
-    setRecentTrades(trades.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()));
+    const generateRecentTrades = () => {
+      const trades: Trade[] = [];
+      for (let i = 0; i < 20; i++) {
+        const isBuy = Math.random() > 0.5;
+        const price = tradingPair.currentPrice + (Math.random() - 0.5) * tradingPair.currentPrice * 0.002;
+        const amount = Math.random() * 1 + 0.01;
+        trades.push({
+          id: `trade_${Date.now()}_${i}`,
+          pair: selectedPair,
+          side: isBuy ? 'buy' : 'sell',
+          type: 'market',
+          price: parseFloat(price.toFixed(8)),
+          amount: parseFloat(amount.toFixed(8)),
+          total: parseFloat((price * amount).toFixed(2)),
+          status: 'completed',
+          timestamp: new Date(Date.now() - Math.random() * 3600000)
+        });
+      }
+      setRecentTrades(trades.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()));
+    };
+
+    // Initial generation
+    generateOrderBook();
+    generateRecentTrades();
+
+    // Controlled updates every 8 seconds instead of constant updates
+    const orderBookInterval = setInterval(() => {
+      generateOrderBook();
+    }, 8000);
+
+    const tradesInterval = setInterval(() => {
+      generateRecentTrades();
+    }, 12000);
+
+    return () => {
+      clearInterval(orderBookInterval);
+      clearInterval(tradesInterval);
+    };
 
   }, [tradingPair, selectedPair]);
 
