@@ -67,7 +67,16 @@ export const useRealtimeTrades = () => {
         const pnlPercentage = (pnl / trade.margin) * 100;
 
         return {
-          ...trade,
+          id: trade.id,
+          user_id: trade.user_id,
+          pair: trade.pair,
+          side: trade.side as 'long' | 'short',
+          size: trade.size,
+          entry_price: trade.entry_price,
+          leverage: trade.leverage,
+          margin: trade.margin,
+          liquidation_price: trade.liquidation_price,
+          created_at: trade.created_at,
           user_email: (trade.profiles as any)?.email || `User ${trade.user_id.substring(0, 8)}...`,
           current_price: currentPrice,
           pnl: pnl,
