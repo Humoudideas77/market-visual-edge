@@ -61,35 +61,14 @@ const TradesManagementSection = () => {
 
         console.log('SuperAdmin verified, fetching trades...');
 
-        // Use RPC function to bypass RLS and get all trades
-        const { data: trades, error: tradesError } = await supabase.rpc('get_all_perpetual_positions_for_admin');
+        // Try RPC function first (using any type to bypass TypeScript error)
+        const { data: rpcTrades, error: rpcError } = await (supabase as any).rpc('get_all_perpetual_positions_for_admin');
 
-        if (tradesError) {
-          console.error('RPC error, falling back to direct query:', tradesError);
-          
-          // Fallback: Direct query (will work if RLS policies are properly set)
-          const { data: fallbackTrades, error: fallbackError } = await supabase
-            .from('perpetual_positions')
-            .select(`
-              *,
-              profiles!inner(email)
-            `)
-            .eq('status', 'active')
-            .order('created_at', { ascending: false });
+        if (!rpcError && rpcTrades && Array.isArray(rpcTrades) && rpcTrades.length > 0) {
+          console.log('RPC trades found:', rpcTrades.length);
 
-          if (fallbackError) {
-            console.error('Fallback query error:', fallbackError);
-            throw fallbackError;
-          }
-
-          console.log('Using fallback trades:', fallbackTrades?.length || 0);
-
-          if (!fallbackTrades || fallbackTrades.length === 0) {
-            return [];
-          }
-
-          // Process fallback trades
-          return fallbackTrades.map(trade => {
+          // Process RPC trades
+          const tradesWithPnL = rpcTrades.map((trade: any) => {
             const [baseAsset] = trade.pair.split('/');
             const currentPrice = getPriceBySymbol(prices, baseAsset)?.current_price || trade.entry_price;
             
@@ -101,22 +80,42 @@ const TradesManagementSection = () => {
 
             return {
               ...trade,
-              user_email: trade.profiles?.email || `User ${trade.user_id.substring(0, 8)}...`,
+              user_email: trade.user_email || `User ${trade.user_id.substring(0, 8)}...`,
               current_price: currentPrice,
               pnl: pnl,
               pnl_percentage: pnlPercentage
             };
-          }) as ActiveTrade[];
+          });
+
+          console.log('Final processed trades:', tradesWithPnL.length);
+          return tradesWithPnL as ActiveTrade[];
         }
 
-        console.log('RPC trades found:', trades?.length || 0);
+        console.log('RPC failed or no data, using fallback query...');
+        
+        // Fallback: Direct query with join
+        const { data: fallbackTrades, error: fallbackError } = await supabase
+          .from('perpetual_positions')
+          .select(`
+            *,
+            profiles!inner(email)
+          `)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false });
 
-        if (!trades || trades.length === 0) {
+        if (fallbackError) {
+          console.error('Fallback query error:', fallbackError);
+          throw fallbackError;
+        }
+
+        console.log('Using fallback trades:', fallbackTrades?.length || 0);
+
+        if (!fallbackTrades || fallbackTrades.length === 0) {
           return [];
         }
 
-        // Process RPC trades
-        const tradesWithPnL = trades.map(trade => {
+        // Process fallback trades
+        const processedTrades = fallbackTrades.map(trade => {
           const [baseAsset] = trade.pair.split('/');
           const currentPrice = getPriceBySymbol(prices, baseAsset)?.current_price || trade.entry_price;
           
@@ -128,15 +127,14 @@ const TradesManagementSection = () => {
 
           return {
             ...trade,
-            user_email: trade.user_email || `User ${trade.user_id.substring(0, 8)}...`,
+            user_email: (trade.profiles as any)?.email || `User ${trade.user_id.substring(0, 8)}...`,
             current_price: currentPrice,
             pnl: pnl,
             pnl_percentage: pnlPercentage
           };
-        });
+        }) as ActiveTrade[];
 
-        console.log('Final processed trades:', tradesWithPnL.length);
-        return tradesWithPnL as ActiveTrade[];
+        return processedTrades;
         
       } catch (error) {
         console.error('Error in trades query:', error);
@@ -207,7 +205,7 @@ const TradesManagementSection = () => {
       return { tradeId, pnl: trade.pnl, userEmail: trade.user_email };
     },
     onSuccess: (data) => {
-      toast.success(`Trade closed! User: ${data.userEmail}, P&L: ${data.pnl >= 0 ? '+' : ''}$${data.pnl?.toFixed(2)} USDT`);
+      toast.success(`Trade closed! User: ${data.userEmail}, P&L: ${data.pnl && data.pnl >= 0 ? '+' : ''}$${data.pnl?.toFixed(2)} USDT`);
       queryClient.invalidateQueries({ queryKey: ['admin-active-trades'] });
       setSelectedTrade(null);
     },
