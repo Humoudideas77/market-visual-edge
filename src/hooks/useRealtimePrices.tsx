@@ -24,10 +24,12 @@ export const useRealtimePrices = (): UseRealtimePricesReturn => {
   const { prices } = useCryptoPrices();
 
   const subscribeToSymbol = useCallback((symbol: string) => {
+    console.log(`[RealtimePrices] Subscribing to ${symbol}`);
     setSubscribedSymbols(prev => new Set([...prev, symbol]));
   }, []);
 
   const unsubscribeFromSymbol = useCallback((symbol: string) => {
+    console.log(`[RealtimePrices] Unsubscribing from ${symbol}`);
     setSubscribedSymbols(prev => {
       const newSet = new Set(prev);
       newSet.delete(symbol);
@@ -35,9 +37,11 @@ export const useRealtimePrices = (): UseRealtimePricesReturn => {
     });
   }, []);
 
-  // Much more controlled price updates - professional grade stability
+  // Professional-grade controlled price updates - very stable
   useEffect(() => {
     if (subscribedSymbols.size === 0) return;
+
+    console.log(`[RealtimePrices] Starting price updates for ${subscribedSymbols.size} symbols`);
 
     const updateInterval = setInterval(() => {
       setRealtimePrices(prevPrices => {
@@ -52,10 +56,10 @@ export const useRealtimePrices = (): UseRealtimePricesReturn => {
             const previousUpdate = newPrices.get(symbol);
             const lastPrice = previousUpdate?.price || currentPrice;
             
-            // Much more controlled price movement - professional stability
-            const baseVolatility = 0.0003; // Reduced from 0.0008
+            // Very controlled price movement - professional stability
+            const baseVolatility = 0.0001; // Reduced to 0.01% max movement
             const randomChange = (Math.random() - 0.5) * baseVolatility;
-            const marketTrend = (cryptoData.price_change_percentage_24h / 100) * 0.0002; // Reduced trend impact
+            const marketTrend = (cryptoData.price_change_percentage_24h / 100) * 0.00005; // Very minimal trend impact
             
             const newPrice = lastPrice * (1 + randomChange + marketTrend);
             const priceChange = newPrice - lastPrice;
@@ -64,8 +68,8 @@ export const useRealtimePrices = (): UseRealtimePricesReturn => {
             newPrices.set(symbol, {
               symbol,
               price: parseFloat(newPrice.toFixed(2)),
-              change: parseFloat(priceChange.toFixed(2)),
-              changePercent: parseFloat(changePercent.toFixed(4)),
+              change: parseFloat(priceChange.toFixed(4)),
+              changePercent: parseFloat(changePercent.toFixed(6)),
               timestamp: Date.now()
             });
           }
@@ -73,9 +77,12 @@ export const useRealtimePrices = (): UseRealtimePricesReturn => {
         
         return newPrices;
       });
-    }, 5000); // Update every 5 seconds instead of 3 seconds
+    }, 10000); // Update every 10 seconds - much more stable
 
-    return () => clearInterval(updateInterval);
+    return () => {
+      console.log('[RealtimePrices] Cleaning up price update interval');
+      clearInterval(updateInterval);
+    };
   }, [subscribedSymbols, prices]);
 
   return {
