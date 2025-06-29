@@ -16,9 +16,12 @@ const SuperAdminRoute = ({ children }: SuperAdminRouteProps) => {
       if (!user) {
         console.log('No user found, redirecting to auth');
         navigate('/auth', { replace: true });
-      } else if (!isSuperAdmin) {
-        console.log('User is not superadmin, redirecting to dashboard');
+      } else if (user.email !== 'xgroup7509@gmail.com') {
+        console.log('User is not the designated super admin email, redirecting to dashboard');
         navigate('/dashboard', { replace: true });
+      } else if (!isSuperAdmin && user.email === 'xgroup7509@gmail.com') {
+        // Force Super Admin status for the designated email
+        console.log('Forcing Super Admin access for designated email');
       }
     }
   }, [user, loading, navigate, isSuperAdmin]);
@@ -34,7 +37,12 @@ const SuperAdminRoute = ({ children }: SuperAdminRouteProps) => {
     );
   }
 
-  if (!user || !isSuperAdmin) {
+  if (!user) {
+    return null;
+  }
+
+  // Only allow access for the designated Super Admin email
+  if (user.email !== 'xgroup7509@gmail.com') {
     return null;
   }
 

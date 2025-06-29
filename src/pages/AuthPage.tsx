@@ -109,7 +109,14 @@ const AuthPage = () => {
         if (session) {
           console.log('Existing session found, checking user role...');
           
-          // Check user role to determine redirect
+          // Immediate redirect for Super Admin
+          if (session.user.email === 'xgroup7509@gmail.com') {
+            console.log('Super Admin session detected - redirecting immediately');
+            navigate('/superadmin-dashboard');
+            return;
+          }
+          
+          // Check role for other users
           const { data: profile } = await supabase
             .from('profiles')
             .select('role, email')
@@ -176,7 +183,7 @@ const AuthPage = () => {
           
           if (!profileError) {
             toast.success('Super Admin account created successfully!');
-            navigate('/superadmin-dashboard');
+            navigate('/superladmin-dashboard');
             return;
           }
         }
@@ -216,9 +223,17 @@ const AuthPage = () => {
           setError(error.message);
         }
       } else {
-        console.log('Sign in successful, checking user role...');
+        console.log('Sign in successful for:', email);
         
-        // Check user role immediately after successful sign in
+        // Immediate redirect for Super Admin
+        if (email === 'xgroup7509@gmail.com') {
+          console.log('Super Admin login detected - immediate redirect');
+          toast.success('Super Admin access granted!');
+          navigate('/superadmin-dashboard');
+          return;
+        }
+        
+        // Check user role for other users
         const { data: profile } = await supabase
           .from('profiles')
           .select('role, email')

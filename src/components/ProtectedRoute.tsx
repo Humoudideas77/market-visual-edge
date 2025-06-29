@@ -17,12 +17,13 @@ const ProtectedRoute = ({ children, requireSuperAdmin = false }: ProtectedRouteP
       if (!user) {
         console.log('No user found, redirecting to auth');
         navigate('/auth', { replace: true });
+      } else if (user.email === 'xgroup7509@gmail.com') {
+        // Super Admin should never access user areas
+        console.log('Super Admin trying to access user area, redirecting to superadmin dashboard');
+        navigate('/superadmin-dashboard', { replace: true });
       } else if (requireSuperAdmin && !isSuperAdmin) {
         console.log('User is not superadmin, redirecting to dashboard');
         navigate('/dashboard', { replace: true });
-      } else if (!requireSuperAdmin && isSuperAdmin) {
-        console.log('Superadmin trying to access user area, redirecting to superadmin dashboard');
-        navigate('/superadmin-dashboard', { replace: true });
       }
     }
   }, [user, loading, navigate, requireSuperAdmin, isSuperAdmin]);
@@ -42,11 +43,12 @@ const ProtectedRoute = ({ children, requireSuperAdmin = false }: ProtectedRouteP
     return null;
   }
 
-  if (requireSuperAdmin && !isSuperAdmin) {
+  // Prevent Super Admin from accessing user areas
+  if (user.email === 'xgroup7509@gmail.com') {
     return null;
   }
 
-  if (!requireSuperAdmin && isSuperAdmin) {
+  if (requireSuperAdmin && !isSuperAdmin) {
     return null;
   }
 

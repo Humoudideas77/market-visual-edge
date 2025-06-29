@@ -52,7 +52,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       console.log('Refreshing user role for user:', user.email);
       
-      // Use the new secure function to get user role
+      // Special handling for Super Admin email - immediate assignment
+      if (user.email === 'xgroup7509@gmail.com') {
+        console.log('Super Admin detected - immediate role assignment');
+        setUserRole('superadmin');
+        setIsAdmin(true);
+        setIsSuperAdmin(true);
+        return;
+      }
+      
+      // Use the secure function to get user role for other users
       const { data: roleData, error: roleError } = await supabase.rpc('get_user_role_secure', {
         user_uuid: user.id
       });
@@ -114,42 +123,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let mounted = true;
 
     const handleAuthStateChange = (event: string, newSession: Session | null) => {
-      console.log('Auth state changed:', event);
+      console.log('Auth state changed:', event, 'User:', newSession?.user?.email);
       
       if (!mounted) return;
 
-      switch (event) {
-        case 'SIGNED_IN':
-        case 'TOKEN_REFRESHED':
-          setSession(newSession);
-          setUser(newSession?.user ?? null);
-          // Defer role fetching to avoid blocking auth state change
-          if (newSession?.user) {
-            setTimeout(() => {
-              if (mounted) refreshUserRole();
-            }, 0);
-          }
-          break;
-        case 'SIGNED_OUT':
-          setSession(null);
-          setUser(null);
-          setUserRole(null);
-          setIsAdmin(false);
-          setIsSuperAdmin(false);
-          localStorage.clear();
-          break;
-        default:
-          setSession(newSession);
-          setUser(newSession?.user ?? null);
-          if (newSession?.user) {
-            setTimeout(() => {
-              if (mounted) refreshUserRole();
-            }, 0);
-          } else {
-            setUserRole(null);
-            setIsAdmin(false);
-            setIsSuperAdmin(false);
-          }
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+      
+      // Immediate role assignment for Super Admin
+      if (newSession?.user?.email === 'xgroup7509@gmail.com') {
+        console.log('Super Admin login detected - immediate setup');
+        setUserRole('superadmin');
+        setIsAdmin(true);
+        setIsSuperAdmin(true);
+        setLoading(false);
+        return;
+      }
+      
+      // For other users, fetch role data
+      if (newSession?.user && newSession.user.email !== 'xgroup7509@gmail.com') {
+        refreshUserRole();
+      } else if (!newSession?.user) {
+        setUserRole(null);
+        setIsAdmin(false);
+        setIsSuperAdmin(false);
       }
       
       setLoading(false);
@@ -173,11 +170,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } else {
           setSession(session);
           setUser(session?.user ?? null);
-          if (session?.user) {
-            // Defer role fetching
-            setTimeout(() => {
-              if (mounted) refreshUserRole();
-            }, 0);
+          
+          // Immediate setup for Super Admin
+          if (session?.user?.email === 'xgroup7509@gmail.com') {
+            console.log('Existing Super Admin session detected');
+            setUserRole('superadmin');
+            setIsAdmin(true);
+            setIsSuperAdmin(true);
+          } else if (session?.user) {
+            refreshUserRole();
           }
         }
       } catch (err) {
@@ -201,13 +202,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       subscription.unsubscribe();
     };
   }, []);
-
-  // Refresh user role when user changes
-  useEffect(() => {
-    if (user?.id && !loading) {
-      refreshUserRole();
-    }
-  }, [user?.id, loading]);
 
   return (
     <AuthContext.Provider value={{ 
