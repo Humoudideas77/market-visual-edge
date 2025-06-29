@@ -1,7 +1,15 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ComposedChart, XAxis, YAxis, ResponsiveContainer, LineChart, Line, Bar } from 'recharts';
-import { useBinanceData, CandlestickData } from '@/hooks/useBinanceData';
+import { ComposedChart, XAxis, YAxis, ResponsiveContainer, Bar } from 'recharts';
+
+interface CandlestickData {
+  time: string;
+  timestamp: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
 
 interface KindleCandlestickChartProps {
   symbol: string;
@@ -9,120 +17,225 @@ interface KindleCandlestickChartProps {
   chartType: 'candlestick' | 'line';
 }
 
+// Map trading pairs to Binance symbols
+const PAIR_TO_BINANCE: Record<string, string> = {
+  'BTC/USDT': 'BTCUSDT',
+  'ETH/USDT': 'ETHUSDT',
+  'BNB/USDT': 'BNBUSDT',
+  'ADA/USDT': 'ADAUSDT',
+  'SOL/USDT': 'SOLUSDT',
+  'DOT/USDT': 'DOTUSDT',
+  'MATIC/USDT': 'MATICUSDT',
+  'AVAX/USDT': 'AVAXUSDT',
+  'LINK/USDT': 'LINKUSDT',
+  'UNI/USDT': 'UNIUSDT'
+};
+
+// Map timeframes to Binance intervals
+const TIMEFRAME_TO_BINANCE: Record<string, string> = {
+  '1s': '1s',
+  '1m': '1m',
+  '5m': '5m',
+  '15m': '15m',
+  '1h': '1h',
+  '4h': '4h',
+  '1d': '1d',
+  '1w': '1w'
+};
+
 const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlestickChartProps) => {
   const [candleData, setCandleData] = useState<CandlestickData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hasInitialData, setHasInitialData] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
   
-  const retryCountRef = useRef(0);
-  const maxRetries = 3;
-  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
   const mountedRef = useRef(true);
-  
-  const { 
-    fetchHistoricalData, 
-    subscribeToSymbol, 
-    candleData: realtimeData, 
-    isConnected, 
-    error: binanceError,
-    clearError 
-  } = useBinanceData();
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       mountedRef.current = false;
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
       }
     };
   }, []);
 
-  // Load historical data with proper error handling
-  const loadHistoricalData = useCallback(async () => {
-    if (!mountedRef.current) return;
+  // Fetch historical data from Binance API
+  const fetchHistoricalData = useCallback(async () => {
+    const binanceSymbol = PAIR_TO_BINANCE[symbol];
+    const binanceInterval = TIMEFRAME_TO_BINANCE[timeframe];
     
+    if (!binanceSymbol || !binanceInterval) {
+      setError(`Unsupported pair: ${symbol}`);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
-      clearError();
       
-      console.log(`[KindleCandlestickChart] Loading historical data for ${symbol} ${timeframe}`);
+      console.log(`[KindleChart] Fetching data for ${binanceSymbol} ${binanceInterval}`);
       
-      const historicalData = await fetchHistoricalData(symbol, timeframe, 200);
+      const response = await fetch(
+        `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=100`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          }
+        }
+      );
       
-      if (!mountedRef.current) return;
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Failed to fetch data`);
+      }
       
-      if (historicalData && historicalData.length > 0) {
-        setCandleData(historicalData);
-        setHasInitialData(true);
-        retryCountRef.current = 0;
+      const rawData = await response.json();
+      
+      if (!Array.isArray(rawData) || rawData.length === 0) {
+        throw new Error('No data received from API');
+      }
+
+      const formattedData: CandlestickData[] = rawData.map((kline: any[]) => {
+        const timestamp = kline[0];
+        const date = new Date(timestamp);
         
-        // Subscribe to real-time updates after successful data load
-        subscribeToSymbol(symbol, timeframe);
+        return {
+          time: timeframe === '1s' || timeframe === '1m' ? 
+            date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) :
+            timeframe === '5m' || timeframe === '15m' || timeframe === '1h' ?
+            date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) :
+            date.toLocaleDateString([], { month: 'short', day: '2-digit' }),
+          timestamp,
+          open: parseFloat(kline[1]),
+          high: parseFloat(kline[2]),
+          low: parseFloat(kline[3]),
+          close: parseFloat(kline[4]),
+          volume: parseFloat(kline[5])
+        };
+      });
+
+      if (mountedRef.current) {
+        setCandleData(formattedData);
+        console.log(`[KindleChart] Loaded ${formattedData.length} candles`);
         
-        console.log(`[KindleCandlestickChart] Successfully loaded ${historicalData.length} candles`);
-      } else {
-        throw new Error('No historical data received');
+        // Start WebSocket connection after successful data load
+        connectWebSocket();
       }
     } catch (error) {
-      console.error('[KindleCandlestickChart] Error loading data:', error);
-      
-      if (!mountedRef.current) return;
-      
-      if (retryCountRef.current < maxRetries) {
-        const retryDelay = Math.min(1000 * Math.pow(2, retryCountRef.current), 8000);
-        setError(`Retrying... (${retryCountRef.current + 1}/${maxRetries})`);
-        
-        retryTimeoutRef.current = setTimeout(() => {
-          if (mountedRef.current) {
-            retryCountRef.current++;
-            loadHistoricalData();
-          }
-        }, retryDelay);
-      } else {
-        setError('Failed to load chart data. Please refresh the page.');
+      console.error('[KindleChart] Error fetching data:', error);
+      if (mountedRef.current) {
+        setError('Failed to load chart data');
       }
     } finally {
       if (mountedRef.current) {
         setIsLoading(false);
       }
     }
-  }, [symbol, timeframe, fetchHistoricalData, subscribeToSymbol, clearError]);
+  }, [symbol, timeframe]);
 
-  // Initial data load
-  useEffect(() => {
-    retryCountRef.current = 0;
-    setHasInitialData(false);
-    setCandleData([]);
-    loadHistoricalData();
-  }, [loadHistoricalData]);
-
-  // Handle real-time data updates
-  useEffect(() => {
-    if (!hasInitialData) return;
+  // WebSocket connection for real-time updates
+  const connectWebSocket = useCallback(() => {
+    const binanceSymbol = PAIR_TO_BINANCE[symbol];
+    const binanceInterval = TIMEFRAME_TO_BINANCE[timeframe];
     
-    const key = `${symbol}_${timeframe}`;
-    const realtimeCandles = realtimeData.get(key);
-    
-    if (realtimeCandles && realtimeCandles.length > 0) {
-      setCandleData(realtimeCandles);
-      console.log(`[KindleCandlestickChart] Updated with ${realtimeCandles.length} real-time candles`);
+    if (!binanceSymbol || !binanceInterval || !mountedRef.current) {
+      return;
     }
-  }, [realtimeData, symbol, timeframe, hasInitialData]);
 
-  // Handle Binance API errors
+    // Close existing connection
+    if (wsRef.current) {
+      wsRef.current.close();
+    }
+
+    try {
+      const streamName = `${binanceSymbol.toLowerCase()}@kline_${binanceInterval}`;
+      wsRef.current = new WebSocket(`wss://stream.binance.com:9443/ws/${streamName}`);
+      
+      wsRef.current.onopen = () => {
+        console.log('[KindleChart] WebSocket connected');
+        setIsConnected(true);
+        setError(null);
+      };
+      
+      wsRef.current.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.k && mountedRef.current) {
+            const kline = data.k;
+            const newCandle: CandlestickData = {
+              time: new Date(kline.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              timestamp: kline.t,
+              open: parseFloat(kline.o),
+              high: parseFloat(kline.h),
+              low: parseFloat(kline.l),
+              close: parseFloat(kline.c),
+              volume: parseFloat(kline.v)
+            };
+            
+            setCandleData(prev => {
+              const updated = [...prev];
+              
+              // Update last candle if same timestamp, otherwise add new
+              if (updated.length > 0 && updated[updated.length - 1].timestamp === newCandle.timestamp) {
+                updated[updated.length - 1] = newCandle;
+              } else {
+                updated.push(newCandle);
+                // Keep only last 100 candles
+                if (updated.length > 100) {
+                  updated.shift();
+                }
+              }
+              
+              return updated;
+            });
+          }
+        } catch (error) {
+          console.error('[KindleChart] WebSocket message error:', error);
+        }
+      };
+      
+      wsRef.current.onclose = () => {
+        console.log('[KindleChart] WebSocket disconnected');
+        setIsConnected(false);
+        
+        // Attempt reconnection after 3 seconds
+        if (mountedRef.current) {
+          reconnectTimeoutRef.current = setTimeout(() => {
+            if (mountedRef.current) {
+              connectWebSocket();
+            }
+          }, 3000);
+        }
+      };
+      
+      wsRef.current.onerror = (error) => {
+        console.error('[KindleChart] WebSocket error:', error);
+        setIsConnected(false);
+      };
+    } catch (error) {
+      console.error('[KindleChart] Failed to create WebSocket:', error);
+      setIsConnected(false);
+    }
+  }, [symbol, timeframe]);
+
+  // Initialize data loading
   useEffect(() => {
-    if (binanceError && !error) {
-      setError(binanceError);
-    }
-  }, [binanceError, error]);
+    fetchHistoricalData();
+  }, [fetchHistoricalData]);
 
-  // Enhanced Candlestick Bar Component
+  // Custom Candlestick Bar Component
   const CandlestickBar = (props: any) => {
     const { payload, x, y, width, height } = props;
-    if (!payload || candleData.length === 0) return null;
+    if (!payload) return null;
 
     const { open, high, low, close } = payload;
     const isGreen = close >= open;
@@ -153,7 +266,6 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
           y2={wickBottom}
           stroke={color}
           strokeWidth={1}
-          opacity={0.9}
         />
         <rect
           x={candleX}
@@ -163,25 +275,32 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
           fill={isGreen ? color : 'transparent'}
           stroke={color}
           strokeWidth={isGreen ? 0 : 1}
-          rx={0.5}
         />
       </g>
     );
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="h-80 bg-gray-900/40 rounded-lg border border-gray-800 flex items-center justify-center">
+        <div className="flex items-center space-x-3">
+          <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
+          <div className="text-gray-400 text-sm">Loading {timeframe} chart...</div>
+        </div>
+      </div>
+    );
+  }
+
   // Error state
-  if (error && retryCountRef.current >= maxRetries) {
+  if (error) {
     return (
       <div className="h-80 bg-gray-900/40 rounded-lg border border-gray-800 flex items-center justify-center">
         <div className="text-center p-6">
           <div className="text-red-400 mb-3 text-sm">⚠️ Chart Error</div>
           <div className="text-xs text-gray-500 mb-4">{error}</div>
           <button 
-            onClick={() => {
-              retryCountRef.current = 0;
-              setError(null);
-              loadHistoricalData();
-            }}
+            onClick={fetchHistoricalData}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
           >
             Retry
@@ -191,24 +310,8 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
     );
   }
 
-  // Loading state
-  if (isLoading || !hasInitialData) {
-    return (
-      <div className="h-80 bg-gray-900/40 rounded-lg border border-gray-800 flex items-center justify-center">
-        <div className="flex items-center space-x-3">
-          <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
-          <div className="text-gray-400 text-sm">
-            {error ? error : `Loading ${timeframe} chart...`}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const displayData = candleData.slice(-100);
-  const currentCandle = displayData[displayData.length - 1];
-
-  if (!displayData.length) {
+  // No data state
+  if (!candleData.length) {
     return (
       <div className="h-80 bg-gray-900/40 rounded-lg border border-gray-800 flex items-center justify-center">
         <div className="text-center">
@@ -219,20 +322,22 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
     );
   }
 
+  const currentCandle = candleData[candleData.length - 1];
+
   return (
     <div className="w-full">
-      {/* Header Bar */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-3 px-4 py-2 bg-gray-900/60 rounded-t-lg border border-gray-800">
         <div className="flex items-center space-x-6">
           <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></div>
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`}></div>
             <span className="text-xs font-medium text-gray-300">
               {isConnected ? 'LIVE' : 'OFFLINE'}
             </span>
             <span className="text-xs text-gray-500">•</span>
             <span className="text-xs font-mono text-gray-400">{timeframe.toUpperCase()}</span>
             <span className="text-xs text-gray-500">•</span>
-            <span className="text-xs text-gray-400">{displayData.length} candles</span>
+            <span className="text-xs text-gray-400">{candleData.length} candles</span>
           </div>
           
           {currentCandle && (
@@ -260,82 +365,40 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
         </div>
       </div>
 
-      {/* Chart Container */}
-      <div className="h-80 bg-gray-900/40 rounded-b-lg border-x border-b border-gray-800 relative">
+      {/* Chart */}
+      <div className="h-80 bg-gray-900/40 rounded-b-lg border-x border-b border-gray-800">
         <ResponsiveContainer width="100%" height="100%">
-          {chartType === 'line' ? (
-            <LineChart 
-              data={displayData} 
-              margin={{ top: 15, right: 15, bottom: 15, left: 15 }}
-            >
-              <XAxis 
-                dataKey="time" 
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 10, fill: '#6B7280' }}
-                interval="preserveStartEnd"
-                tickMargin={8}
-              />
-              <YAxis 
-                domain={['dataMin - 5', 'dataMax + 5']}
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 10, fill: '#6B7280' }}
-                width={60}
-                tickFormatter={(value) => `$${value.toFixed(0)}`}
-                tickMargin={8}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="close" 
-                stroke="#3b82f6" 
-                strokeWidth={1.5}
-                dot={false}
-                activeDot={{ r: 3, fill: '#3b82f6', strokeWidth: 0 }}
-              />
-            </LineChart>
-          ) : (
-            <ComposedChart 
-              data={displayData} 
-              margin={{ top: 15, right: 15, bottom: 15, left: 15 }}
-            >
-              <XAxis 
-                dataKey="time" 
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 10, fill: '#6B7280' }}
-                interval="preserveStartEnd"
-                tickMargin={8}
-              />
-              <YAxis 
-                domain={['dataMin - 5', 'dataMax + 5']}
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 10, fill: '#6B7280' }}
-                width={60}
-                tickFormatter={(value) => `$${value.toFixed(0)}`}
-                tickMargin={8}
-              />
-              <Bar 
-                dataKey="close" 
-                shape={<CandlestickBar />}
-                fill="transparent"
-              />
-            </ComposedChart>
-          )}
+          <ComposedChart 
+            data={candleData} 
+            margin={{ top: 15, right: 15, bottom: 15, left: 15 }}
+          >
+            <XAxis 
+              dataKey="time" 
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 10, fill: '#6B7280' }}
+              interval="preserveStartEnd"
+              tickMargin={8}
+            />
+            <YAxis 
+              domain={['dataMin - 5', 'dataMax + 5']}
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 10, fill: '#6B7280' }}
+              width={60}
+              tickFormatter={(value) => `$${value.toFixed(0)}`}
+              tickMargin={8}
+            />
+            <Bar 
+              dataKey="close" 
+              shape={<CandlestickBar />}
+              fill="transparent"
+            />
+          </ComposedChart>
         </ResponsiveContainer>
-
-        {/* Grid overlay */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="w-full h-full grid grid-rows-5 opacity-5">
-            {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} className="border-b border-gray-600"></div>
-            ))}
-          </div>
-        </div>
       </div>
 
-      {/* Current Price Indicator */}
+      {/* Current Price */}
       {currentCandle && (
         <div className="mt-3 flex justify-center">
           <div className={`flex items-center space-x-3 px-4 py-2 rounded-lg border ${
