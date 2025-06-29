@@ -24,26 +24,50 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
   const { prices } = useCryptoPrices();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const currentCandleRef = useRef<CandlestickData | null>(null);
+  const lastUpdateRef = useRef<number>(0);
 
-  // Get proper update interval based on timeframe (in milliseconds)
-  const getUpdateInterval = (tf: string) => {
+  // Get proper timeframe intervals (in milliseconds) - more realistic for demo
+  const getTimeframeConfig = (tf: string) => {
     switch (tf) {
-      case '1s': return 1000;      // 1 second
-      case '15m': return 900000;   // 15 minutes
-      case '1h': return 3600000;   // 1 hour
-      case '4h': return 14400000;  // 4 hours
-      case '1d': return 86400000;  // 1 day
-      case '1w': return 604800000; // 1 week
-      default: return 5000;        // 5 seconds default
+      case '1s': return { 
+        candleDuration: 1000,      // 1 second candles
+        updateInterval: 1000,      // Update every 1 second
+        microUpdateInterval: 200   // Micro updates every 200ms
+      };
+      case '15m': return { 
+        candleDuration: 900000,    // 15 minute candles
+        updateInterval: 15000,     // Update every 15 seconds for demo
+        microUpdateInterval: 5000  // Micro updates every 5 seconds
+      };
+      case '1h': return { 
+        candleDuration: 3600000,   // 1 hour candles
+        updateInterval: 30000,     // Update every 30 seconds for demo
+        microUpdateInterval: 10000 // Micro updates every 10 seconds
+      };
+      case '4h': return { 
+        candleDuration: 14400000,  // 4 hour candles
+        updateInterval: 60000,     // Update every minute for demo
+        microUpdateInterval: 20000 // Micro updates every 20 seconds
+      };
+      case '1d': return { 
+        candleDuration: 86400000,  // 1 day candles
+        updateInterval: 120000,    // Update every 2 minutes for demo
+        microUpdateInterval: 30000 // Micro updates every 30 seconds
+      };
+      case '1w': return { 
+        candleDuration: 604800000, // 1 week candles
+        updateInterval: 300000,    // Update every 5 minutes for demo
+        microUpdateInterval: 60000 // Micro updates every minute
+      };
+      default: return { 
+        candleDuration: 5000,      // 5 second default
+        updateInterval: 5000,      // Update every 5 seconds
+        microUpdateInterval: 1000  // Micro updates every second
+      };
     }
   };
 
-  // Get how many milliseconds each candle represents
-  const getCandleDuration = (tf: string) => {
-    return getUpdateInterval(tf);
-  };
-
-  // Generate realistic candlestick data based on timeframe
+  // Generate realistic initial candlestick data
   useEffect(() => {
     setIsLoading(true);
     
@@ -55,29 +79,29 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
       const data: CandlestickData[] = [];
       let price = currentPrice * (0.98 + Math.random() * 0.04);
       
-      const candleCount = 60; // Show 60 candles
-      const duration = getCandleDuration(timeframe);
+      const candleCount = 100;
+      const { candleDuration } = getTimeframeConfig(timeframe);
       
       for (let i = 0; i < candleCount; i++) {
-        const timestamp = Date.now() - (candleCount - i) * duration;
+        const timestamp = Date.now() - (candleCount - i) * candleDuration;
         const date = new Date(timestamp);
         
-        // Adjust volatility based on timeframe - longer timeframes have more volatility
-        const baseVolatility = timeframe === '1s' ? 0.0003 : 
-                              timeframe === '15m' ? 0.002 : 
-                              timeframe === '1h' ? 0.005 :
-                              timeframe === '4h' ? 0.012 :
-                              timeframe === '1d' ? 0.025 : 0.05;
+        // Realistic volatility based on timeframe
+        const baseVolatility = timeframe === '1s' ? 0.0001 : 
+                              timeframe === '15m' ? 0.001 : 
+                              timeframe === '1h' ? 0.003 :
+                              timeframe === '4h' ? 0.008 :
+                              timeframe === '1d' ? 0.015 : 0.025;
         
         const open = price;
         const priceChange = (Math.random() - 0.5) * baseVolatility;
         const close = Math.max(open * (1 + priceChange), 0.01);
         
-        const wickRange = baseVolatility * 0.3;
+        const wickRange = baseVolatility * 0.2;
         const high = Math.max(open, close) * (1 + Math.random() * wickRange);
         const low = Math.min(open, close) * (1 - Math.random() * wickRange);
         
-        const volume = 50000 + Math.random() * 150000;
+        const volume = 30000 + Math.random() * 70000;
         
         data.push({
           time: timeframe === '1s' ? 
@@ -102,6 +126,7 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
     const initialData = generateInitialData();
     setCandleData(initialData);
     currentCandleRef.current = initialData[initialData.length - 1];
+    lastUpdateRef.current = Date.now();
     setIsLoading(false);
     
     // Clear any existing interval
@@ -109,37 +134,36 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
       clearInterval(intervalRef.current);
     }
     
-    // Set up proper interval based on timeframe
-    const updateInterval = getUpdateInterval(timeframe);
+    const { candleDuration, updateInterval, microUpdateInterval } = getTimeframeConfig(timeframe);
     
+    // Main update cycle - creates new candles or updates current candle
     intervalRef.current = setInterval(() => {
       const now = Date.now();
       const lastCandle = currentCandleRef.current;
       
       if (!lastCandle) return;
       
-      // Check if we need to create a new candle or update the current one
       const timeSinceLastCandle = now - lastCandle.timestamp;
-      const candleDuration = getCandleDuration(timeframe);
       
+      // Check if we need a new candle based on timeframe
       if (timeSinceLastCandle >= candleDuration) {
         // Create new candle
         setCandleData(prev => {
           const newData = [...prev];
           const date = new Date(now);
           
-          // Small realistic price change for new candle
-          const volatility = timeframe === '1s' ? 0.0002 : 
-                            timeframe === '15m' ? 0.001 : 
-                            timeframe === '1h' ? 0.003 :
-                            timeframe === '4h' ? 0.008 :
-                            timeframe === '1d' ? 0.015 : 0.03;
+          // Controlled price movement for new candle
+          const volatility = timeframe === '1s' ? 0.00008 : 
+                            timeframe === '15m' ? 0.0004 : 
+                            timeframe === '1h' ? 0.001 :
+                            timeframe === '4h' ? 0.003 :
+                            timeframe === '1d' ? 0.008 : 0.015;
           
           const priceChange = (Math.random() - 0.5) * volatility;
           const newOpen = lastCandle.close;
           const newClose = Math.max(newOpen * (1 + priceChange), 0.01);
           
-          const wickRange = volatility * 0.2;
+          const wickRange = volatility * 0.15;
           const newHigh = Math.max(newOpen, newClose) * (1 + Math.random() * wickRange);
           const newLow = Math.min(newOpen, newClose) * (1 - Math.random() * wickRange);
           
@@ -154,43 +178,49 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
             high: parseFloat(newHigh.toFixed(2)),
             low: parseFloat(newLow.toFixed(2)),
             close: parseFloat(newClose.toFixed(2)),
-            volume: Math.round(30000 + Math.random() * 100000),
+            volume: Math.round(20000 + Math.random() * 50000),
           };
           
           currentCandleRef.current = newCandle;
+          lastUpdateRef.current = now;
           
-          // Keep only the last 60 candles
-          const updatedData = [...newData.slice(-59), newCandle];
-          return updatedData;
+          // Keep only the last 100 candles
+          return [...newData.slice(-99), newCandle];
         });
       } else {
-        // Update current candle (only close, high, low can change)
-        setCandleData(prev => {
-          const newData = [...prev];
-          const lastIndex = newData.length - 1;
-          const currentCandle = newData[lastIndex];
-          
-          // Micro price movement for current candle
-          const microVolatility = timeframe === '1s' ? 0.00005 : 
-                                 timeframe === '15m' ? 0.0002 : 
-                                 timeframe === '1h' ? 0.0005 :
-                                 timeframe === '4h' ? 0.001 :
-                                 timeframe === '1d' ? 0.002 : 0.004;
-          
-          const microChange = (Math.random() - 0.5) * microVolatility;
-          const newClose = Math.max(currentCandle.close * (1 + microChange), 0.01);
-          
-          newData[lastIndex] = {
-            ...currentCandle,
-            close: parseFloat(newClose.toFixed(2)),
-            high: Math.max(currentCandle.high, newClose),
-            low: Math.min(currentCandle.low, newClose),
-            volume: currentCandle.volume + Math.round(Math.abs(microChange) * 10000),
-          };
-          
-          currentCandleRef.current = newData[lastIndex];
-          return newData;
-        });
+        // Update current candle with controlled micro-movements
+        const timeSinceLastUpdate = now - lastUpdateRef.current;
+        
+        // Only update if enough time has passed (throttling)
+        if (timeSinceLastUpdate >= microUpdateInterval) {
+          setCandleData(prev => {
+            const newData = [...prev];
+            const lastIndex = newData.length - 1;
+            const currentCandle = newData[lastIndex];
+            
+            // Very small price movements for current candle updates
+            const microVolatility = timeframe === '1s' ? 0.00002 : 
+                                   timeframe === '15m' ? 0.00008 : 
+                                   timeframe === '1h' ? 0.0002 :
+                                   timeframe === '4h' ? 0.0004 :
+                                   timeframe === '1d' ? 0.001 : 0.002;
+            
+            const microChange = (Math.random() - 0.5) * microVolatility;
+            const newClose = Math.max(currentCandle.close * (1 + microChange), 0.01);
+            
+            newData[lastIndex] = {
+              ...currentCandle,
+              close: parseFloat(newClose.toFixed(2)),
+              high: Math.max(currentCandle.high, newClose),
+              low: Math.min(currentCandle.low, newClose),
+              volume: currentCandle.volume + Math.round(Math.abs(microChange) * 5000),
+            };
+            
+            currentCandleRef.current = newData[lastIndex];
+            lastUpdateRef.current = now;
+            return newData;
+          });
+        }
       }
     }, updateInterval);
     
@@ -210,7 +240,6 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
     const isGreen = close >= open;
     const color = isGreen ? '#10b981' : '#ef4444';
     
-    // Calculate positions
     const minPrice = Math.min(...candleData.map(d => d.low));
     const maxPrice = Math.max(...candleData.map(d => d.high));
     const priceRange = maxPrice - minPrice;
@@ -229,7 +258,6 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
     
     return (
       <g>
-        {/* Wick */}
         <line
           x1={x + width / 2}
           y1={wickTop}
@@ -238,7 +266,6 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
           stroke={color}
           strokeWidth={1}
         />
-        {/* Body */}
         <rect
           x={candleX}
           y={bodyTop}
@@ -257,14 +284,15 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
       <div className="h-96 bg-gray-900/50 rounded-lg flex items-center justify-center">
         <div className="flex items-center space-x-2">
           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-          <div className="text-gray-400">Loading live {timeframe} chart for {symbol}...</div>
+          <div className="text-gray-400">Loading {timeframe} chart for {symbol}...</div>
         </div>
       </div>
     );
   }
 
-  const displayData = candleData.slice(-60); // Show last 60 candles
+  const displayData = candleData.slice(-60);
   const currentCandle = displayData[displayData.length - 1];
+  const { updateInterval } = getTimeframeConfig(timeframe);
 
   return (
     <div className="w-full p-4">
@@ -301,9 +329,9 @@ const KindleCandlestickChart = ({ symbol, timeframe, chartType }: KindleCandlest
           </div>
         </div>
         <div className="text-xs text-gray-400">
-          📊 {timeframe} • Updates every {getUpdateInterval(timeframe) >= 60000 ? 
-            `${getUpdateInterval(timeframe) / 60000}m` : 
-            `${getUpdateInterval(timeframe) / 1000}s`}
+          📊 {timeframe} • Updates every {updateInterval >= 60000 ? 
+            `${updateInterval / 60000}m` : 
+            `${updateInterval / 1000}s`}
         </div>
       </div>
 

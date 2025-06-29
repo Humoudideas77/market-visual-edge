@@ -35,7 +35,7 @@ export const useRealtimePrices = (): UseRealtimePricesReturn => {
     });
   }, []);
 
-  // Controlled price updates - slower and more realistic
+  // Much more controlled price updates - professional grade stability
   useEffect(() => {
     if (subscribedSymbols.size === 0) return;
 
@@ -52,10 +52,10 @@ export const useRealtimePrices = (): UseRealtimePricesReturn => {
             const previousUpdate = newPrices.get(symbol);
             const lastPrice = previousUpdate?.price || currentPrice;
             
-            // More controlled price movement - less volatile
-            const volatility = 0.0008; // Reduced volatility
-            const randomChange = (Math.random() - 0.5) * volatility;
-            const marketTrend = (cryptoData.price_change_percentage_24h / 100) * 0.0005; // Reduced trend impact
+            // Much more controlled price movement - professional stability
+            const baseVolatility = 0.0003; // Reduced from 0.0008
+            const randomChange = (Math.random() - 0.5) * baseVolatility;
+            const marketTrend = (cryptoData.price_change_percentage_24h / 100) * 0.0002; // Reduced trend impact
             
             const newPrice = lastPrice * (1 + randomChange + marketTrend);
             const priceChange = newPrice - lastPrice;
@@ -73,7 +73,7 @@ export const useRealtimePrices = (): UseRealtimePricesReturn => {
         
         return newPrices;
       });
-    }, 3000); // Update every 3 seconds instead of 1 second
+    }, 5000); // Update every 5 seconds instead of 3 seconds
 
     return () => clearInterval(updateInterval);
   }, [subscribedSymbols, prices]);

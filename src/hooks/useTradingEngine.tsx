@@ -42,9 +42,11 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
   const [userTrades, setUserTrades] = useState<Trade[]>([]);
   const [tradingPair, setTradingPair] = useState<TradingPair | null>(null);
   
-  // Refs to manage intervals
+  // Refs to manage intervals and throttling
   const orderBookIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const tradesIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastOrderBookUpdateRef = useRef<number>(0);
+  const lastTradesUpdateRef = useRef<number>(0);
 
   // Update trading pair data from crypto prices
   useEffect(() => {
@@ -65,19 +67,19 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
     }
   }, [selectedPair, prices]);
 
-  // Generate realistic order book with controlled updates
+  // Professional-grade order book and trades with controlled updates
   useEffect(() => {
     if (!tradingPair) return;
 
     const generateOrderBook = () => {
       const currentPrice = tradingPair.currentPrice;
-      const spread = currentPrice * 0.001; // 0.1% spread
+      const spread = currentPrice * 0.0008; // 0.08% spread - tighter like real exchanges
 
       // Generate buy orders (below current price)
       const buyOrdersData: OrderBookEntry[] = [];
-      for (let i = 0; i < 10; i++) {
-        const price = currentPrice - spread - (i * currentPrice * 0.0005);
-        const amount = Math.random() * 2 + 0.1;
+      for (let i = 0; i < 15; i++) {
+        const price = currentPrice - spread - (i * currentPrice * 0.0003);
+        const amount = Math.random() * 1.5 + 0.05;
         buyOrdersData.push({
           price: parseFloat(price.toFixed(8)),
           amount: parseFloat(amount.toFixed(8)),
@@ -87,9 +89,9 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
 
       // Generate sell orders (above current price)
       const sellOrdersData: OrderBookEntry[] = [];
-      for (let i = 0; i < 10; i++) {
-        const price = currentPrice + spread + (i * currentPrice * 0.0005);
-        const amount = Math.random() * 2 + 0.1;
+      for (let i = 0; i < 15; i++) {
+        const price = currentPrice + spread + (i * currentPrice * 0.0003);
+        const amount = Math.random() * 1.5 + 0.05;
         sellOrdersData.push({
           price: parseFloat(price.toFixed(8)),
           amount: parseFloat(amount.toFixed(8)),
@@ -103,10 +105,10 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
 
     const generateRecentTrades = () => {
       const trades: Trade[] = [];
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 25; i++) {
         const isBuy = Math.random() > 0.5;
-        const price = tradingPair.currentPrice + (Math.random() - 0.5) * tradingPair.currentPrice * 0.002;
-        const amount = Math.random() * 1 + 0.01;
+        const price = tradingPair.currentPrice + (Math.random() - 0.5) * tradingPair.currentPrice * 0.001;
+        const amount = Math.random() * 0.8 + 0.01;
         trades.push({
           id: `trade_${Date.now()}_${i}`,
           pair: selectedPair,
@@ -133,20 +135,29 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
     // Initial generation
     generateOrderBook();
     generateRecentTrades();
+    lastOrderBookUpdateRef.current = Date.now();
+    lastTradesUpdateRef.current = Date.now();
 
-    // Professional-grade update intervals (similar to Binance)
-    // Order book updates every 3-5 seconds for stability
+    // Professional order book updates - much more stable
     orderBookIntervalRef.current = setInterval(() => {
-      // Only update a few orders at a time to prevent flickering
+      const now = Date.now();
+      const timeSinceLastUpdate = now - lastOrderBookUpdateRef.current;
+      
+      // Throttle updates to every 6 seconds minimum
+      if (timeSinceLastUpdate < 6000) return;
+      
+      // Only update 1-2 orders at a time to prevent flickering
       setBuyOrders(prev => {
         const newOrders = [...prev];
-        // Update 2-3 random orders
-        const indicesToUpdate = Math.floor(Math.random() * 3) + 1;
-        for (let i = 0; i < indicesToUpdate; i++) {
-          const randomIndex = Math.floor(Math.random() * newOrders.length);
+        const updateCount = Math.random() > 0.7 ? 2 : 1; // Usually update 1, sometimes 2
+        
+        for (let i = 0; i < updateCount; i++) {
+          const randomIndex = Math.floor(Math.random() * Math.min(newOrders.length, 8)); // Only update top 8 orders
           const order = newOrders[randomIndex];
-          const priceVariation = (Math.random() - 0.5) * 0.0001;
-          const amountVariation = (Math.random() - 0.5) * 0.1;
+          
+          // Very small price variation - like real order books
+          const priceVariation = (Math.random() - 0.5) * 0.00005;
+          const amountVariation = (Math.random() - 0.5) * 0.05;
           
           newOrders[randomIndex] = {
             ...order,
@@ -160,13 +171,14 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
 
       setSellOrders(prev => {
         const newOrders = [...prev];
-        // Update 2-3 random orders
-        const indicesToUpdate = Math.floor(Math.random() * 3) + 1;
-        for (let i = 0; i < indicesToUpdate; i++) {
-          const randomIndex = Math.floor(Math.random() * newOrders.length);
+        const updateCount = Math.random() > 0.7 ? 2 : 1;
+        
+        for (let i = 0; i < updateCount; i++) {
+          const randomIndex = Math.floor(Math.random() * Math.min(newOrders.length, 8));
           const order = newOrders[randomIndex];
-          const priceVariation = (Math.random() - 0.5) * 0.0001;
-          const amountVariation = (Math.random() - 0.5) * 0.1;
+          
+          const priceVariation = (Math.random() - 0.5) * 0.00005;
+          const amountVariation = (Math.random() - 0.5) * 0.05;
           
           newOrders[randomIndex] = {
             ...order,
@@ -177,18 +189,26 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
         }
         return newOrders;
       });
-    }, 4000); // Update every 4 seconds
+      
+      lastOrderBookUpdateRef.current = now;
+    }, 8000); // Check every 8 seconds, but throttle to 6 seconds minimum
 
-    // Trade history updates every 8-15 seconds for realism
+    // Controlled trade history updates
     tradesIntervalRef.current = setInterval(() => {
-      // Add 1-2 new trades occasionally
-      const shouldAddTrade = Math.random() > 0.6;
+      const now = Date.now();
+      const timeSinceLastUpdate = now - lastTradesUpdateRef.current;
+      
+      // Throttle trade updates to every 15 seconds minimum
+      if (timeSinceLastUpdate < 15000) return;
+      
+      // Only occasionally add new trades (30% chance)
+      const shouldAddTrade = Math.random() > 0.7;
       if (shouldAddTrade) {
         setRecentTrades(prev => {
           const newTrades = [...prev];
           const isBuy = Math.random() > 0.5;
-          const price = tradingPair.currentPrice + (Math.random() - 0.5) * tradingPair.currentPrice * 0.001;
-          const amount = Math.random() * 0.5 + 0.01;
+          const price = tradingPair.currentPrice + (Math.random() - 0.5) * tradingPair.currentPrice * 0.0008;
+          const amount = Math.random() * 0.3 + 0.01;
           
           const newTrade: Trade = {
             id: `trade_${Date.now()}_${Math.random()}`,
@@ -202,11 +222,13 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
             timestamp: new Date()
           };
           
-          // Keep only the last 20 trades
-          return [newTrade, ...newTrades.slice(0, 19)];
+          // Keep only the last 25 trades
+          return [newTrade, ...newTrades.slice(0, 24)];
         });
+        
+        lastTradesUpdateRef.current = now;
       }
-    }, 12000); // Update every 12 seconds
+    }, 18000); // Check every 18 seconds
 
     return () => {
       if (orderBookIntervalRef.current) {
