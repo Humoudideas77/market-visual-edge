@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useCryptoPrices, getPriceBySymbol } from './useCryptoPrices';
-import { useBinanceData, OrderBookEntry } from './useBinanceData';
+import { useBinanceData } from './useBinanceData';
 import { useWallet } from './useWallet';
 import { useAuth } from './useAuth';
 
@@ -25,6 +25,13 @@ interface TradingPair {
   volume24h: number;
   high24h: number;
   low24h: number;
+}
+
+// Updated OrderBookEntry interface to match usage
+interface OrderBookEntry {
+  price: number;
+  amount: number;
+  total: number;
 }
 
 export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
