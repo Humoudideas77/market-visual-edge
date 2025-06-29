@@ -107,15 +107,22 @@ const AuthPage = () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
+          console.log('Existing session found, checking user role...');
+          
+          // Check user role to determine redirect
           const { data: profile } = await supabase
             .from('profiles')
-            .select('role')
+            .select('role, email')
             .eq('id', session.user.id)
             .single();
           
+          console.log('User profile:', profile);
+          
           if (profile?.role === 'superadmin') {
+            console.log('Redirecting to superadmin dashboard');
             navigate('/superadmin-dashboard');
           } else {
+            console.log('Redirecting to regular dashboard');
             navigate('/dashboard');
           }
         }
@@ -133,7 +140,7 @@ const AuthPage = () => {
     setError('');
 
     try {
-      console.log('Starting signup process...');
+      console.log('Starting signup process for:', email);
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -159,15 +166,16 @@ const AuthPage = () => {
           setError(error.message);
         }
       } else {
-        // Handle superadmin creation
+        // Handle superadmin creation for the specific email
         if (email === 'xgroup7509@gmail.com' && data.user && data.session) {
+          console.log('Creating superadmin profile for xgroup7509@gmail.com');
           const { error: profileError } = await supabase
             .from('profiles')
             .update({ role: 'superadmin' })
             .eq('id', data.user.id);
           
           if (!profileError) {
-            toast.success('MecCrypto superadmin account created successfully!');
+            toast.success('Super Admin account created successfully!');
             navigate('/superadmin-dashboard');
             return;
           }
@@ -193,19 +201,41 @@ const AuthPage = () => {
     setError('');
 
     try {
+      console.log('Starting signin process for:', email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
       if (error) {
+        console.error('Sign in error:', error);
         if (error.message.includes('Invalid login credentials')) {
           setError('Invalid email or password. Please check your credentials.');
         } else {
           setError(error.message);
         }
       } else {
-        toast.success('Signed in to MecCrypto successfully!');
+        console.log('Sign in successful, checking user role...');
+        
+        // Check user role immediately after successful sign in
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role, email')
+          .eq('id', data.user.id)
+          .single();
+        
+        console.log('User profile after signin:', profile);
+        
+        if (profile?.role === 'superadmin') {
+          console.log('Super Admin signed in, redirecting to superadmin dashboard');
+          toast.success('Super Admin access granted!');
+          navigate('/superadmin-dashboard');
+        } else {
+          console.log('Regular user signed in, redirecting to dashboard');
+          toast.success('Signed in to MecCrypto successfully!');
+          navigate('/dashboard');
+        }
       }
     } catch (err) {
       console.error('Sign in error:', err);
@@ -252,8 +282,6 @@ const AuthPage = () => {
               <p className="text-sm text-exchange-text-secondary">Join millions of traders worldwide</p>
             </div>
           </div>
-
-          
         </div>
 
         {/* Right side - Auth Forms */}

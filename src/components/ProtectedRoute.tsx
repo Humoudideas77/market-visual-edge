@@ -5,17 +5,27 @@ import { useAuth } from '@/hooks/useAuth';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  requireSuperAdmin?: boolean;
 }
 
-const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { user, loading } = useAuth();
+const ProtectedRoute = ({ children, requireSuperAdmin = false }: ProtectedRouteProps) => {
+  const { user, loading, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !user) {
-      navigate('/auth', { replace: true });
+    if (!loading) {
+      if (!user) {
+        console.log('No user found, redirecting to auth');
+        navigate('/auth', { replace: true });
+      } else if (requireSuperAdmin && !isSuperAdmin) {
+        console.log('User is not superadmin, redirecting to dashboard');
+        navigate('/dashboard', { replace: true });
+      } else if (!requireSuperAdmin && isSuperAdmin) {
+        console.log('Superadmin trying to access user area, redirecting to superadmin dashboard');
+        navigate('/superadmin-dashboard', { replace: true });
+      }
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, requireSuperAdmin, isSuperAdmin]);
 
   if (loading) {
     return (
@@ -29,6 +39,14 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   }
 
   if (!user) {
+    return null;
+  }
+
+  if (requireSuperAdmin && !isSuperAdmin) {
+    return null;
+  }
+
+  if (!requireSuperAdmin && isSuperAdmin) {
     return null;
   }
 
