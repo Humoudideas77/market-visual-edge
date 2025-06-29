@@ -23,44 +23,19 @@ import TradesManagementSection from '@/components/admin/TradesManagementSection'
 import { toast } from 'sonner';
 
 const SuperAdminPage = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isSuperAdmin, refreshUserRole } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   console.log('SuperAdminPage - Current URL:', window.location.pathname);
   console.log('SuperAdminPage - User:', user?.email);
-
-  // Check if user is specifically a superadmin
-  const { data: userProfile, isLoading: profileLoading, error, refetch } = useQuery({
-    queryKey: ['superadmin-check', user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      
-      console.log('SuperAdminPage - Checking superadmin status for user:', user.id, user.email);
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role, email')
-        .eq('id', user.id)
-        .single();
-      
-      if (error) {
-        console.error('SuperAdminPage - Error fetching user profile:', error);
-        throw error;
-      }
-      
-      console.log('SuperAdminPage - User profile data:', data);
-      return data;
-    },
-    enabled: !!user && !authLoading,
-    retry: 3,
-    retryDelay: 1000,
-  });
+  console.log('SuperAdminPage - isSuperAdmin:', isSuperAdmin);
+  console.log('SuperAdminPage - authLoading:', authLoading);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await refetch();
+      await refreshUserRole();
       toast.success('Dashboard refreshed successfully');
     } catch (error) {
       toast.error('Failed to refresh dashboard');
@@ -89,45 +64,14 @@ const SuperAdminPage = () => {
     }
   };
 
-  console.log('SuperAdminPage - Render state:', {
-    user: user?.email,
-    authLoading,
-    profileLoading,
-    userProfile,
-    error,
-    currentPath: window.location.pathname
-  });
-
-  // Show loading while checking authentication or profile
-  if (authLoading || profileLoading) {
+  // Show loading while checking authentication
+  if (authLoading) {
     console.log('SuperAdminPage - Showing loading state');
     return (
       <div className="admin-dashboard-bg flex items-center justify-center min-h-screen">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
           <div className="text-white text-base font-bold">Verifying Super Admin Access...</div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error if profile fetch failed
-  if (error) {
-    console.log('SuperAdminPage - Showing error state:', error);
-    return (
-      <div className="admin-dashboard-bg flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4 p-6">
-          <div className="text-red-400 text-xl font-bold">Error Loading Profile</div>
-          <div className="text-gray-300 text-base leading-relaxed font-medium">
-            Failed to verify admin access. Please try refreshing the page.
-          </div>
-          <div className="text-sm text-gray-400 bg-gray-800 p-3 rounded-lg font-medium border border-gray-600">
-            Error: {error.message}
-          </div>
-          <Button onClick={handleRefresh} className="bg-red-600 hover:bg-red-700">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Try Again
-          </Button>
         </div>
       </div>
     );
@@ -140,12 +84,12 @@ const SuperAdminPage = () => {
   }
 
   // Redirect if user is not a superadmin
-  if (!userProfile || userProfile.role !== 'superadmin') {
-    console.log('SuperAdminPage - User is not superadmin, role:', userProfile?.role);
+  if (!isSuperAdmin) {
+    console.log('SuperAdminPage - User is not superadmin, redirecting to dashboard');
     return <Navigate to="/dashboard" replace />;
   }
 
-  console.log('SuperAdminPage - Rendering SuperAdmin dashboard for:', userProfile.email);
+  console.log('SuperAdminPage - Rendering SuperAdmin dashboard for:', user.email);
 
   return (
     <div className="admin-dashboard-bg min-h-screen w-full overflow-x-hidden">
@@ -193,7 +137,7 @@ const SuperAdminPage = () => {
                     Superadmin Access
                   </Badge>
                   <span className="text-gray-300 text-sm sm:text-base font-semibold break-all sm:break-normal">
-                    Welcome, {userProfile.email}
+                    Welcome, {user.email}
                   </span>
                 </div>
               </div>

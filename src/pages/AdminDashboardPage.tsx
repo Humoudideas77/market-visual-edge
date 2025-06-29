@@ -16,27 +16,10 @@ import AdminStatsSection from '@/components/admin/AdminStatsSection';
 import ContactMessagesSection from '@/components/admin/ContactMessagesSection';
 
 const AdminDashboardPage = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Check if user is admin
-  const { data: isAdmin, isLoading } = useQuery({
-    queryKey: ['admin-check', user?.id],
-    queryFn: async () => {
-      if (!user) return false;
-      
-      const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      
-      return data?.role === 'admin' || data?.role === 'superadmin';
-    },
-    enabled: !!user,
-  });
-
-  if (isLoading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-exchange-bg flex items-center justify-center">
         <div className="text-exchange-text-secondary">Loading...</div>

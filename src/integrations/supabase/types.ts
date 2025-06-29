@@ -778,8 +778,16 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: string
       }
+      get_user_role_secure: {
+        Args: { user_uuid: string }
+        Returns: string
+      }
       is_admin: {
         Args: { user_id: string }
+        Returns: boolean
+      }
+      is_admin_secure: {
+        Args: { user_uuid: string }
         Returns: boolean
       }
       is_admin_user: {
@@ -788,6 +796,10 @@ export type Database = {
       }
       is_superadmin: {
         Args: { user_id: string }
+        Returns: boolean
+      }
+      is_superadmin_secure: {
+        Args: { user_uuid: string }
         Returns: boolean
       }
       is_superadmin_user: {
