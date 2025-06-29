@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { TrendingUp, TrendingDown, X, Clock, RefreshCw, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, X, Clock, RefreshCw, Activity, AlertTriangle } from 'lucide-react';
 import { useRealtimeTrades } from '@/hooks/useRealtimeTrades';
 
 interface TradeToClose {
@@ -23,7 +23,7 @@ interface TradeToClose {
 }
 
 const RealtimeTradesPanel = () => {
-  const { activeTrades, isLoading, refetch } = useRealtimeTrades();
+  const { activeTrades, isLoading, error, refetch } = useRealtimeTrades();
   const [selectedTrade, setSelectedTrade] = useState<TradeToClose | null>(null);
   const queryClient = useQueryClient();
 
@@ -123,6 +123,28 @@ const RealtimeTradesPanel = () => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-4"></div>
             <p className="text-gray-600">Loading real-time trades...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="border-red-200">
+        <CardContent className="p-6">
+          <div className="text-center">
+            <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-red-500" />
+            <h3 className="text-lg font-semibold text-red-600 mb-2">Error Loading Trades</h3>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <Button 
+              onClick={refetch}
+              variant="outline"
+              className="border-red-300 text-red-600 hover:bg-red-50"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Retry
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -271,6 +293,14 @@ const RealtimeTradesPanel = () => {
               <Activity className="w-16 h-16 mx-auto mb-4 text-gray-300" />
               <h3 className="text-lg font-semibold text-gray-600 mb-2">No Active Trades</h3>
               <p className="text-gray-500">There are currently no active perpetual trades on the platform.</p>
+              <Button 
+                onClick={refetch}
+                variant="outline"
+                className="mt-4"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh Data
+              </Button>
             </div>
           )}
         </CardContent>

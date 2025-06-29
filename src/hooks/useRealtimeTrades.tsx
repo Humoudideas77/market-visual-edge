@@ -26,37 +26,95 @@ export const useRealtimeTrades = () => {
   const { prices } = useCryptoPrices();
   const [activeTrades, setActiveTrades] = useState<RealtimeTrade[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Initial fetch of all active trades
   const fetchActiveTrades = async () => {
-    if (!user) return;
+    if (!user) {
+      setActiveTrades([]);
+      setIsLoading(false);
+      return;
+    }
 
     try {
+      setError(null);
+      console.log('Fetching active trades for user:', user.email);
+
       // Check if user is superadmin
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, email')
         .eq('id', user.id)
         .single();
 
+      if (profileError) {
+        console.error('Error fetching user profile:', profileError);
+        throw profileError;
+      }
+
+      console.log('User profile:', profile);
+
       if (profile?.role !== 'superadmin') {
+        console.log('User is not superadmin, no trades to display');
+        setActiveTrades([]);
         setIsLoading(false);
         return;
       }
 
-      // Fetch all active positions with user info
-      const { data: positions, error } = await supabase
+      console.log('SuperAdmin confirmed, fetching all active positions...');
+
+      // Fetch all active positions with user info using a more explicit join
+      const { data: positions, error: positionsError } = await supabase
         .from('perpetual_positions')
         .select(`
-          *,
-          profiles!inner(email)
+          id,
+          user_id,
+          pair,
+          side,
+          size,
+          entry_price,
+          leverage,
+          margin,
+          liquidation_price,
+          created_at,
+          status
         `)
         .eq('status', 'active')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (positionsError) {
+        console.error('Error fetching positions:', positionsError);
+        throw positionsError;
+      }
 
-      const tradesWithPnL = (positions || []).map(trade => {
+      console.log('Raw positions fetched:', positions?.length || 0);
+
+      if (!positions || positions.length === 0) {
+        console.log('No active positions found');
+        setActiveTrades([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // Get user emails for all positions
+      const userIds = [...new Set(positions.map(p => p.user_id))];
+      const { data: userProfiles, error: usersError } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .in('id', userIds);
+
+      if (usersError) {
+        console.error('Error fetching user profiles:', usersError);
+      }
+
+      // Create a map of user IDs to emails
+      const userEmailMap = new Map();
+      userProfiles?.forEach(profile => {
+        userEmailMap.set(profile.id, profile.email);
+      });
+
+      // Process trades with PnL calculations
+      const tradesWithPnL = positions.map(trade => {
         const [baseAsset] = trade.pair.split('/');
         const currentPrice = getPriceBySymbol(prices, baseAsset)?.current_price || trade.entry_price;
         
@@ -77,16 +135,19 @@ export const useRealtimeTrades = () => {
           margin: trade.margin,
           liquidation_price: trade.liquidation_price,
           created_at: trade.created_at,
-          user_email: (trade.profiles as any)?.email || `User ${trade.user_id.substring(0, 8)}...`,
+          user_email: userEmailMap.get(trade.user_id) || `User ${trade.user_id.substring(0, 8)}...`,
           current_price: currentPrice,
           pnl: pnl,
           pnl_percentage: pnlPercentage
         };
       });
 
+      console.log('Processed trades with PnL:', tradesWithPnL.length);
       setActiveTrades(tradesWithPnL);
     } catch (error) {
       console.error('Error fetching active trades:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch trades');
+      setActiveTrades([]);
     } finally {
       setIsLoading(false);
     }
@@ -96,11 +157,12 @@ export const useRealtimeTrades = () => {
   useEffect(() => {
     if (!user) return;
 
+    console.log('Setting up real-time subscription for user:', user.email);
     fetchActiveTrades();
 
-    // Subscribe to real-time changes
+    // Subscribe to real-time changes on perpetual_positions
     const channel = supabase
-      .channel('perpetual-positions-changes')
+      .channel('perpetual-positions-realtime')
       .on(
         'postgres_changes',
         {
@@ -109,17 +171,20 @@ export const useRealtimeTrades = () => {
           table: 'perpetual_positions'
         },
         (payload) => {
-          console.log('Real-time trade update:', payload);
+          console.log('Real-time perpetual positions update:', payload);
           // Refetch trades when any change occurs
           fetchActiveTrades();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Real-time subscription status:', status);
+      });
 
     return () => {
+      console.log('Cleaning up real-time subscription');
       supabase.removeChannel(channel);
     };
-  }, [user, prices]);
+  }, [user?.id]);
 
   // Update PnL in real-time based on price changes
   useEffect(() => {
@@ -142,11 +207,12 @@ export const useRealtimeTrades = () => {
         };
       }));
     }
-  }, [prices, activeTrades.length]);
+  }, [prices]);
 
   return {
     activeTrades,
     isLoading,
+    error,
     refetch: fetchActiveTrades
   };
 };
