@@ -1,8 +1,10 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { useCryptoPrices, getPriceBySymbol } from './useCryptoPrices';
 import { useBinanceData } from './useBinanceData';
 import { useWallet } from './useWallet';
 import { useAuth } from './useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Trade {
   id: string;
@@ -14,6 +16,8 @@ interface Trade {
   total: number;
   status: 'pending' | 'completed' | 'cancelled';
   timestamp: Date;
+  fees?: number;
+  net_amount?: number;
 }
 
 interface TradingPair {
@@ -27,7 +31,6 @@ interface TradingPair {
   low24h: number;
 }
 
-// Updated OrderBookEntry interface to match usage
 interface OrderBookEntry {
   price: number;
   amount: number;
@@ -37,7 +40,7 @@ interface OrderBookEntry {
 export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
   const { user } = useAuth();
   const { prices } = useCryptoPrices();
-  const { getBalance, executeTransaction } = useWallet();
+  const { getBalance, executeTransaction, refreshBalances } = useWallet();
   const { fetchOrderBook, orderBookData } = useBinanceData();
   
   const [buyOrders, setBuyOrders] = useState<OrderBookEntry[]>([]);
@@ -47,6 +50,14 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
   const [tradingPair, setTradingPair] = useState<TradingPair | null>(null);
   
   const orderBookUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Trading fee rate (0.1%)
+  const TRADING_FEE_RATE = 0.001;
+
+  // Calculate trading fees
+  const calculateFees = (total: number): number => {
+    return Number((total * TRADING_FEE_RATE).toFixed(8));
+  };
 
   // Update trading pair data from crypto prices
   useEffect(() => {
@@ -71,8 +82,6 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
   useEffect(() => {
     if (!tradingPair) return;
 
-    console.log(`[TradingEngine] Fetching real order book for ${selectedPair}`);
-
     const updateOrderBook = async () => {
       try {
         const orderBook = await fetchOrderBook(selectedPair);
@@ -87,22 +96,18 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
             amount: ask.quantity,
             total: ask.total
           })));
-          console.log(`[TradingEngine] Updated order book: ${orderBook.bids.length} bids, ${orderBook.asks.length} asks`);
         }
       } catch (error) {
         console.error('[TradingEngine] Error fetching order book:', error);
       }
     };
 
-    // Initial fetch
     updateOrderBook();
 
-    // Clear existing interval
     if (orderBookUpdateIntervalRef.current) {
       clearInterval(orderBookUpdateIntervalRef.current);
     }
 
-    // Update every 5 seconds with real data
     orderBookUpdateIntervalRef.current = setInterval(updateOrderBook, 5000);
 
     return () => {
@@ -129,7 +134,7 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
     }
   }, [orderBookData, selectedPair]);
 
-  // Generate some realistic recent trades for demo purposes
+  // Generate realistic recent trades for demo purposes
   useEffect(() => {
     if (!tradingPair) return;
 
@@ -139,14 +144,19 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
         const isBuy = Math.random() > 0.5;
         const price = tradingPair.currentPrice + (Math.random() - 0.5) * tradingPair.currentPrice * 0.002;
         const amount = Math.random() * 1.5 + 0.01;
+        const total = price * amount;
+        const fees = calculateFees(total);
+        
         trades.push({
           id: `trade_${Date.now()}_${i}`,
           pair: selectedPair,
           side: isBuy ? 'buy' : 'sell',
           type: 'market',
-          price: parseFloat(price.toFixed(8)),
-          amount: parseFloat(amount.toFixed(8)),
-          total: parseFloat((price * amount).toFixed(2)),
+          price: Number(price.toFixed(8)),
+          amount: Number(amount.toFixed(8)),
+          total: Number(total.toFixed(2)),
+          fees: Number(fees.toFixed(8)),
+          net_amount: Number((isBuy ? amount - (fees / price) : amount).toFixed(8)),
           status: 'completed',
           timestamp: new Date(Date.now() - Math.random() * 3600000)
         });
@@ -171,19 +181,33 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
       return { success: false, message: 'Invalid amount' };
     }
 
-    const tradePrice = type === 'market' ? tradingPair.currentPrice : (price || tradingPair.currentPrice);
-    const total = amount * tradePrice;
+    // Refresh balances before validation
+    await refreshBalances();
 
-    // Check balances
+    const tradePrice = type === 'market' ? tradingPair.currentPrice : (price || tradingPair.currentPrice);
+    const total = Number((amount * tradePrice).toFixed(8));
+    const fees = calculateFees(total);
+    
+    // Strict balance validation with precise calculations
     if (side === 'buy') {
+      const totalCostWithFees = Number((total + fees).toFixed(8));
       const usdtBalance = getBalance('USDT');
-      if (!usdtBalance || usdtBalance.available < total) {
-        return { success: false, message: 'Insufficient USDT balance' };
+      
+      if (!usdtBalance || usdtBalance.available < totalCostWithFees) {
+        const shortfall = totalCostWithFees - (usdtBalance?.available || 0);
+        return { 
+          success: false, 
+          message: `Insufficient USDT balance! You need $${totalCostWithFees.toFixed(2)} USDT (including $${fees.toFixed(2)} fees) but only have $${(usdtBalance?.available || 0).toFixed(2)} USDT available. Shortfall: $${shortfall.toFixed(2)} USDT.` 
+        };
       }
     } else {
       const baseBalance = getBalance(tradingPair.baseAsset);
       if (!baseBalance || baseBalance.available < amount) {
-        return { success: false, message: `Insufficient ${tradingPair.baseAsset} balance` };
+        const shortfall = amount - (baseBalance?.available || 0);
+        return { 
+          success: false, 
+          message: `Insufficient ${tradingPair.baseAsset} balance! You need ${amount.toFixed(8)} ${tradingPair.baseAsset} but only have ${(baseBalance?.available || 0).toFixed(8)} ${tradingPair.baseAsset} available. Shortfall: ${shortfall.toFixed(8)} ${tradingPair.baseAsset}.` 
+        };
       }
     }
 
@@ -195,52 +219,88 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
       price: tradePrice,
       amount,
       total,
+      fees,
+      net_amount: side === 'buy' ? Number((amount - (fees / tradePrice)).toFixed(8)) : amount,
       status: 'pending',
       timestamp: new Date()
     };
 
     try {
-      // Execute wallet transactions
+      // Execute wallet transactions with precise amounts
       if (side === 'buy') {
-        // Deduct USDT and add base asset
-        await executeTransaction({
+        // Deduct USDT (including fees) and add base asset (net amount)
+        const totalCostWithFees = Number((total + fees).toFixed(8));
+        const netBaseAmount = Number((amount - (fees / tradePrice)).toFixed(8));
+        
+        const usdtDeducted = await executeTransaction({
           type: 'trade_sell',
           currency: 'USDT',
-          amount: total
+          amount: totalCostWithFees
         });
+        
+        if (!usdtDeducted) {
+          return { success: false, message: 'Failed to deduct USDT from balance' };
+        }
+        
         await executeTransaction({
           type: 'trade_buy',
           currency: tradingPair.baseAsset,
-          amount: amount
+          amount: netBaseAmount
         });
       } else {
-        // Deduct base asset and add USDT
-        await executeTransaction({
+        // Deduct base asset and add USDT (minus fees)
+        const netUsdtAmount = Number((total - fees).toFixed(8));
+        
+        const baseDeducted = await executeTransaction({
           type: 'trade_sell',
           currency: tradingPair.baseAsset,
           amount: amount
         });
+        
+        if (!baseDeducted) {
+          return { success: false, message: `Failed to deduct ${tradingPair.baseAsset} from balance` };
+        }
+        
         await executeTransaction({
           type: 'trade_buy',
           currency: 'USDT',
-          amount: total
+          amount: netUsdtAmount
         });
       }
 
       const completedTrade = { ...trade, status: 'completed' as const };
       setUserTrades(prev => [completedTrade, ...prev]);
 
-      // Save user trades to localStorage
+      // Log trading activity with precise details
+      await supabase.rpc('log_user_activity', {
+        p_user_id: user.id,
+        p_activity_type: 'spot_trade_executed',
+        p_details: {
+          pair: selectedPair,
+          side,
+          type,
+          amount: amount,
+          price: tradePrice,
+          total: total,
+          fees: fees,
+          net_amount: trade.net_amount
+        }
+      });
+
+      // Save to localStorage
       if (user) {
         const savedTrades = [...userTrades, completedTrade];
         localStorage.setItem(`user_trades_${user.id}`, JSON.stringify(savedTrades));
       }
 
-      console.log(`[TradingEngine] User trade executed: ${side.toUpperCase()} ${amount} ${tradingPair.baseAsset} @ $${tradePrice}`);
+      // Refresh balances to show updated amounts
+      await refreshBalances();
+
+      console.log(`[TradingEngine] Trade executed: ${side.toUpperCase()} ${amount} ${tradingPair.baseAsset} @ $${tradePrice.toFixed(2)}, Fees: $${fees.toFixed(2)}`);
 
       return { 
         success: true, 
-        message: `${side.toUpperCase()} order executed successfully`, 
+        message: `${side.toUpperCase()} order executed successfully! Net amount: ${trade.net_amount?.toFixed(8)} ${side === 'buy' ? tradingPair.baseAsset : 'USDT'}`, 
         trade: completedTrade 
       };
     } catch (error) {
@@ -259,7 +319,6 @@ export const useTradingEngine = (selectedPair: string = 'BTC/USDT') => {
           timestamp: new Date(t.timestamp)
         }));
         setUserTrades(trades);
-        console.log(`[TradingEngine] Loaded ${trades.length} user trades from localStorage`);
       }
     }
   }, [user]);

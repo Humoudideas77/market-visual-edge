@@ -22,17 +22,34 @@ export interface PerpetualPosition {
   status: 'active' | 'closed';
   created_at: Date;
   closed_at?: Date;
+  exit_price?: number;
 }
 
 export const usePerpetualTrades = (selectedPair: string) => {
   const { user } = useAuth();
-  const { getBalance, executeTransaction } = useWallet();
+  const { getBalance, executeTransaction, refreshBalances } = useWallet();
   const { prices } = useCryptoPrices();
   const [positions, setPositions] = useState<PerpetualPosition[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [baseAsset] = selectedPair.split('/');
   const currentPrice = getPriceBySymbol(prices, baseAsset)?.current_price || 0;
+
+  // Calculate accurate PnL for a position
+  const calculatePnL = (position: PerpetualPosition, price: number) => {
+    const priceDiff = price - position.entry_price;
+    let pnl = 0;
+    
+    if (position.side === 'long') {
+      pnl = priceDiff * position.size;
+    } else {
+      pnl = -priceDiff * position.size;
+    }
+    
+    const pnlPercentage = position.margin > 0 ? (pnl / position.margin) * 100 : 0;
+    
+    return { pnl: Number(pnl.toFixed(8)), pnlPercentage: Number(pnlPercentage.toFixed(4)) };
+  };
 
   // Load positions from database
   const loadPositions = async () => {
@@ -48,23 +65,42 @@ export const usePerpetualTrades = (selectedPair: string) => {
 
       if (error) throw error;
 
-      const formattedPositions: PerpetualPosition[] = (data || []).map(pos => ({
-        id: pos.id,
-        user_id: pos.user_id,
-        pair: pos.pair,
-        side: pos.side as 'long' | 'short',
-        size: Number(pos.size),
-        entry_price: Number(pos.entry_price),
-        current_price: pos.status === 'active' ? currentPrice : Number(pos.exit_price || pos.entry_price),
-        pnl: 0, // Will be calculated below
-        pnl_percentage: 0, // Will be calculated below
-        leverage: Number(pos.leverage),
-        margin: Number(pos.margin),
-        liquidation_price: Number(pos.liquidation_price),
-        status: pos.status as 'active' | 'closed',
-        created_at: new Date(pos.created_at),
-        closed_at: pos.closed_at ? new Date(pos.closed_at) : undefined
-      }));
+      const formattedPositions: PerpetualPosition[] = (data || []).map(pos => {
+        const basePosition = {
+          id: pos.id,
+          user_id: pos.user_id,
+          pair: pos.pair,
+          side: pos.side as 'long' | 'short',
+          size: Number(pos.size),
+          entry_price: Number(pos.entry_price),
+          leverage: Number(pos.leverage),
+          margin: Number(pos.margin),
+          liquidation_price: Number(pos.liquidation_price),
+          status: pos.status as 'active' | 'closed',
+          created_at: new Date(pos.created_at),
+          closed_at: pos.closed_at ? new Date(pos.closed_at) : undefined,
+          exit_price: pos.exit_price ? Number(pos.exit_price) : undefined,
+          current_price: 0,
+          pnl: 0,
+          pnl_percentage: 0
+        };
+
+        if (pos.status === 'active') {
+          const priceToUse = currentPrice > 0 ? currentPrice : basePosition.entry_price;
+          const { pnl, pnlPercentage } = calculatePnL(basePosition, priceToUse);
+          basePosition.current_price = priceToUse;
+          basePosition.pnl = pnl;
+          basePosition.pnl_percentage = pnlPercentage;
+        } else {
+          const exitPrice = basePosition.exit_price || basePosition.entry_price;
+          const { pnl, pnlPercentage } = calculatePnL(basePosition, exitPrice);
+          basePosition.current_price = exitPrice;
+          basePosition.pnl = pnl;
+          basePosition.pnl_percentage = pnlPercentage;
+        }
+
+        return basePosition;
+      });
 
       setPositions(formattedPositions);
     } catch (error) {
@@ -75,17 +111,19 @@ export const usePerpetualTrades = (selectedPair: string) => {
     }
   };
 
-  // Calculate liquidation price
+  // Calculate liquidation price with proper precision
   const calculateLiquidationPrice = (entryPrice: number, side: 'long' | 'short', leverage: number): number => {
-    const liquidationMargin = 0.05; // 5% liquidation margin
+    const maintenanceMargin = 0.05; // 5% maintenance margin
+    const leverageRatio = 1 / leverage;
+    
     if (side === 'long') {
-      return entryPrice * (1 - (1 / leverage) + liquidationMargin);
+      return Number((entryPrice * (1 - leverageRatio + maintenanceMargin)).toFixed(8));
     } else {
-      return entryPrice * (1 + (1 / leverage) - liquidationMargin);
+      return Number((entryPrice * (1 + leverageRatio - maintenanceMargin)).toFixed(8));
     }
   };
 
-  // Open a new position
+  // Open a new position with strict balance validation
   const openPosition = async (
     side: 'long' | 'short',
     size: number,
@@ -95,40 +133,47 @@ export const usePerpetualTrades = (selectedPair: string) => {
       return { success: false, message: 'Invalid user or price data' };
     }
 
-    const margin = (size * currentPrice) / leverage;
+    // Precise calculations
+    const notionalValue = Number((size * currentPrice).toFixed(8));
+    const margin = Number((notionalValue / leverage).toFixed(8));
+    const liquidationPrice = calculateLiquidationPrice(currentPrice, side, leverage);
+    
+    // Strict balance validation
+    await refreshBalances();
     const usdtBalance = getBalance('USDT');
-
+    
     if (!usdtBalance || usdtBalance.available < margin) {
+      const shortfall = margin - (usdtBalance?.available || 0);
       return { 
         success: false, 
-        message: `Insufficient balance! You need $${margin.toFixed(2)} USDT margin but only have $${usdtBalance?.available.toFixed(2) || 0} USDT available.` 
+        message: `Insufficient USDT balance! You need $${margin.toFixed(2)} USDT margin but only have $${(usdtBalance?.available || 0).toFixed(2)} USDT available. Shortfall: $${shortfall.toFixed(2)} USDT.` 
       };
     }
 
     try {
-      // Deduct margin from balance
-      const success = await executeTransaction({
+      // Execute transaction with precise amounts
+      const marginDeducted = await executeTransaction({
         type: 'trade_sell',
         currency: 'USDT',
         amount: margin
       });
 
-      if (!success) {
+      if (!marginDeducted) {
         return { success: false, message: 'Failed to deduct margin from balance' };
       }
 
-      // Create position in database
+      // Create position in database with precise values
       const { data, error } = await supabase
         .from('perpetual_positions')
         .insert({
           user_id: user.id,
           pair: selectedPair,
           side,
-          size,
+          size: size,
           entry_price: currentPrice,
-          leverage,
-          margin,
-          liquidation_price: calculateLiquidationPrice(currentPrice, side, leverage),
+          leverage: leverage,
+          margin: margin,
+          liquidation_price: liquidationPrice,
           status: 'active'
         })
         .select()
@@ -136,10 +181,24 @@ export const usePerpetualTrades = (selectedPair: string) => {
 
       if (error) throw error;
 
-      // Reload positions
+      // Log activity with precise details
+      await supabase.rpc('log_user_activity', {
+        p_user_id: user.id,
+        p_activity_type: 'perpetual_position_opened',
+        p_details: {
+          pair: selectedPair,
+          side,
+          size,
+          entry_price: currentPrice,
+          leverage,
+          margin: margin,
+          liquidation_price: liquidationPrice
+        }
+      });
+
       await loadPositions();
       
-      toast.success(`✅ ${side.toUpperCase()} position opened! Size: ${size} ${baseAsset}, Leverage: ${leverage}x`);
+      toast.success(`✅ ${side.toUpperCase()} position opened! Size: ${size} ${baseAsset}, Leverage: ${leverage}x, Margin: $${margin.toFixed(2)} USDT`);
       return { success: true, message: 'Position opened successfully' };
 
     } catch (error) {
@@ -148,7 +207,7 @@ export const usePerpetualTrades = (selectedPair: string) => {
     }
   };
 
-  // Close a position
+  // Close a position with accurate PnL calculation and balance update
   const closePosition = async (positionId: string): Promise<{ success: boolean; message: string }> => {
     if (!user || !currentPrice) {
       return { success: false, message: 'Invalid user or price data' };
@@ -160,13 +219,11 @@ export const usePerpetualTrades = (selectedPair: string) => {
     }
 
     try {
-      // Calculate PnL
-      const priceDiff = currentPrice - position.entry_price;
-      const pnl = position.side === 'long' 
-        ? priceDiff * position.size
-        : -priceDiff * position.size;
+      // Calculate precise PnL
+      const { pnl } = calculatePnL(position, currentPrice);
+      const totalReturn = Number((position.margin + pnl).toFixed(8));
 
-      // Update position in database
+      // Update position in database with precise exit data
       const { error: updateError } = await supabase
         .from('perpetual_positions')
         .update({
@@ -178,7 +235,7 @@ export const usePerpetualTrades = (selectedPair: string) => {
 
       if (updateError) throw updateError;
 
-      // Record PnL in database
+      // Record precise PnL in database
       const pnlResult = await supabase.rpc('record_trade_pnl', {
         p_user_id: user.id,
         p_trade_pair: position.pair,
@@ -193,9 +250,7 @@ export const usePerpetualTrades = (selectedPair: string) => {
         console.error('Error recording PnL:', pnlResult.error);
       }
 
-      // Return margin + PnL to user's balance
-      const totalReturn = position.margin + pnl;
-      
+      // Return margin + PnL to user's balance (even if negative)
       if (totalReturn > 0) {
         await executeTransaction({
           type: 'trade_buy',
@@ -204,10 +259,26 @@ export const usePerpetualTrades = (selectedPair: string) => {
         });
       }
 
-      // Reload positions
+      // Log closing activity
+      await supabase.rpc('log_user_activity', {
+        p_user_id: user.id,
+        p_activity_type: 'perpetual_position_closed',
+        p_details: {
+          pair: position.pair,
+          side: position.side,
+          size: position.size,
+          entry_price: position.entry_price,
+          exit_price: currentPrice,
+          pnl: pnl,
+          margin_returned: totalReturn
+        }
+      });
+
       await loadPositions();
+      await refreshBalances();
       
-      toast.success(`✅ Position closed! PnL: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} USDT`);
+      const pnlText = pnl >= 0 ? `+$${pnl.toFixed(2)}` : `-$${Math.abs(pnl).toFixed(2)}`;
+      toast.success(`✅ Position closed! PnL: ${pnlText} USDT`);
       return { success: true, message: 'Position closed successfully' };
 
     } catch (error) {
@@ -216,18 +287,14 @@ export const usePerpetualTrades = (selectedPair: string) => {
     }
   };
 
-  // Update positions with current prices and calculate PnL
+  // Update positions with current prices and calculate real-time PnL
   useEffect(() => {
     if (positions.length > 0 && currentPrice > 0) {
       setPositions(prev => prev.map(position => {
         if (position.status === 'closed') return position;
 
-        const priceDiff = currentPrice - position.entry_price;
-        const pnl = position.side === 'long' 
-          ? priceDiff * position.size
-          : -priceDiff * position.size;
-        const pnlPercentage = (pnl / position.margin) * 100;
-
+        const { pnl, pnlPercentage } = calculatePnL(position, currentPrice);
+        
         return {
           ...position,
           current_price: currentPrice,
@@ -236,7 +303,7 @@ export const usePerpetualTrades = (selectedPair: string) => {
         };
       }));
     }
-  }, [currentPrice, positions.length]);
+  }, [currentPrice]);
 
   // Load positions on mount and when user/pair changes
   useEffect(() => {
@@ -247,6 +314,17 @@ export const usePerpetualTrades = (selectedPair: string) => {
       setLoading(false);
     }
   }, [user, selectedPair]);
+
+  // Set up real-time price updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (positions.length > 0 && currentPrice > 0) {
+        loadPositions(); // Refresh positions to get latest data
+      }
+    }, 5000); // Update every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [positions.length, currentPrice]);
 
   return {
     positions: positions.filter(p => p.status === 'active'),

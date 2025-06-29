@@ -7,7 +7,7 @@ import { Label } from './ui/label';
 import { useTradingEngine } from '@/hooks/useTradingEngine';
 import { useWallet } from '@/hooks/useWallet';
 import { toast } from 'sonner';
-import { Loader2, Calculator, TrendingUp, TrendingDown } from 'lucide-react';
+import { Loader2, Calculator, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 
 interface TradingPanelProps {
   selectedPair: string;
@@ -23,12 +23,14 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
   const [price, setPrice] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Handle URL action parameter (for quick buy/sell)
+  // Trading fee rate
+  const TRADING_FEE_RATE = 0.001; // 0.1%
+
+  // Handle URL action parameter
   useEffect(() => {
     const action = searchParams.get('action');
     if (action === 'buy' || action === 'sell') {
       setTradeTab(action);
-      console.log('TradingPanel - Setting trade tab from URL:', action);
     }
   }, [searchParams]);
 
@@ -40,6 +42,9 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
   const tradePrice = orderType === 'market' ? currentPrice : parseFloat(price) || currentPrice;
   const tradeAmount = parseFloat(amount) || 0;
   const totalCost = tradeAmount * tradePrice;
+  const tradingFees = totalCost * TRADING_FEE_RATE;
+  const totalWithFees = tradeTab === 'buy' ? totalCost + tradingFees : totalCost;
+  const netReceived = tradeTab === 'sell' ? totalCost - tradingFees : tradeAmount;
 
   // Set price to current market price when switching to limit order
   useEffect(() => {
@@ -53,7 +58,8 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
 
     if (tradeTab === 'buy') {
       const availableQuote = quoteBalance?.available || 0;
-      const maxAmount = (availableQuote * percentage / 100) / tradePrice;
+      const maxSpendable = availableQuote * percentage / 100;
+      const maxAmount = maxSpendable / (tradePrice * (1 + TRADING_FEE_RATE));
       setAmount(maxAmount.toFixed(8));
     } else {
       const availableBase = baseBalance?.available || 0;
@@ -78,31 +84,6 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
       return;
     }
 
-    // Enhanced balance validation to prevent the bug
-    if (tradeTab === 'buy') {
-      const availableQuote = quoteBalance?.available || 0;
-      console.log('Buy validation - Available USDT:', availableQuote, 'Required:', totalCost);
-      
-      if (availableQuote < totalCost) {
-        toast.error(`Insufficient ${quoteAsset} balance! You need ${totalCost.toFixed(2)} ${quoteAsset} but only have ${availableQuote.toFixed(2)} ${quoteAsset} available.`);
-        return;
-      }
-      
-      // Additional safety check for minimum balance
-      if (totalCost > availableQuote) {
-        toast.error(`Cannot buy ${tradeAmount.toFixed(8)} ${baseAsset}. Maximum you can buy is ${(availableQuote / tradePrice).toFixed(8)} ${baseAsset} with your current balance.`);
-        return;
-      }
-    } else {
-      const availableBase = baseBalance?.available || 0;
-      console.log('Sell validation - Available base:', availableBase, 'Required:', tradeAmount);
-      
-      if (availableBase < tradeAmount) {
-        toast.error(`Insufficient ${baseAsset} balance! You need ${tradeAmount.toFixed(8)} ${baseAsset} but only have ${availableBase.toFixed(8)} ${baseAsset} available.`);
-        return;
-      }
-    }
-
     setLoading(true);
 
     try {
@@ -114,9 +95,7 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
       );
 
       if (result.success) {
-        toast.success(
-          `✅ ${tradeTab.toUpperCase()} ${baseAsset} executed successfully! ${tradeAmount.toFixed(8)} ${baseAsset} at $${tradePrice.toFixed(2)}`
-        );
+        toast.success(result.message);
         
         // Reset form
         setAmount('');
@@ -134,37 +113,38 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
     }
   };
 
-  const isValidTrade = () => {
+  const isValidTrade = (): boolean => {
     if (!amount || tradeAmount <= 0) return false;
     if (orderType === 'limit' && (!price || parseFloat(price) <= 0)) return false;
     
     if (tradeTab === 'buy') {
       const availableQuote = quoteBalance?.available || 0;
-      return availableQuote >= totalCost && totalCost > 0;
+      return availableQuote >= totalWithFees && totalWithFees > 0;
     } else {
       const availableBase = baseBalance?.available || 0;
       return availableBase >= tradeAmount && tradeAmount > 0;
     }
   };
 
-  const getInsufficientBalanceMessage = () => {
+  const getBalanceValidationMessage = () => {
     if (!amount || tradeAmount <= 0) return null;
     
     if (tradeTab === 'buy') {
       const availableQuote = quoteBalance?.available || 0;
-      if (availableQuote < totalCost) {
-        return `Insufficient ${quoteAsset} balance (Available: ${availableQuote.toFixed(2)}, Required: ${totalCost.toFixed(2)})`;
+      if (availableQuote < totalWithFees) {
+        const shortfall = totalWithFees - availableQuote;
+        return `Insufficient ${quoteAsset} balance. Required: ${totalWithFees.toFixed(2)} (including ${tradingFees.toFixed(2)} fees), Available: ${availableQuote.toFixed(2)}, Shortfall: ${shortfall.toFixed(2)}`;
       }
     } else {
       const availableBase = baseBalance?.available || 0;
       if (availableBase < tradeAmount) {
-        return `Insufficient ${baseAsset} balance (Available: ${availableBase.toFixed(8)}, Required: ${tradeAmount.toFixed(8)})`;
+        const shortfall = tradeAmount - availableBase;
+        return `Insufficient ${baseAsset} balance. Required: ${tradeAmount.toFixed(8)}, Available: ${availableBase.toFixed(8)}, Shortfall: ${shortfall.toFixed(8)}`;
       }
     }
     return null;
   };
 
-  // Show loading state if trading pair is not loaded
   if (!tradingPair) {
     return (
       <div className="exchange-panel p-4">
@@ -182,6 +162,9 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
         <div className="text-sm font-semibold text-exchange-text-primary">Trading {selectedPair}</div>
         <div className="text-xs text-exchange-text-secondary">
           Current Price: <span className="text-exchange-text-primary font-mono">${formatPrice(currentPrice)}</span>
+        </div>
+        <div className="text-xs text-exchange-text-secondary mt-1">
+          Trading Fee: <span className="text-exchange-text-primary">{(TRADING_FEE_RATE * 100).toFixed(1)}%</span>
         </div>
       </div>
 
@@ -285,40 +268,55 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
           ))}
         </div>
 
-        {/* Total */}
-        <div>
-          <Label className="block text-xs text-exchange-text-secondary mb-1">Total ({quoteAsset})</Label>
-          <div className="exchange-input w-full bg-exchange-accent/30 border border-exchange-border rounded p-2 font-mono text-sm text-exchange-text-primary">
-            {totalCost.toFixed(2)} {quoteAsset}
-          </div>
-        </div>
-
-        {/* Trade Summary */}
+        {/* Trading Calculation Summary */}
         {amount && tradeAmount > 0 && (
-          <div className="bg-exchange-accent/20 rounded-lg p-3 space-y-1 border border-exchange-border">
+          <div className="bg-exchange-accent/20 rounded-lg p-3 space-y-2 border border-exchange-border">
+            <div className="text-xs font-semibold text-exchange-text-primary mb-2">Trade Summary</div>
+            
             <div className="flex justify-between text-xs">
               <span className="text-exchange-text-secondary">Order Type:</span>
               <span className="text-exchange-text-primary capitalize font-medium">{orderType}</span>
             </div>
+            
             <div className="flex justify-between text-xs">
               <span className="text-exchange-text-secondary">Price:</span>
               <span className="text-exchange-text-primary font-mono">${tradePrice.toFixed(2)}</span>
             </div>
+            
             <div className="flex justify-between text-xs">
               <span className="text-exchange-text-secondary">Amount:</span>
               <span className="text-exchange-text-primary font-mono">{tradeAmount.toFixed(8)} {baseAsset}</span>
             </div>
-            <div className="flex justify-between text-xs border-t border-exchange-border pt-1">
-              <span className="text-exchange-text-secondary">Total:</span>
-              <span className="text-exchange-text-primary font-mono font-semibold">{totalCost.toFixed(2)} {quoteAsset}</span>
+            
+            <div className="flex justify-between text-xs">
+              <span className="text-exchange-text-secondary">Subtotal:</span>
+              <span className="text-exchange-text-primary font-mono">${totalCost.toFixed(2)} {quoteAsset}</span>
+            </div>
+            
+            <div className="flex justify-between text-xs">
+              <span className="text-exchange-text-secondary">Trading Fee ({(TRADING_FEE_RATE * 100).toFixed(1)}%):</span>
+              <span className="text-exchange-text-primary font-mono">${tradingFees.toFixed(2)} {quoteAsset}</span>
+            </div>
+            
+            <div className="flex justify-between text-xs border-t border-exchange-border pt-2">
+              <span className="text-exchange-text-secondary font-semibold">
+                {tradeTab === 'buy' ? 'Total Cost:' : 'Net Received:'}
+              </span>
+              <span className="text-exchange-text-primary font-mono font-semibold">
+                {tradeTab === 'buy' 
+                  ? `$${totalWithFees.toFixed(2)} ${quoteAsset}`
+                  : `$${netReceived.toFixed(2)} ${quoteAsset}`
+                }
+              </span>
             </div>
           </div>
         )}
 
-        {/* Insufficient Balance Warning */}
-        {getInsufficientBalanceMessage() && (
-          <div className="text-xs text-exchange-red text-center bg-red-50 border border-red-200 rounded p-2">
-            {getInsufficientBalanceMessage()}
+        {/* Balance Validation Warning */}
+        {getBalanceValidationMessage() && (
+          <div className="flex items-start space-x-2 text-xs text-exchange-red bg-red-50 border border-red-200 rounded p-2">
+            <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <span>{getBalanceValidationMessage()}</span>
           </div>
         )}
 
@@ -349,8 +347,8 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
         <div className="text-xs text-exchange-text-secondary bg-blue-50 border border-blue-200 rounded p-2">
           <strong>{orderType === 'market' ? 'Market Order:' : 'Limit Order:'}</strong>{' '}
           {orderType === 'market' 
-            ? 'Executes immediately at current market price' 
-            : 'Executes only when price reaches your specified level'
+            ? 'Executes immediately at current market price with 0.1% trading fee' 
+            : 'Executes only when price reaches your specified level with 0.1% trading fee'
           }
         </div>
       </div>
@@ -358,7 +356,7 @@ const TradingPanel = ({ selectedPair }: TradingPanelProps) => {
   );
 };
 
-// Helper function for price formatting (if not imported)
+// Helper function for price formatting
 const formatPrice = (price: number): string => {
   if (price < 1) {
     return price.toFixed(4);
