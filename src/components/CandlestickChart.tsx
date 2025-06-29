@@ -1,16 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ComposedChart, XAxis, YAxis, ResponsiveContainer, Rectangle } from 'recharts';
-import { useCryptoPrices } from '@/hooks/useCryptoPrices';
-
-interface CandlestickData {
-  time: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
+import { useBinanceData, CandlestickData } from '@/hooks/useBinanceData';
 
 interface CandlestickProps {
   symbol: string;
@@ -19,118 +10,42 @@ interface CandlestickProps {
 const CandlestickChart = ({ symbol }: CandlestickProps) => {
   const [candleData, setCandleData] = useState<CandlestickData[]>([]);
   const [timeframe, setTimeframe] = useState('5m');
-  const { prices } = useCryptoPrices();
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const { fetchHistoricalData, subscribeToSymbol, candleData: realtimeData, isConnected, error } = useBinanceData();
 
-  // Get proper update interval based on timeframe
-  const getUpdateInterval = (tf: string) => {
-    switch (tf) {
-      case '1m': return 60000;    // 1 minute
-      case '5m': return 300000;   // 5 minutes
-      case '15m': return 900000;  // 15 minutes
-      case '1h': return 3600000;  // 1 hour
-      case '4h': return 14400000; // 4 hours
-      case '1D': return 86400000; // 1 day
-      default: return 300000;     // 5 minutes default
-    }
-  };
-
-  // Generate realistic candlestick data
+  // Load historical data when symbol or timeframe changes
   useEffect(() => {
-    const generateCandlestickData = () => {
-      const baseAsset = symbol.split('/')[0];
-      const currentPrice = prices.find(p => p.symbol.toUpperCase() === baseAsset)?.current_price || 50000;
+    const loadHistoricalData = async () => {
+      setIsLoading(true);
+      console.log(`[CandlestickChart] Loading historical data for ${symbol} ${timeframe}`);
       
-      const data: CandlestickData[] = [];
-      let price = currentPrice * 0.98; // Start slightly below current price
-      
-      // Generate 100 candles
-      for (let i = 0; i < 100; i++) {
-        const interval = getUpdateInterval(timeframe);
-        const timestamp = new Date(Date.now() - (100 - i) * interval);
+      try {
+        const historicalData = await fetchHistoricalData(symbol, timeframe, 100);
+        setCandleData(historicalData);
         
-        // Generate realistic OHLC data based on timeframe
-        const baseVolatility = timeframe === '1m' ? 0.001 : 
-                              timeframe === '5m' ? 0.003 : 
-                              timeframe === '15m' ? 0.005 :
-                              timeframe === '1h' ? 0.008 :
-                              timeframe === '4h' ? 0.015 : 0.025;
+        // Subscribe to real-time updates
+        subscribeToSymbol(symbol, timeframe);
         
-        const trend = (Math.random() - 0.5) * 0.0005; // Small random trend
-        
-        const open = price;
-        const changePercent = (Math.random() - 0.5) * baseVolatility + trend;
-        const close = open * (1 + changePercent);
-        
-        // High and low based on open/close with some random extension
-        const wickRange = baseVolatility * 0.3;
-        const high = Math.max(open, close) * (1 + Math.random() * wickRange);
-        const low = Math.min(open, close) * (1 - Math.random() * wickRange);
-        
-        const volume = Math.random() * 1000000 + 100000;
-        
-        data.push({
-          time: timeframe === '1m' || timeframe === '5m' ? 
-            timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) :
-            timeframe === '15m' || timeframe === '1h' ?
-            timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) :
-            timestamp.toLocaleDateString([], { month: 'short', day: '2-digit' }),
-          open: parseFloat(open.toFixed(2)),
-          high: parseFloat(high.toFixed(2)),
-          low: parseFloat(low.toFixed(2)),
-          close: parseFloat(close.toFixed(2)),
-          volume: Math.round(volume),
-        });
-        
-        price = close; // Use close as next open
+        console.log(`[CandlestickChart] Loaded ${historicalData.length} historical candles`);
+      } catch (error) {
+        console.error('[CandlestickChart] Error loading historical data:', error);
+      } finally {
+        setIsLoading(false);
       }
-      
-      return data;
     };
 
-    setCandleData(generateCandlestickData());
+    loadHistoricalData();
+  }, [symbol, timeframe, fetchHistoricalData, subscribeToSymbol]);
+
+  // Update with real-time data
+  useEffect(() => {
+    const key = `${symbol}_${timeframe}`;
+    const realtimeCandles = realtimeData.get(key);
     
-    // Clear existing interval
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
+    if (realtimeCandles && realtimeCandles.length > 0) {
+      setCandleData(realtimeCandles);
     }
-    
-    // Update data based on timeframe - much more realistic intervals
-    const updateInterval = Math.min(getUpdateInterval(timeframe) / 10, 30000); // Max 30 seconds for demo
-    
-    intervalRef.current = setInterval(() => {
-      setCandleData(prev => {
-        const newData = [...prev];
-        const lastCandle = newData[newData.length - 1];
-        
-        // Realistic volatility based on timeframe
-        const volatility = timeframe === '1m' ? 0.0005 : 
-                          timeframe === '5m' ? 0.001 : 
-                          timeframe === '15m' ? 0.002 :
-                          timeframe === '1h' ? 0.003 :
-                          timeframe === '4h' ? 0.005 : 0.008;
-        
-        const priceChange = (Math.random() - 0.5) * volatility;
-        const newClose = Math.max(lastCandle.close * (1 + priceChange), 0.01);
-        
-        newData[newData.length - 1] = {
-          ...lastCandle,
-          close: parseFloat(newClose.toFixed(2)),
-          high: Math.max(lastCandle.high, newClose),
-          low: Math.min(lastCandle.low, newClose),
-          volume: lastCandle.volume + Math.round(Math.abs(priceChange) * 50000),
-        };
-        
-        return newData;
-      });
-    }, updateInterval);
-    
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [symbol, timeframe, prices]);
+  }, [realtimeData, symbol, timeframe]);
 
   // Custom Candlestick component
   const CustomCandlestick = (props: any) => {
@@ -141,11 +56,19 @@ const CandlestickChart = ({ symbol }: CandlestickProps) => {
     const isGreen = close >= open;
     const color = isGreen ? '#10b981' : '#ef4444';
     
-    const bodyHeight = Math.abs(close - open) * height / (Math.max(...candleData.map(d => d.high)) - Math.min(...candleData.map(d => d.low)));
-    const bodyY = y + (Math.max(...candleData.map(d => d.high)) - Math.max(open, close)) * height / (Math.max(...candleData.map(d => d.high)) - Math.min(...candleData.map(d => d.low)));
+    if (candleData.length === 0) return null;
     
-    const wickHeight = (high - low) * height / (Math.max(...candleData.map(d => d.high)) - Math.min(...candleData.map(d => d.low)));
-    const wickY = y + (Math.max(...candleData.map(d => d.high)) - high) * height / (Math.max(...candleData.map(d => d.high)) - Math.min(...candleData.map(d => d.low)));
+    const minPrice = Math.min(...candleData.map(d => d.low));
+    const maxPrice = Math.max(...candleData.map(d => d.high));
+    const priceRange = maxPrice - minPrice;
+    
+    if (priceRange === 0) return null;
+    
+    const bodyHeight = Math.abs(close - open) * height / priceRange;
+    const bodyY = y + (maxPrice - Math.max(open, close)) * height / priceRange;
+    
+    const wickHeight = (high - low) * height / priceRange;
+    const wickY = y + (maxPrice - high) * height / priceRange;
     
     return (
       <g>
@@ -172,12 +95,38 @@ const CandlestickChart = ({ symbol }: CandlestickProps) => {
     );
   };
 
+  if (error) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 mb-2">⚠️ Data Error</div>
+          <div className="text-sm text-exchange-text-secondary">{error}</div>
+          <div className="text-xs text-exchange-text-secondary mt-2">
+            Check your internet connection or try again later
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-exchange-blue mx-auto mb-2"></div>
+          <div className="text-sm text-exchange-text-secondary">Loading real market data...</div>
+          <div className="text-xs text-exchange-text-secondary mt-1">{symbol} • {timeframe}</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full">
       {/* Chart Controls */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex space-x-2">
-          {['1m', '5m', '15m', '1h', '4h', '1D'].map((tf) => (
+          {['1m', '5m', '15m', '1h', '4h', '1d'].map((tf) => (
             <button
               key={tf}
               onClick={() => setTimeframe(tf)}
@@ -191,10 +140,11 @@ const CandlestickChart = ({ symbol }: CandlestickProps) => {
             </button>
           ))}
         </div>
-        <div className="text-xs text-exchange-text-secondary">
-          Live • Updates every {getUpdateInterval(timeframe) >= 60000 ? 
-            `${Math.min(getUpdateInterval(timeframe) / 10000, 30)}s` : 
-            `${getUpdateInterval(timeframe) / 1000}s`}
+        <div className="flex items-center space-x-2 text-xs">
+          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+          <span className="text-exchange-text-secondary">
+            {isConnected ? 'LIVE • Binance API' : 'Disconnected'}
+          </span>
         </div>
       </div>
 
@@ -216,47 +166,53 @@ const CandlestickChart = ({ symbol }: CandlestickProps) => {
               tick={{ fontSize: 10, fill: '#6B7280' }}
               width={60}
             />
-            {/* Custom candlesticks would go here - for now showing a line chart as fallback */}
-            <ComposedChart data={candleData.slice(-50)}>
-              {candleData.slice(-50).map((entry, index) => (
-                <CustomCandlestick key={index} {...entry} />
-              ))}
-            </ComposedChart>
+            {candleData.slice(-50).map((entry, index) => (
+              <CustomCandlestick 
+                key={index} 
+                payload={entry}
+                x={index * (100 / 50)}
+                y={0}
+                width={100 / 50}
+                height={100}
+              />
+            ))}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
 
       {/* Chart Info */}
-      <div className="grid grid-cols-4 gap-4 mt-4 text-xs">
-        <div className="bg-exchange-accent/30 p-2 rounded">
-          <div className="text-exchange-text-secondary">Open</div>
-          <div className="text-exchange-text-primary font-mono">
-            ${candleData[candleData.length - 1]?.open.toFixed(2)}
+      {candleData.length > 0 && (
+        <div className="grid grid-cols-4 gap-4 mt-4 text-xs">
+          <div className="bg-exchange-accent/30 p-2 rounded">
+            <div className="text-exchange-text-secondary">Open</div>
+            <div className="text-exchange-text-primary font-mono">
+              ${candleData[candleData.length - 1]?.open.toFixed(2)}
+            </div>
+          </div>
+          <div className="bg-exchange-accent/30 p-2 rounded">
+            <div className="text-exchange-text-secondary">High</div>
+            <div className="text-exchange-green font-mono">
+              ${candleData[candleData.length - 1]?.high.toFixed(2)}
+            </div>
+          </div>
+          <div className="bg-exchange-accent/30 p-2 rounded">
+            <div className="text-exchange-text-secondary">Low</div>
+            <div className="text-exchange-red font-mono">
+              ${candleData[candleData.length - 1]?.low.toFixed(2)}
+            </div>
+          </div>
+          <div className="bg-exchange-accent/30 p-2 rounded">
+            <div className="text-exchange-text-secondary">Close</div>
+            <div className={`font-mono ${
+              candleData[candleData.length - 1]?.close >= candleData[candleData.length - 1]?.open 
+                ? 'text-exchange-green' 
+                : 'text-exchange-red'
+            }`}>
+              ${candleData[candleData.length - 1]?.close.toFixed(2)}
+            </div>
           </div>
         </div>
-        <div className="bg-exchange-accent/30 p-2 rounded">
-          <div className="text-exchange-text-secondary">High</div>
-          <div className="text-exchange-green font-mono">
-            ${candleData[candleData.length - 1]?.high.toFixed(2)}
-          </div>
-        </div>
-        <div className="bg-exchange-accent/30 p-2 rounded">
-          <div className="text-exchange-text-secondary">Low</div>
-          <div className="text-exchange-red font-mono">
-            ${candleData[candleData.length - 1]?.low.toFixed(2)}
-          </div>
-        </div>
-        <div className="bg-exchange-accent/30 p-2 rounded">
-          <div className="text-exchange-text-secondary">Close</div>
-          <div className={`font-mono ${
-            candleData[candleData.length - 1]?.close >= candleData[candleData.length - 1]?.open 
-              ? 'text-exchange-green' 
-              : 'text-exchange-red'
-          }`}>
-            ${candleData[candleData.length - 1]?.close.toFixed(2)}
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
