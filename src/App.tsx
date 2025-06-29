@@ -18,6 +18,7 @@ import AdminDashboardPage from '@/pages/AdminDashboardPage';
 import SuperAdminPage from '@/pages/SuperAdminPage';
 import NotFound from '@/pages/NotFound';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import SuperAdminRoute from '@/components/SuperAdminRoute';
 import PublicRoute from '@/components/PublicRoute';
 import './App.css';
 
@@ -43,7 +44,8 @@ function App() {
                   <Route path="/contracts" element={<ProtectedRoute><ContractsPage /></ProtectedRoute>} />
                   <Route path="/launchpad" element={<ProtectedRoute><LaunchpadPage /></ProtectedRoute>} />
                   <Route path="/admin" element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
-                  <Route path="/superadmin" element={<ProtectedRoute><SuperAdminPage /></ProtectedRoute>} />
+                  <Route path="/superadmin" element={<SuperAdminRoute><SuperAdminPage /></SuperAdminRoute>} />
+                  <Route path="/superadmin-dashboard" element={<SuperAdminRoute><SuperAdminPage /></SuperAdminRoute>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
                 <Toaster />
