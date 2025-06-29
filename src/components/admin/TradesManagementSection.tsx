@@ -40,68 +40,82 @@ const TradesManagementSection = () => {
       console.log('Fetching active trades for SuperAdmin...');
       
       try {
-        // First verify current user is superadmin
-        const { data: currentUser, error: userError } = await supabase.auth.getUser();
-        if (userError) {
-          console.error('Auth error:', userError);
-          throw userError;
+        // Get current user to verify SuperAdmin role
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+          console.error('Auth error:', authError);
+          throw new Error('Authentication required');
         }
-        
-        console.log('Current user ID:', currentUser.user?.id);
-        
-        // Check user role
-        const { data: userProfile, error: profileError } = await supabase
+
+        // Verify SuperAdmin role
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role, email')
-          .eq('id', currentUser.user?.id)
+          .eq('id', user.id)
           .single();
-          
-        if (profileError) {
-          console.error('Profile error:', profileError);
-          throw profileError;
-        }
-        
-        console.log('User profile:', userProfile);
-        
-        if (userProfile.role !== 'superadmin') {
+
+        if (profileError || profile?.role !== 'superadmin') {
+          console.error('Not a SuperAdmin');
           return [];
         }
 
-        // Fetch active trades using RPC or direct query
-        const { data: trades, error: tradesError } = await supabase
-          .from('perpetual_positions')
-          .select('*')
-          .eq('status', 'active')
-          .order('created_at', { ascending: false });
+        console.log('SuperAdmin verified, fetching trades...');
+
+        // Use RPC function to bypass RLS and get all trades
+        const { data: trades, error: tradesError } = await supabase.rpc('get_all_perpetual_positions_for_admin');
 
         if (tradesError) {
-          console.error('Error fetching trades:', tradesError);
-          throw tradesError;
+          console.error('RPC error, falling back to direct query:', tradesError);
+          
+          // Fallback: Direct query (will work if RLS policies are properly set)
+          const { data: fallbackTrades, error: fallbackError } = await supabase
+            .from('perpetual_positions')
+            .select(`
+              *,
+              profiles!inner(email)
+            `)
+            .eq('status', 'active')
+            .order('created_at', { ascending: false });
+
+          if (fallbackError) {
+            console.error('Fallback query error:', fallbackError);
+            throw fallbackError;
+          }
+
+          console.log('Using fallback trades:', fallbackTrades?.length || 0);
+
+          if (!fallbackTrades || fallbackTrades.length === 0) {
+            return [];
+          }
+
+          // Process fallback trades
+          return fallbackTrades.map(trade => {
+            const [baseAsset] = trade.pair.split('/');
+            const currentPrice = getPriceBySymbol(prices, baseAsset)?.current_price || trade.entry_price;
+            
+            const priceDiff = currentPrice - trade.entry_price;
+            const pnl = trade.side === 'long' 
+              ? priceDiff * trade.size
+              : -priceDiff * trade.size;
+            const pnlPercentage = (pnl / trade.margin) * 100;
+
+            return {
+              ...trade,
+              user_email: trade.profiles?.email || `User ${trade.user_id.substring(0, 8)}...`,
+              current_price: currentPrice,
+              pnl: pnl,
+              pnl_percentage: pnlPercentage
+            };
+          }) as ActiveTrade[];
         }
 
-        console.log('Trades found:', trades?.length || 0);
+        console.log('RPC trades found:', trades?.length || 0);
 
         if (!trades || trades.length === 0) {
           return [];
         }
 
-        // Get user emails for all traders
-        const userIds = [...new Set(trades.map(trade => trade.user_id))];
-        
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, email')
-          .in('id', userIds);
-
-        if (profilesError) {
-          console.error('Error fetching profiles:', profilesError);
-        }
-
-        const userEmailMap = new Map(
-          profiles?.map(profile => [profile.id, profile.email]) || []
-        );
-
-        // Calculate PnL for each trade
+        // Process RPC trades
         const tradesWithPnL = trades.map(trade => {
           const [baseAsset] = trade.pair.split('/');
           const currentPrice = getPriceBySymbol(prices, baseAsset)?.current_price || trade.entry_price;
@@ -114,14 +128,14 @@ const TradesManagementSection = () => {
 
           return {
             ...trade,
-            user_email: userEmailMap.get(trade.user_id) || `User ${trade.user_id.substring(0, 8)}...`,
+            user_email: trade.user_email || `User ${trade.user_id.substring(0, 8)}...`,
             current_price: currentPrice,
             pnl: pnl,
             pnl_percentage: pnlPercentage
           };
         });
 
-        console.log('Final trades with PnL:', tradesWithPnL.length);
+        console.log('Final processed trades:', tradesWithPnL.length);
         return tradesWithPnL as ActiveTrade[];
         
       } catch (error) {
@@ -129,7 +143,7 @@ const TradesManagementSection = () => {
         throw error;
       }
     },
-    refetchInterval: 10000,
+    refetchInterval: 10000, // Refresh every 10 seconds
     retry: 2,
     retryDelay: 1000,
   });
