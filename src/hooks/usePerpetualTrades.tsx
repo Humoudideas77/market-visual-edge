@@ -181,7 +181,7 @@ export const usePerpetualTrades = () => {
           entry_price: currentPrice,
           leverage,
           margin,
-          liquidation_price,
+          liquidation_price: liquidationPrice,
           status: 'active'
         });
 
