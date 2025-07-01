@@ -25,30 +25,42 @@ export interface PerpetualPosition {
 
 export const usePerpetualTrades = () => {
   const { user } = useAuth();
-  const { refreshBalances } = useWallet();
+  const { refreshBalances, getBalance } = useWallet();
   const { prices } = useCryptoPrices();
   const [positions, setPositions] = useState<PerpetualPosition[]>([]);
+  const [allPositions, setAllPositions] = useState<PerpetualPosition[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchPositions = async () => {
     if (!user) {
       setPositions([]);
+      setAllPositions([]);
       setLoading(false);
       return;
     }
 
     try {
-      const { data, error } = await supabase
+      // Fetch active positions
+      const { data: activeData, error: activeError } = await supabase
         .from('perpetual_positions')
         .select('*')
         .eq('user_id', user.id)
         .eq('status', 'active')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (activeError) throw activeError;
 
-      if (data) {
-        const positionsWithPnL = data.map(position => {
+      // Fetch all positions for history
+      const { data: allData, error: allError } = await supabase
+        .from('perpetual_positions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (allError) throw allError;
+
+      if (activeData) {
+        const positionsWithPnL = activeData.map(position => {
           const [baseAsset] = position.pair.split('/');
           const currentPrice = getPriceBySymbol(prices, baseAsset)?.current_price || position.entry_price;
           
@@ -61,7 +73,7 @@ export const usePerpetualTrades = () => {
           return {
             id: position.id,
             pair: position.pair,
-            side: position.side,
+            side: position.side as 'long' | 'short',
             size: position.size,
             entry_price: position.entry_price,
             current_price: currentPrice,
@@ -78,6 +90,38 @@ export const usePerpetualTrades = () => {
 
         setPositions(positionsWithPnL);
       }
+
+      if (allData) {
+        const allPositionsWithPnL = allData.map(position => {
+          const [baseAsset] = position.pair.split('/');
+          const currentPrice = getPriceBySymbol(prices, baseAsset)?.current_price || position.entry_price;
+          
+          const priceDiff = currentPrice - position.entry_price;
+          const pnl = position.side === 'long' 
+            ? priceDiff * position.size
+            : -priceDiff * position.size;
+          const pnlPercentage = (pnl / position.margin) * 100;
+
+          return {
+            id: position.id,
+            pair: position.pair,
+            side: position.side as 'long' | 'short',
+            size: position.size,
+            entry_price: position.entry_price,
+            current_price: currentPrice,
+            leverage: position.leverage,
+            margin: position.margin,
+            liquidation_price: position.liquidation_price,
+            pnl,
+            pnl_percentage: pnlPercentage,
+            created_at: position.created_at,
+            status: position.status,
+            fixed_pnl: position.fixed_pnl
+          };
+        });
+
+        setAllPositions(allPositionsWithPnL);
+      }
     } catch (error) {
       console.error('Error fetching positions:', error);
       toast.error('Failed to load positions');
@@ -86,14 +130,90 @@ export const usePerpetualTrades = () => {
     }
   };
 
+  const openPosition = async (side: 'long' | 'short', size: number, leverage: number, selectedPair: string) => {
+    if (!user) {
+      return { success: false, message: 'User not authenticated' };
+    }
+
+    try {
+      const [baseAsset] = selectedPair.split('/');
+      const currentPrice = getPriceBySymbol(prices, baseAsset)?.current_price;
+      
+      if (!currentPrice) {
+        return { success: false, message: 'Unable to get current price' };
+      }
+
+      const notionalValue = size * currentPrice;
+      const margin = notionalValue / leverage;
+      
+      // Check if user has sufficient balance
+      const usdtBalance = getBalance('USDT');
+      if (!usdtBalance || usdtBalance.available < margin) {
+        return { success: false, message: 'Insufficient balance' };
+      }
+
+      // Calculate liquidation price
+      const marginRatio = 1 / leverage;
+      const liquidationPrice = side === 'long'
+        ? currentPrice * (1 - marginRatio)
+        : currentPrice * (1 + marginRatio);
+
+      // Deduct margin from balance
+      const { error: balanceError } = await supabase.rpc('update_wallet_balance', {
+        p_user_id: user.id,
+        p_currency: 'USDT',
+        p_amount: margin,
+        p_operation: 'subtract'
+      });
+
+      if (balanceError) {
+        return { success: false, message: 'Failed to update balance: ' + balanceError.message };
+      }
+
+      // Create position
+      const { error: positionError } = await supabase
+        .from('perpetual_positions')
+        .insert({
+          user_id: user.id,
+          pair: selectedPair,
+          side,
+          size,
+          entry_price: currentPrice,
+          leverage,
+          margin,
+          liquidation_price,
+          status: 'active'
+        });
+
+      if (positionError) {
+        // Refund margin if position creation fails
+        await supabase.rpc('update_wallet_balance', {
+          p_user_id: user.id,
+          p_currency: 'USDT',
+          p_amount: margin,
+          p_operation: 'add'
+        });
+        return { success: false, message: 'Failed to create position: ' + positionError.message };
+      }
+
+      toast.success(`${side.toUpperCase()} position opened successfully!`);
+      await Promise.all([fetchPositions(), refreshBalances()]);
+      
+      return { success: true, message: 'Position opened successfully' };
+    } catch (error) {
+      console.error('Error opening position:', error);
+      return { success: false, message: 'Failed to open position: ' + (error as Error).message };
+    }
+  };
+
   const closePosition = async (positionId: string) => {
-    if (!user) return;
+    if (!user) return { success: false, message: 'User not authenticated' };
 
     try {
       // Get the position details first
       const position = positions.find(p => p.id === positionId);
       if (!position) {
-        throw new Error('Position not found');
+        return { success: false, message: 'Position not found' };
       }
 
       console.log('Closing position:', position);
@@ -115,7 +235,7 @@ export const usePerpetualTrades = () => {
         })
         .eq('id', positionId);
 
-      if (updateError) throw updateError;
+      if (updateError) return { success: false, message: updateError.message };
 
       // Record the P&L with the final amount (fixed or calculated)
       const { error: pnlError } = await supabase.rpc('record_trade_pnl', {
@@ -147,7 +267,7 @@ export const usePerpetualTrades = () => {
 
         if (balanceError) {
           console.error('Error updating balance:', balanceError);
-          throw balanceError;
+          return { success: false, message: balanceError.message };
         }
       }
 
@@ -163,11 +283,10 @@ export const usePerpetualTrades = () => {
         refreshBalances()
       ]);
 
-      return true;
+      return { success: true, message: 'Position closed successfully' };
     } catch (error) {
       console.error('Error closing position:', error);
-      toast.error('Failed to close position: ' + (error as Error).message);
-      return false;
+      return { success: false, message: 'Failed to close position: ' + (error as Error).message };
     }
   };
 
@@ -222,12 +341,32 @@ export const usePerpetualTrades = () => {
           pnl_percentage: pnlPercentage
         };
       }));
+
+      setAllPositions(prev => prev.map(position => {
+        const [baseAsset] = position.pair.split('/');
+        const currentPrice = getPriceBySymbol(prices, baseAsset)?.current_price || position.entry_price;
+        
+        const priceDiff = currentPrice - position.entry_price;
+        const pnl = position.side === 'long' 
+          ? priceDiff * position.size
+          : -priceDiff * position.size;
+        const pnlPercentage = (pnl / position.margin) * 100;
+
+        return {
+          ...position,
+          current_price: currentPrice,
+          pnl,
+          pnl_percentage: pnlPercentage
+        };
+      }));
     }
   }, [prices]);
 
   return {
     positions,
+    allPositions,
     loading,
+    openPosition,
     closePosition,
     refetch: fetchPositions
   };

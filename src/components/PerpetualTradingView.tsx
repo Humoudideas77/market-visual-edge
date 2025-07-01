@@ -20,7 +20,7 @@ interface PerpetualTradingViewProps {
 const PerpetualTradingView = ({ selectedPair, onPairChange }: PerpetualTradingViewProps) => {
   const { getBalance, refreshBalances } = useWallet();
   const { prices } = useCryptoPrices();
-  const { positions, allPositions, loading, openPosition, closePosition } = usePerpetualTrades(selectedPair);
+  const { positions, allPositions, loading, openPosition, closePosition } = usePerpetualTrades();
   
   const [tradeSize, setTradeSize] = useState('');
   const [leverage, setLeverage] = useState('10');
@@ -83,7 +83,7 @@ const PerpetualTradingView = ({ selectedPair, onPairChange }: PerpetualTradingVi
     // Refresh balance before opening position
     await refreshBalances();
 
-    const result = await openPosition(tradeSide, parseFloat(tradeSize), parseFloat(leverage));
+    const result = await openPosition(tradeSide, parseFloat(tradeSize), parseFloat(leverage), selectedPair);
     
     if (result.success) {
       // Reset form
@@ -349,39 +349,51 @@ const PerpetualTradingView = ({ selectedPair, onPairChange }: PerpetualTradingVi
                       </tr>
                     </thead>
                     <tbody>
-                      {positions.map((position) => (
-                        <tr key={position.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="p-3 font-semibold">{position.pair}</td>
-                          <td className="p-3 text-center">
-                            <Badge 
-                              variant={position.side === 'long' ? 'default' : 'destructive'}
-                              className="uppercase"
-                            >
-                              {position.side}
-                            </Badge>
-                          </td>
-                          <td className="p-3 text-right font-mono">{position.size.toFixed(6)}</td>
-                          <td className="p-3 text-right font-mono">${position.entry_price.toFixed(2)}</td>
-                          <td className="p-3 text-right font-mono">${position.current_price.toFixed(2)}</td>
-                          <td className={`p-3 text-right font-mono font-semibold ${position.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {position.pnl >= 0 ? '+' : ''}${position.pnl.toFixed(2)}
-                            <div className="text-xs">
-                              ({position.pnl_percentage >= 0 ? '+' : ''}{position.pnl_percentage.toFixed(2)}%)
-                            </div>
-                          </td>
-                          <td className="p-3 text-right font-mono">${position.margin.toFixed(2)}</td>
-                          <td className="p-3 text-center">
-                            <Button
-                              size="sm"
-                              onClick={() => handleClosePosition(position.id)}
-                              variant="outline"
-                              className="text-red-600 border-red-300 hover:bg-red-50"
-                            >
-                              Close
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
+                      {positions.map((position) => {
+                        // Display fixed P&L if it exists, otherwise show calculated P&L
+                        const displayPnL = position.fixed_pnl !== null && position.fixed_pnl !== undefined 
+                          ? position.fixed_pnl 
+                          : position.pnl;
+                        const displayPnLPercentage = position.fixed_pnl !== null && position.fixed_pnl !== undefined
+                          ? (position.fixed_pnl / position.margin) * 100
+                          : position.pnl_percentage;
+                        const isFixedPnL = position.fixed_pnl !== null && position.fixed_pnl !== undefined;
+
+                        return (
+                          <tr key={position.id} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="p-3 font-semibold">{position.pair}</td>
+                            <td className="p-3 text-center">
+                              <Badge 
+                                variant={position.side === 'long' ? 'default' : 'destructive'}
+                                className="uppercase"
+                              >
+                                {position.side}
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-right font-mono">{position.size.toFixed(6)}</td>
+                            <td className="p-3 text-right font-mono">${position.entry_price.toFixed(2)}</td>
+                            <td className="p-3 text-right font-mono">${position.current_price.toFixed(2)}</td>
+                            <td className={`p-3 text-right font-mono font-semibold ${displayPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {displayPnL >= 0 ? '+' : ''}${displayPnL.toFixed(2)}
+                              {isFixedPnL && <span className="text-xs text-blue-600 ml-1">(Fixed)</span>}
+                              <div className="text-xs">
+                                ({displayPnLPercentage >= 0 ? '+' : ''}{displayPnLPercentage.toFixed(2)}%)
+                              </div>
+                            </td>
+                            <td className="p-3 text-right font-mono">${position.margin.toFixed(2)}</td>
+                            <td className="p-3 text-center">
+                              <Button
+                                size="sm"
+                                onClick={() => handleClosePosition(position.id)}
+                                variant="outline"
+                                className="text-red-600 border-red-300 hover:bg-red-50"
+                              >
+                                Close
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -415,38 +427,48 @@ const PerpetualTradingView = ({ selectedPair, onPairChange }: PerpetualTradingVi
                       </tr>
                     </thead>
                     <tbody>
-                      {allPositions.map((position) => (
-                        <tr key={position.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="p-3 font-semibold">{position.pair}</td>
-                          <td className="p-3 text-center">
-                            <Badge 
-                              variant={position.side === 'long' ? 'default' : 'destructive'}
-                              className="uppercase"
-                            >
-                              {position.side}
-                            </Badge>
-                          </td>
-                          <td className="p-3 text-right font-mono">{position.size.toFixed(6)}</td>
-                          <td className="p-3 text-right font-mono">${position.entry_price.toFixed(2)}</td>
-                          <td className="p-3 text-right font-mono">
-                            {position.status === 'closed' ? `$${position.current_price.toFixed(2)}` : '-'}
-                          </td>
-                          <td className={`p-3 text-right font-mono font-semibold ${position.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {position.pnl >= 0 ? '+' : ''}${position.pnl.toFixed(2)}
-                            <div className="text-xs">
-                              ({position.pnl_percentage >= 0 ? '+' : ''}{position.pnl_percentage.toFixed(2)}%)
-                            </div>
-                          </td>
-                          <td className="p-3 text-center">
-                            <Badge variant={position.status === 'active' ? 'default' : 'secondary'}>
-                              {position.status}
-                            </Badge>
-                          </td>
-                          <td className="p-3 text-right text-xs">
-                            {position.created_at.toLocaleDateString()}
-                          </td>
-                        </tr>
-                      ))}
+                      {allPositions.map((position) => {
+                        // For closed positions, show the final P&L (fixed if available, otherwise calculated)
+                        const displayPnL = position.status === 'closed' && position.fixed_pnl !== null && position.fixed_pnl !== undefined
+                          ? position.fixed_pnl 
+                          : position.pnl;
+                        const displayPnLPercentage = position.status === 'closed' && position.fixed_pnl !== null && position.fixed_pnl !== undefined
+                          ? (position.fixed_pnl / position.margin) * 100
+                          : position.pnl_percentage;
+
+                        return (
+                          <tr key={position.id} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="p-3 font-semibold">{position.pair}</td>
+                            <td className="p-3 text-center">
+                              <Badge 
+                                variant={position.side === 'long' ? 'default' : 'destructive'}
+                                className="uppercase"
+                              >
+                                {position.side}
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-right font-mono">{position.size.toFixed(6)}</td>
+                            <td className="p-3 text-right font-mono">${position.entry_price.toFixed(2)}</td>
+                            <td className="p-3 text-right font-mono">
+                              {position.status === 'closed' ? `$${position.current_price.toFixed(2)}` : '-'}
+                            </td>
+                            <td className={`p-3 text-right font-mono font-semibold ${displayPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {displayPnL >= 0 ? '+' : ''}${displayPnL.toFixed(2)}
+                              <div className="text-xs">
+                                ({displayPnLPercentage >= 0 ? '+' : ''}{displayPnLPercentage.toFixed(2)}%)
+                              </div>
+                            </td>
+                            <td className="p-3 text-center">
+                              <Badge variant={position.status === 'active' ? 'default' : 'secondary'}>
+                                {position.status}
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-right text-xs">
+                              {new Date(position.created_at).toLocaleDateString()}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
