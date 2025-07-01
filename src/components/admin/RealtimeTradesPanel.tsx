@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { TrendingUp, TrendingDown, X, Clock, RefreshCw, Activity, AlertTriangle, DollarSign } from 'lucide-react';
+import { TrendingUp, TrendingDown, Clock, RefreshCw, Activity, AlertTriangle, DollarSign } from 'lucide-react';
 import { useRealtimeTrades } from '@/hooks/useRealtimeTrades';
 
 interface TradeToClose {
@@ -38,15 +38,54 @@ const RealtimeTradesPanel = () => {
   const [manualPnL, setManualPnL] = useState<string>('');
   const queryClient = useQueryClient();
 
-  // Mutation to close a trade with manual PnL
-  const closeTradesMutation = useMutation({
-    mutationFn: async ({ tradeId, customPnL }: { tradeId: string; customPnL?: number }) => {
+  // Mutation to set fixed P&L for a trade without closing it
+  const setFixedPnLMutation = useMutation({
+    mutationFn: async ({ tradeId, fixedPnL }: { tradeId: string; fixedPnL: number }) => {
       const trade = activeTrades.find(t => t.id === tradeId);
       if (!trade) {
         throw new Error('Trade not found');
       }
 
-      console.log('SuperAdmin closing trade with custom PnL:', tradeId, customPnL);
+      console.log('SuperAdmin setting fixed P&L for trade:', tradeId, fixedPnL);
+
+      // Update position with fixed P&L
+      const { error: updateError } = await supabase
+        .from('perpetual_positions')
+        .update({
+          fixed_pnl: fixedPnL
+        })
+        .eq('id', tradeId);
+
+      if (updateError) {
+        console.error('Error setting fixed P&L:', updateError);
+        throw updateError;
+      }
+
+      return { tradeId, fixedPnL, userEmail: trade.user_email };
+    },
+    onSuccess: (data) => {
+      const pnlText = data.fixedPnL >= 0 ? `+$${data.fixedPnL.toFixed(2)}` : `-$${Math.abs(data.fixedPnL).toFixed(2)}`;
+      toast.success(`✅ Fixed P&L set by SuperAdmin! User: ${data.userEmail}, Fixed P&L: ${pnlText} USDT`);
+      queryClient.invalidateQueries({ queryKey: ['admin-active-trades'] });
+      setManualPnLDialog({ trade: null as any, isOpen: false });
+      setManualPnL('');
+      refetch();
+    },
+    onError: (error) => {
+      console.error('Set fixed P&L error:', error);
+      toast.error(`Failed to set fixed P&L: ${error.message}`);
+    },
+  });
+
+  // Mutation to close a trade with fixed P&L
+  const closeTradesMutation = useMutation({
+    mutationFn: async ({ tradeId }: { tradeId: string }) => {
+      const trade = activeTrades.find(t => t.id === tradeId);
+      if (!trade) {
+        throw new Error('Trade not found');
+      }
+
+      console.log('SuperAdmin closing trade:', tradeId);
 
       // Update position status
       const { error: updateError } = await supabase
@@ -63,10 +102,10 @@ const RealtimeTradesPanel = () => {
         throw updateError;
       }
 
-      // Use custom PnL if provided, otherwise use calculated PnL
-      const finalPnL = customPnL !== undefined ? customPnL : (trade.pnl || 0);
+      // Use fixed P&L if it exists, otherwise use calculated P&L
+      const finalPnL = trade.fixed_pnl !== undefined && trade.fixed_pnl !== null ? trade.fixed_pnl : (trade.pnl || 0);
 
-      // Record PnL with custom amount
+      // Record PnL
       const { error: pnlError } = await supabase.rpc('record_trade_pnl', {
         p_user_id: trade.user_id,
         p_trade_pair: trade.pair,
@@ -81,7 +120,7 @@ const RealtimeTradesPanel = () => {
         console.error('Error recording PnL:', pnlError);
       }
 
-      // Return margin + custom PnL to user balance
+      // Return margin + final PnL to user balance
       const totalReturn = trade.margin + finalPnL;
       
       if (totalReturn > 0) {
@@ -97,29 +136,14 @@ const RealtimeTradesPanel = () => {
         }
       }
 
-      // If custom PnL was used, add additional balance adjustment
-      if (customPnL !== undefined) {
-        const pnlDifference = customPnL - (trade.pnl || 0);
-        if (pnlDifference !== 0) {
-          await supabase.rpc('update_wallet_balance', {
-            p_user_id: trade.user_id,
-            p_currency: 'USDT',
-            p_amount: Math.abs(pnlDifference),
-            p_operation: pnlDifference > 0 ? 'add' : 'subtract'
-          });
-        }
-      }
-
-      return { tradeId, pnl: finalPnL, userEmail: trade.user_email, customPnL: customPnL !== undefined };
+      return { tradeId, pnl: finalPnL, userEmail: trade.user_email, isFixed: trade.fixed_pnl !== undefined && trade.fixed_pnl !== null };
     },
     onSuccess: (data) => {
       const pnlText = data.pnl >= 0 ? `+$${data.pnl.toFixed(2)}` : `-$${Math.abs(data.pnl).toFixed(2)}`;
-      const customNote = data.customPnL ? ' (Custom PnL Set)' : '';
-      toast.success(`✅ Trade closed by SuperAdmin! User: ${data.userEmail}, P&L: ${pnlText} USDT${customNote}`);
+      const fixedNote = data.isFixed ? ' (Fixed P&L Applied)' : '';
+      toast.success(`✅ Trade closed by SuperAdmin! User: ${data.userEmail}, P&L: ${pnlText} USDT${fixedNote}`);
       queryClient.invalidateQueries({ queryKey: ['admin-active-trades'] });
       setSelectedTrade(null);
-      setManualPnLDialog({ trade: null as any, isOpen: false });
-      setManualPnL('');
       refetch();
     },
     onError: (error) => {
@@ -148,7 +172,7 @@ const RealtimeTradesPanel = () => {
     }
   };
 
-  const handleManualPnLClose = (trade: any) => {
+  const handleSetFixedPnL = (trade: any) => {
     setManualPnLDialog({
       trade: {
         id: trade.id,
@@ -163,19 +187,19 @@ const RealtimeTradesPanel = () => {
       },
       isOpen: true
     });
-    setManualPnL((trade.pnl || 0).toFixed(2));
+    setManualPnL((trade.fixed_pnl !== undefined && trade.fixed_pnl !== null ? trade.fixed_pnl : trade.pnl || 0).toFixed(2));
   };
 
-  const confirmManualPnLClose = () => {
+  const confirmSetFixedPnL = () => {
     if (manualPnLDialog.trade && manualPnL !== '') {
-      const customPnL = parseFloat(manualPnL);
-      if (isNaN(customPnL)) {
-        toast.error('Please enter a valid PnL amount');
+      const fixedPnL = parseFloat(manualPnL);
+      if (isNaN(fixedPnL)) {
+        toast.error('Please enter a valid P&L amount');
         return;
       }
-      closeTradesMutation.mutate({ 
+      setFixedPnLMutation.mutate({ 
         tradeId: manualPnLDialog.trade.id, 
-        customPnL: customPnL 
+        fixedPnL: fixedPnL 
       });
     }
   };
@@ -316,11 +340,21 @@ const RealtimeTradesPanel = () => {
                       </TableCell>
                       <TableCell>
                         <div className={`font-mono font-semibold ${
-                          (trade.pnl || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                          (trade.fixed_pnl !== undefined && trade.fixed_pnl !== null 
+                            ? trade.fixed_pnl 
+                            : trade.pnl || 0) >= 0 ? 'text-green-600' : 'text-red-600'
                         }`}>
-                          {(trade.pnl || 0) >= 0 ? '+' : ''}${trade.pnl?.toFixed(2) || '0.00'}
+                          {(trade.fixed_pnl !== undefined && trade.fixed_pnl !== null 
+                            ? trade.fixed_pnl 
+                            : trade.pnl || 0) >= 0 ? '+' : ''}${(trade.fixed_pnl !== undefined && trade.fixed_pnl !== null 
+                              ? trade.fixed_pnl 
+                              : trade.pnl || 0).toFixed(2)}
                           <div className="text-xs">
-                            ({(trade.pnl_percentage || 0) >= 0 ? '+' : ''}{trade.pnl_percentage?.toFixed(2) || '0.00'}%)
+                            {trade.fixed_pnl !== undefined && trade.fixed_pnl !== null ? (
+                              <span className="text-blue-600 font-semibold">FIXED</span>
+                            ) : (
+                              <>({(trade.pnl_percentage || 0) >= 0 ? '+' : ''}{trade.pnl_percentage?.toFixed(2) || '0.00'}%)</>
+                            )}
                           </div>
                         </div>
                       </TableCell>
@@ -338,21 +372,11 @@ const RealtimeTradesPanel = () => {
                       <TableCell>
                         <div className="flex space-x-1">
                           <Button
-                            onClick={() => handleCloseTrade(trade)}
-                            size="sm"
-                            variant="outline"
-                            className="text-red-600 border-red-300 hover:bg-red-50"
-                            disabled={closeTradesMutation.isPending}
-                          >
-                            <X className="w-4 h-4 mr-1" />
-                            Close
-                          </Button>
-                          <Button
-                            onClick={() => handleManualPnLClose(trade)}
+                            onClick={() => handleSetFixedPnL(trade)}
                             size="sm"
                             variant="outline"
                             className="text-blue-600 border-blue-300 hover:bg-blue-50"
-                            disabled={closeTradesMutation.isPending}
+                            disabled={setFixedPnLMutation.isPending}
                           >
                             <DollarSign className="w-4 h-4 mr-1" />
                             Set P&L
@@ -382,28 +406,25 @@ const RealtimeTradesPanel = () => {
         </CardContent>
       </Card>
 
-      {/* Standard Close Confirmation Dialog */}
+      {/* Close Trade Confirmation Dialog */}
       <AlertDialog open={!!selectedTrade} onOpenChange={() => setSelectedTrade(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>⚠️ Close User Trade</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>SuperAdmin Action:</strong> You are about to forcibly close this user's trade. This action cannot be undone and will immediately settle the position with the calculated P&L.
+              <strong>SuperAdmin Action:</strong> You are about to forcibly close this user's trade. This action cannot be undone and will immediately settle the position.
               {selectedTrade && (
                 <div className="mt-4 p-4 bg-red-50 rounded-lg space-y-2 border border-red-200">
                   <div><strong>User:</strong> {selectedTrade.user_email}</div>
                   <div><strong>Pair:</strong> {selectedTrade.pair}</div>
                   <div><strong>Side:</strong> {selectedTrade.side.toUpperCase()}</div>
                   <div><strong>Size:</strong> {selectedTrade.size.toFixed(4)}</div>
-                  <div><strong>Calculated P&L:</strong> 
+                  <div><strong>Final P&L:</strong> 
                     <span className={`ml-2 font-semibold ${
                       selectedTrade.pnl >= 0 ? 'text-green-600' : 'text-red-600'
                     }`}>
                       {selectedTrade.pnl >= 0 ? '+' : ''}${selectedTrade.pnl.toFixed(2)} USDT
                     </span>
-                  </div>
-                  <div className="text-sm text-red-600 mt-2">
-                    ⚠️ The user will receive the calculated P&L amount.
                   </div>
                 </div>
               )}
@@ -416,19 +437,19 @@ const RealtimeTradesPanel = () => {
               disabled={closeTradesMutation.isPending}
               className="bg-red-600 hover:bg-red-700"
             >
-              {closeTradesMutation.isPending ? 'Closing Trade...' : 'Close with Calculated P&L'}
+              {closeTradesMutation.isPending ? 'Closing Trade...' : 'Close Trade'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Manual P&L Dialog */}
+      {/* Set Fixed P&L Dialog */}
       <Dialog open={manualPnLDialog.isOpen} onOpenChange={() => setManualPnLDialog({ trade: null as any, isOpen: false })}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>💰 Set Manual P&L</DialogTitle>
+            <DialogTitle>💰 Set Fixed P&L</DialogTitle>
             <DialogDescription>
-              <strong>SuperAdmin Override:</strong> You can manually set the profit/loss amount for this user's trade.
+              <strong>SuperAdmin Override:</strong> Set a fixed profit/loss amount for this user's trade. This will be shown to the user when they close the trade.
             </DialogDescription>
           </DialogHeader>
           
@@ -452,26 +473,23 @@ const RealtimeTradesPanel = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="manual-pnl">Manual P&L Amount (USDT)</Label>
+                <Label htmlFor="fixed-pnl">Fixed P&L Amount (USDT)</Label>
                 <Input
-                  id="manual-pnl"
+                  id="fixed-pnl"
                   type="number"
                   step="0.01"
                   value={manualPnL}
                   onChange={(e) => setManualPnL(e.target.value)}
-                  placeholder="Enter P&L amount (can be negative)"
+                  placeholder="Enter fixed P&L amount (can be negative)"
                   className="font-mono"
                 />
                 <p className="text-xs text-gray-500">
-                  Enter a positive number for profit, negative for loss. User will receive: Margin (${manualPnLDialog.trade.margin.toFixed(2)}) + P&L
+                  This fixed amount will be shown to the user when they close the trade.
                 </p>
               </div>
 
               <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
-                <strong>Final Amount:</strong> ${(manualPnLDialog.trade.margin + (parseFloat(manualPnL) || 0)).toFixed(2)} USDT
-                <div className="text-xs text-gray-600 mt-1">
-                  This will override the calculated P&L and set the exact amount you specify.
-                </div>
+                <strong>Note:</strong> This sets a fixed P&L that will override any calculated values when the user closes their trade.
               </div>
             </div>
           )}
@@ -484,11 +502,11 @@ const RealtimeTradesPanel = () => {
               Cancel
             </Button>
             <Button 
-              onClick={confirmManualPnLClose}
-              disabled={closeTradesMutation.isPending || !manualPnL}
+              onClick={confirmSetFixedPnL}
+              disabled={setFixedPnLMutation.isPending || !manualPnL}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              {closeTradesMutation.isPending ? 'Setting P&L...' : 'Close with Custom P&L'}
+              {setFixedPnLMutation.isPending ? 'Setting Fixed P&L...' : 'Set Fixed P&L'}
             </Button>
           </DialogFooter>
         </DialogContent>
