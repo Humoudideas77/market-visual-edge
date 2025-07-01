@@ -5,10 +5,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { TrendingUp, TrendingDown, X, Clock, RefreshCw, Activity, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, X, Clock, RefreshCw, Activity, AlertTriangle, DollarSign } from 'lucide-react';
 import { useRealtimeTrades } from '@/hooks/useRealtimeTrades';
 
 interface TradeToClose {
@@ -20,22 +23,30 @@ interface TradeToClose {
   pnl: number;
   margin: number;
   current_price: number;
+  user_id: string;
+}
+
+interface ManualPnLDialog {
+  trade: TradeToClose;
+  isOpen: boolean;
 }
 
 const RealtimeTradesPanel = () => {
   const { activeTrades, isLoading, error, refetch } = useRealtimeTrades();
   const [selectedTrade, setSelectedTrade] = useState<TradeToClose | null>(null);
+  const [manualPnLDialog, setManualPnLDialog] = useState<ManualPnLDialog>({ trade: null as any, isOpen: false });
+  const [manualPnL, setManualPnL] = useState<string>('');
   const queryClient = useQueryClient();
 
-  // Mutation to close a trade
+  // Mutation to close a trade with manual PnL
   const closeTradesMutation = useMutation({
-    mutationFn: async (tradeId: string) => {
+    mutationFn: async ({ tradeId, customPnL }: { tradeId: string; customPnL?: number }) => {
       const trade = activeTrades.find(t => t.id === tradeId);
       if (!trade) {
         throw new Error('Trade not found');
       }
 
-      console.log('SuperAdmin closing trade:', tradeId);
+      console.log('SuperAdmin closing trade with custom PnL:', tradeId, customPnL);
 
       // Update position status
       const { error: updateError } = await supabase
@@ -52,7 +63,10 @@ const RealtimeTradesPanel = () => {
         throw updateError;
       }
 
-      // Record PnL
+      // Use custom PnL if provided, otherwise use calculated PnL
+      const finalPnL = customPnL !== undefined ? customPnL : (trade.pnl || 0);
+
+      // Record PnL with custom amount
       const { error: pnlError } = await supabase.rpc('record_trade_pnl', {
         p_user_id: trade.user_id,
         p_trade_pair: trade.pair,
@@ -67,8 +81,8 @@ const RealtimeTradesPanel = () => {
         console.error('Error recording PnL:', pnlError);
       }
 
-      // Return margin + PnL to user balance
-      const totalReturn = trade.margin + (trade.pnl || 0);
+      // Return margin + custom PnL to user balance
+      const totalReturn = trade.margin + finalPnL;
       
       if (totalReturn > 0) {
         const { error: balanceError } = await supabase.rpc('update_wallet_balance', {
@@ -83,12 +97,29 @@ const RealtimeTradesPanel = () => {
         }
       }
 
-      return { tradeId, pnl: trade.pnl, userEmail: trade.user_email };
+      // If custom PnL was used, add additional balance adjustment
+      if (customPnL !== undefined) {
+        const pnlDifference = customPnL - (trade.pnl || 0);
+        if (pnlDifference !== 0) {
+          await supabase.rpc('update_wallet_balance', {
+            p_user_id: trade.user_id,
+            p_currency: 'USDT',
+            p_amount: Math.abs(pnlDifference),
+            p_operation: pnlDifference > 0 ? 'add' : 'subtract'
+          });
+        }
+      }
+
+      return { tradeId, pnl: finalPnL, userEmail: trade.user_email, customPnL: customPnL !== undefined };
     },
     onSuccess: (data) => {
-      toast.success(`✅ Trade closed by SuperAdmin! User: ${data.userEmail}, P&L: ${data.pnl && data.pnl >= 0 ? '+' : ''}$${data.pnl?.toFixed(2)} USDT`);
+      const pnlText = data.pnl >= 0 ? `+$${data.pnl.toFixed(2)}` : `-$${Math.abs(data.pnl).toFixed(2)}`;
+      const customNote = data.customPnL ? ' (Custom PnL Set)' : '';
+      toast.success(`✅ Trade closed by SuperAdmin! User: ${data.userEmail}, P&L: ${pnlText} USDT${customNote}`);
       queryClient.invalidateQueries({ queryKey: ['admin-active-trades'] });
       setSelectedTrade(null);
+      setManualPnLDialog({ trade: null as any, isOpen: false });
+      setManualPnL('');
       refetch();
     },
     onError: (error) => {
@@ -106,13 +137,46 @@ const RealtimeTradesPanel = () => {
       size: trade.size,
       pnl: trade.pnl || 0,
       margin: trade.margin,
-      current_price: trade.current_price || trade.entry_price
+      current_price: trade.current_price || trade.entry_price,
+      user_id: trade.user_id
     });
   };
 
   const confirmCloseTrade = () => {
     if (selectedTrade) {
-      closeTradesMutation.mutate(selectedTrade.id);
+      closeTradesMutation.mutate({ tradeId: selectedTrade.id });
+    }
+  };
+
+  const handleManualPnLClose = (trade: any) => {
+    setManualPnLDialog({
+      trade: {
+        id: trade.id,
+        user_email: trade.user_email,
+        pair: trade.pair,
+        side: trade.side,
+        size: trade.size,
+        pnl: trade.pnl || 0,
+        margin: trade.margin,
+        current_price: trade.current_price || trade.entry_price,
+        user_id: trade.user_id
+      },
+      isOpen: true
+    });
+    setManualPnL((trade.pnl || 0).toFixed(2));
+  };
+
+  const confirmManualPnLClose = () => {
+    if (manualPnLDialog.trade && manualPnL !== '') {
+      const customPnL = parseFloat(manualPnL);
+      if (isNaN(customPnL)) {
+        toast.error('Please enter a valid PnL amount');
+        return;
+      }
+      closeTradesMutation.mutate({ 
+        tradeId: manualPnLDialog.trade.id, 
+        customPnL: customPnL 
+      });
     }
   };
 
@@ -272,16 +336,28 @@ const RealtimeTradesPanel = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          onClick={() => handleCloseTrade(trade)}
-                          size="sm"
-                          variant="outline"
-                          className="text-red-600 border-red-300 hover:bg-red-50"
-                          disabled={closeTradesMutation.isPending}
-                        >
-                          <X className="w-4 h-4 mr-1" />
-                          Close
-                        </Button>
+                        <div className="flex space-x-1">
+                          <Button
+                            onClick={() => handleCloseTrade(trade)}
+                            size="sm"
+                            variant="outline"
+                            className="text-red-600 border-red-300 hover:bg-red-50"
+                            disabled={closeTradesMutation.isPending}
+                          >
+                            <X className="w-4 h-4 mr-1" />
+                            Close
+                          </Button>
+                          <Button
+                            onClick={() => handleManualPnLClose(trade)}
+                            size="sm"
+                            variant="outline"
+                            className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                            disabled={closeTradesMutation.isPending}
+                          >
+                            <DollarSign className="w-4 h-4 mr-1" />
+                            Set P&L
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -306,20 +382,20 @@ const RealtimeTradesPanel = () => {
         </CardContent>
       </Card>
 
-      {/* Confirmation Dialog */}
+      {/* Standard Close Confirmation Dialog */}
       <AlertDialog open={!!selectedTrade} onOpenChange={() => setSelectedTrade(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>⚠️ Close User Trade</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>SuperAdmin Action:</strong> You are about to forcibly close this user's trade. This action cannot be undone and will immediately settle the position.
+              <strong>SuperAdmin Action:</strong> You are about to forcibly close this user's trade. This action cannot be undone and will immediately settle the position with the calculated P&L.
               {selectedTrade && (
                 <div className="mt-4 p-4 bg-red-50 rounded-lg space-y-2 border border-red-200">
                   <div><strong>User:</strong> {selectedTrade.user_email}</div>
                   <div><strong>Pair:</strong> {selectedTrade.pair}</div>
                   <div><strong>Side:</strong> {selectedTrade.side.toUpperCase()}</div>
                   <div><strong>Size:</strong> {selectedTrade.size.toFixed(4)}</div>
-                  <div><strong>Current P&L:</strong> 
+                  <div><strong>Calculated P&L:</strong> 
                     <span className={`ml-2 font-semibold ${
                       selectedTrade.pnl >= 0 ? 'text-green-600' : 'text-red-600'
                     }`}>
@@ -327,7 +403,7 @@ const RealtimeTradesPanel = () => {
                     </span>
                   </div>
                   <div className="text-sm text-red-600 mt-2">
-                    ⚠️ The user will be immediately settled and their position closed.
+                    ⚠️ The user will receive the calculated P&L amount.
                   </div>
                 </div>
               )}
@@ -340,11 +416,83 @@ const RealtimeTradesPanel = () => {
               disabled={closeTradesMutation.isPending}
               className="bg-red-600 hover:bg-red-700"
             >
-              {closeTradesMutation.isPending ? 'Closing Trade...' : 'Force Close Trade'}
+              {closeTradesMutation.isPending ? 'Closing Trade...' : 'Close with Calculated P&L'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Manual P&L Dialog */}
+      <Dialog open={manualPnLDialog.isOpen} onOpenChange={() => setManualPnLDialog({ trade: null as any, isOpen: false })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>💰 Set Manual P&L</DialogTitle>
+            <DialogDescription>
+              <strong>SuperAdmin Override:</strong> You can manually set the profit/loss amount for this user's trade.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {manualPnLDialog.trade && (
+            <div className="space-y-4">
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div><strong>User:</strong> {manualPnLDialog.trade.user_email}</div>
+                  <div><strong>Pair:</strong> {manualPnLDialog.trade.pair}</div>
+                  <div><strong>Side:</strong> {manualPnLDialog.trade.side.toUpperCase()}</div>
+                  <div><strong>Size:</strong> {manualPnLDialog.trade.size.toFixed(4)}</div>
+                  <div><strong>Margin:</strong> ${manualPnLDialog.trade.margin.toFixed(2)}</div>
+                  <div><strong>Current P&L:</strong> 
+                    <span className={`ml-1 ${
+                      manualPnLDialog.trade.pnl >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {manualPnLDialog.trade.pnl >= 0 ? '+' : ''}${manualPnLDialog.trade.pnl.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="manual-pnl">Manual P&L Amount (USDT)</Label>
+                <Input
+                  id="manual-pnl"
+                  type="number"
+                  step="0.01"
+                  value={manualPnL}
+                  onChange={(e) => setManualPnL(e.target.value)}
+                  placeholder="Enter P&L amount (can be negative)"
+                  className="font-mono"
+                />
+                <p className="text-xs text-gray-500">
+                  Enter a positive number for profit, negative for loss. User will receive: Margin (${manualPnLDialog.trade.margin.toFixed(2)}) + P&L
+                </p>
+              </div>
+
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                <strong>Final Amount:</strong> ${(manualPnLDialog.trade.margin + (parseFloat(manualPnL) || 0)).toFixed(2)} USDT
+                <div className="text-xs text-gray-600 mt-1">
+                  This will override the calculated P&L and set the exact amount you specify.
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setManualPnLDialog({ trade: null as any, isOpen: false })}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={confirmManualPnLClose}
+              disabled={closeTradesMutation.isPending || !manualPnL}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {closeTradesMutation.isPending ? 'Setting P&L...' : 'Close with Custom P&L'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
