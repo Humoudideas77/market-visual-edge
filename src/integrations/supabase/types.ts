@@ -470,6 +470,7 @@ export type Database = {
           created_at: string
           entry_price: number
           exit_price: number | null
+          fixed_pnl: number | null
           id: string
           leverage: number
           liquidation_price: number
@@ -485,6 +486,7 @@ export type Database = {
           created_at?: string
           entry_price: number
           exit_price?: number | null
+          fixed_pnl?: number | null
           id?: string
           leverage: number
           liquidation_price: number
@@ -500,6 +502,7 @@ export type Database = {
           created_at?: string
           entry_price?: number
           exit_price?: number | null
+          fixed_pnl?: number | null
           id?: string
           leverage?: number
           liquidation_price?: number

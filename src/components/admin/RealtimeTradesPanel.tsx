@@ -102,8 +102,11 @@ const RealtimeTradesPanel = () => {
         throw updateError;
       }
 
+      // Cast trade to any to access fixed_pnl property
+      const tradeWithFixedPnL = trade as any;
+      
       // Use fixed P&L if it exists, otherwise use calculated P&L
-      const finalPnL = trade.fixed_pnl !== undefined && trade.fixed_pnl !== null ? trade.fixed_pnl : (trade.pnl || 0);
+      const finalPnL = tradeWithFixedPnL.fixed_pnl !== undefined && tradeWithFixedPnL.fixed_pnl !== null ? tradeWithFixedPnL.fixed_pnl : (trade.pnl || 0);
 
       // Record PnL
       const { error: pnlError } = await supabase.rpc('record_trade_pnl', {
@@ -136,7 +139,7 @@ const RealtimeTradesPanel = () => {
         }
       }
 
-      return { tradeId, pnl: finalPnL, userEmail: trade.user_email, isFixed: trade.fixed_pnl !== undefined && trade.fixed_pnl !== null };
+      return { tradeId, pnl: finalPnL, userEmail: trade.user_email, isFixed: tradeWithFixedPnL.fixed_pnl !== undefined && tradeWithFixedPnL.fixed_pnl !== null };
     },
     onSuccess: (data) => {
       const pnlText = data.pnl >= 0 ? `+$${data.pnl.toFixed(2)}` : `-$${Math.abs(data.pnl).toFixed(2)}`;
@@ -187,7 +190,8 @@ const RealtimeTradesPanel = () => {
       },
       isOpen: true
     });
-    setManualPnL((trade.fixed_pnl !== undefined && trade.fixed_pnl !== null ? trade.fixed_pnl : trade.pnl || 0).toFixed(2));
+    const tradeWithFixedPnL = trade as any;
+    setManualPnL((tradeWithFixedPnL.fixed_pnl !== undefined && tradeWithFixedPnL.fixed_pnl !== null ? tradeWithFixedPnL.fixed_pnl : trade.pnl || 0).toFixed(2));
   };
 
   const confirmSetFixedPnL = () => {
@@ -293,98 +297,103 @@ const RealtimeTradesPanel = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {activeTrades.map((trade) => (
-                    <TableRow key={trade.id} className="hover:bg-gray-50">
-                      <TableCell>
-                        <div className="font-medium text-sm">
-                          {trade.user_email}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {trade.user_id.substring(0, 8)}...
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-semibold">
-                        {trade.pair}
-                      </TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant={trade.side === 'long' ? 'default' : 'destructive'}
-                          className="uppercase flex items-center space-x-1"
-                        >
-                          {trade.side === 'long' ? (
-                            <TrendingUp className="w-3 h-3" />
-                          ) : (
-                            <TrendingDown className="w-3 h-3" />
-                          )}
-                          <span>{trade.side}</span>
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-mono">
-                        {trade.size.toFixed(4)}
-                      </TableCell>
-                      <TableCell className="font-mono">
-                        ${trade.entry_price.toFixed(2)}
-                      </TableCell>
-                      <TableCell className="font-mono">
-                        <div className={`${
-                          (trade.current_price || 0) >= trade.entry_price ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          ${trade.current_price?.toFixed(2) || 'N/A'}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-bold">
-                        {trade.leverage}x
-                      </TableCell>
-                      <TableCell className="font-mono">
-                        ${trade.margin.toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        <div className={`font-mono font-semibold ${
-                          (trade.fixed_pnl !== undefined && trade.fixed_pnl !== null 
-                            ? trade.fixed_pnl 
-                            : trade.pnl || 0) >= 0 ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {(trade.fixed_pnl !== undefined && trade.fixed_pnl !== null 
-                            ? trade.fixed_pnl 
-                            : trade.pnl || 0) >= 0 ? '+' : ''}${(trade.fixed_pnl !== undefined && trade.fixed_pnl !== null 
-                              ? trade.fixed_pnl 
-                              : trade.pnl || 0).toFixed(2)}
-                          <div className="text-xs">
-                            {trade.fixed_pnl !== undefined && trade.fixed_pnl !== null ? (
-                              <span className="text-blue-600 font-semibold">FIXED</span>
-                            ) : (
-                              <>({(trade.pnl_percentage || 0) >= 0 ? '+' : ''}{trade.pnl_percentage?.toFixed(2) || '0.00'}%)</>
-                            )}
+                  {activeTrades.map((trade) => {
+                    // Cast trade to any to access fixed_pnl property
+                    const tradeWithFixedPnL = trade as any;
+                    
+                    return (
+                      <TableRow key={trade.id} className="hover:bg-gray-50">
+                        <TableCell>
+                          <div className="font-medium text-sm">
+                            {trade.user_email}
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        ${trade.liquidation_price.toFixed(2)}
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-600">
-                        <div className="flex items-center space-x-1">
-                          <Clock className="w-3 h-3" />
-                          <span>
-                            {Math.floor((Date.now() - new Date(trade.created_at).getTime()) / (1000 * 60))}m
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-1">
-                          <Button
-                            onClick={() => handleSetFixedPnL(trade)}
-                            size="sm"
-                            variant="outline"
-                            className="text-blue-600 border-blue-300 hover:bg-blue-50"
-                            disabled={setFixedPnLMutation.isPending}
+                          <div className="text-xs text-gray-500">
+                            {trade.user_id.substring(0, 8)}...
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-semibold">
+                          {trade.pair}
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={trade.side === 'long' ? 'default' : 'destructive'}
+                            className="uppercase flex items-center space-x-1"
                           >
-                            <DollarSign className="w-4 h-4 mr-1" />
-                            Set P&L
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                            {trade.side === 'long' ? (
+                              <TrendingUp className="w-3 h-3" />
+                            ) : (
+                              <TrendingDown className="w-3 h-3" />
+                            )}
+                            <span>{trade.side}</span>
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-mono">
+                          {trade.size.toFixed(4)}
+                        </TableCell>
+                        <TableCell className="font-mono">
+                          ${trade.entry_price.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="font-mono">
+                          <div className={`${
+                            (trade.current_price || 0) >= trade.entry_price ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            ${trade.current_price?.toFixed(2) || 'N/A'}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-bold">
+                          {trade.leverage}x
+                        </TableCell>
+                        <TableCell className="font-mono">
+                          ${trade.margin.toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          <div className={`font-mono font-semibold ${
+                            (tradeWithFixedPnL.fixed_pnl !== undefined && tradeWithFixedPnL.fixed_pnl !== null 
+                              ? tradeWithFixedPnL.fixed_pnl 
+                              : trade.pnl || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            {(tradeWithFixedPnL.fixed_pnl !== undefined && tradeWithFixedPnL.fixed_pnl !== null 
+                              ? tradeWithFixedPnL.fixed_pnl 
+                              : trade.pnl || 0) >= 0 ? '+' : ''}${(tradeWithFixedPnL.fixed_pnl !== undefined && tradeWithFixedPnL.fixed_pnl !== null 
+                                ? tradeWithFixedPnL.fixed_pnl 
+                                : trade.pnl || 0).toFixed(2)}
+                            <div className="text-xs">
+                              {tradeWithFixedPnL.fixed_pnl !== undefined && tradeWithFixedPnL.fixed_pnl !== null ? (
+                                <span className="text-blue-600 font-semibold">FIXED</span>
+                              ) : (
+                                <>({(trade.pnl_percentage || 0) >= 0 ? '+' : ''}{trade.pnl_percentage?.toFixed(2) || '0.00'}%)</>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">
+                          ${trade.liquidation_price.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-sm text-gray-600">
+                          <div className="flex items-center space-x-1">
+                            <Clock className="w-3 h-3" />
+                            <span>
+                              {Math.floor((Date.now() - new Date(trade.created_at).getTime()) / (1000 * 60))}m
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-1">
+                            <Button
+                              onClick={() => handleSetFixedPnL(trade)}
+                              size="sm"
+                              variant="outline"
+                              className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                              disabled={setFixedPnLMutation.isPending}
+                            >
+                              <DollarSign className="w-4 h-4 mr-1" />
+                              Set P&L
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
