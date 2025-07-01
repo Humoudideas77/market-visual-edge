@@ -3,298 +3,218 @@ import { useState, useEffect } from 'react';
 import { useAuth } from './useAuth';
 import { useWallet } from './useWallet';
 import { supabase } from '@/integrations/supabase/client';
-import { useCryptoPrices, getPriceBySymbol } from './useCryptoPrices';
 import { toast } from 'sonner';
+import { useCryptoPrices, getPriceBySymbol } from './useCryptoPrices';
 
 export interface PerpetualPosition {
   id: string;
-  user_id: string;
   pair: string;
   side: 'long' | 'short';
   size: number;
   entry_price: number;
   current_price: number;
-  pnl: number;
-  pnl_percentage: number;
   leverage: number;
   margin: number;
   liquidation_price: number;
-  status: 'active' | 'closed';
-  created_at: Date;
-  closed_at?: Date;
-  exit_price?: number;
+  pnl: number;
+  pnl_percentage: number;
+  created_at: string;
+  status: string;
+  fixed_pnl?: number | null;
 }
 
-export const usePerpetualTrades = (selectedPair: string) => {
+export const usePerpetualTrades = () => {
   const { user } = useAuth();
-  const { getBalance, executeTransaction, refreshBalances } = useWallet();
+  const { refreshBalances } = useWallet();
   const { prices } = useCryptoPrices();
   const [positions, setPositions] = useState<PerpetualPosition[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [baseAsset] = selectedPair.split('/');
-  const currentPrice = getPriceBySymbol(prices, baseAsset)?.current_price || 0;
-
-  // Calculate accurate PnL for a position
-  const calculatePnL = (position: PerpetualPosition, price: number) => {
-    const priceDiff = price - position.entry_price;
-    let pnl = 0;
-    
-    if (position.side === 'long') {
-      pnl = priceDiff * position.size;
-    } else {
-      pnl = -priceDiff * position.size;
+  const fetchPositions = async () => {
+    if (!user) {
+      setPositions([]);
+      setLoading(false);
+      return;
     }
-    
-    const pnlPercentage = position.margin > 0 ? (pnl / position.margin) * 100 : 0;
-    
-    return { pnl: Number(pnl.toFixed(8)), pnlPercentage: Number(pnlPercentage.toFixed(4)) };
-  };
-
-  // Load positions from database
-  const loadPositions = async () => {
-    if (!user) return;
 
     try {
       const { data, error } = await supabase
         .from('perpetual_positions')
         .select('*')
         .eq('user_id', user.id)
-        .eq('pair', selectedPair)
+        .eq('status', 'active')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const formattedPositions: PerpetualPosition[] = (data || []).map(pos => {
-        const basePosition = {
-          id: pos.id,
-          user_id: pos.user_id,
-          pair: pos.pair,
-          side: pos.side as 'long' | 'short',
-          size: Number(pos.size),
-          entry_price: Number(pos.entry_price),
-          leverage: Number(pos.leverage),
-          margin: Number(pos.margin),
-          liquidation_price: Number(pos.liquidation_price),
-          status: pos.status as 'active' | 'closed',
-          created_at: new Date(pos.created_at),
-          closed_at: pos.closed_at ? new Date(pos.closed_at) : undefined,
-          exit_price: pos.exit_price ? Number(pos.exit_price) : undefined,
-          current_price: 0,
-          pnl: 0,
-          pnl_percentage: 0
-        };
+      if (data) {
+        const positionsWithPnL = data.map(position => {
+          const [baseAsset] = position.pair.split('/');
+          const currentPrice = getPriceBySymbol(prices, baseAsset)?.current_price || position.entry_price;
+          
+          const priceDiff = currentPrice - position.entry_price;
+          const pnl = position.side === 'long' 
+            ? priceDiff * position.size
+            : -priceDiff * position.size;
+          const pnlPercentage = (pnl / position.margin) * 100;
 
-        if (pos.status === 'active') {
-          const priceToUse = currentPrice > 0 ? currentPrice : basePosition.entry_price;
-          const { pnl, pnlPercentage } = calculatePnL(basePosition, priceToUse);
-          basePosition.current_price = priceToUse;
-          basePosition.pnl = pnl;
-          basePosition.pnl_percentage = pnlPercentage;
-        } else {
-          const exitPrice = basePosition.exit_price || basePosition.entry_price;
-          const { pnl, pnlPercentage } = calculatePnL(basePosition, exitPrice);
-          basePosition.current_price = exitPrice;
-          basePosition.pnl = pnl;
-          basePosition.pnl_percentage = pnlPercentage;
-        }
+          return {
+            id: position.id,
+            pair: position.pair,
+            side: position.side,
+            size: position.size,
+            entry_price: position.entry_price,
+            current_price: currentPrice,
+            leverage: position.leverage,
+            margin: position.margin,
+            liquidation_price: position.liquidation_price,
+            pnl,
+            pnl_percentage: pnlPercentage,
+            created_at: position.created_at,
+            status: position.status,
+            fixed_pnl: position.fixed_pnl
+          };
+        });
 
-        return basePosition;
-      });
-
-      setPositions(formattedPositions);
+        setPositions(positionsWithPnL);
+      }
     } catch (error) {
-      console.error('Error loading positions:', error);
+      console.error('Error fetching positions:', error);
       toast.error('Failed to load positions');
     } finally {
       setLoading(false);
     }
   };
 
-  // Calculate liquidation price with proper precision
-  const calculateLiquidationPrice = (entryPrice: number, side: 'long' | 'short', leverage: number): number => {
-    const maintenanceMargin = 0.05; // 5% maintenance margin
-    const leverageRatio = 1 / leverage;
-    
-    if (side === 'long') {
-      return Number((entryPrice * (1 - leverageRatio + maintenanceMargin)).toFixed(8));
-    } else {
-      return Number((entryPrice * (1 + leverageRatio - maintenanceMargin)).toFixed(8));
-    }
-  };
-
-  // Open a new position with strict balance validation
-  const openPosition = async (
-    side: 'long' | 'short',
-    size: number,
-    leverage: number
-  ): Promise<{ success: boolean; message: string }> => {
-    if (!user || !currentPrice) {
-      return { success: false, message: 'Invalid user or price data' };
-    }
-
-    // Precise calculations
-    const notionalValue = Number((size * currentPrice).toFixed(8));
-    const margin = Number((notionalValue / leverage).toFixed(8));
-    const liquidationPrice = calculateLiquidationPrice(currentPrice, side, leverage);
-    
-    // Strict balance validation
-    await refreshBalances();
-    const usdtBalance = getBalance('USDT');
-    
-    if (!usdtBalance || usdtBalance.available < margin) {
-      const shortfall = margin - (usdtBalance?.available || 0);
-      return { 
-        success: false, 
-        message: `Insufficient USDT balance! You need $${margin.toFixed(2)} USDT margin but only have $${(usdtBalance?.available || 0).toFixed(2)} USDT available. Shortfall: $${shortfall.toFixed(2)} USDT.` 
-      };
-    }
+  const closePosition = async (positionId: string) => {
+    if (!user) return;
 
     try {
-      // Execute transaction with precise amounts
-      const marginDeducted = await executeTransaction({
-        type: 'trade_sell',
-        currency: 'USDT',
-        amount: margin
-      });
-
-      if (!marginDeducted) {
-        return { success: false, message: 'Failed to deduct margin from balance' };
+      // Get the position details first
+      const position = positions.find(p => p.id === positionId);
+      if (!position) {
+        throw new Error('Position not found');
       }
 
-      // Create position in database with precise values
-      const { data, error } = await supabase
-        .from('perpetual_positions')
-        .insert({
-          user_id: user.id,
-          pair: selectedPair,
-          side,
-          size: size,
-          entry_price: currentPrice,
-          leverage: leverage,
-          margin: margin,
-          liquidation_price: liquidationPrice,
-          status: 'active'
-        })
-        .select()
-        .single();
+      console.log('Closing position:', position);
 
-      if (error) throw error;
+      // Use fixed P&L if it exists, otherwise use calculated P&L
+      const finalPnL = position.fixed_pnl !== null && position.fixed_pnl !== undefined 
+        ? position.fixed_pnl 
+        : position.pnl;
 
-      // Log activity with precise details
-      await supabase.rpc('log_user_activity', {
-        p_user_id: user.id,
-        p_activity_type: 'perpetual_position_opened',
-        p_details: {
-          pair: selectedPair,
-          side,
-          size,
-          entry_price: currentPrice,
-          leverage,
-          margin: margin,
-          liquidation_price: liquidationPrice
-        }
-      });
+      console.log('Final P&L to apply:', finalPnL, 'Fixed P&L:', position.fixed_pnl, 'Calculated P&L:', position.pnl);
 
-      await loadPositions();
-      
-      toast.success(`✅ ${side.toUpperCase()} position opened! Size: ${size} ${baseAsset}, Leverage: ${leverage}x, Margin: $${margin.toFixed(2)} USDT`);
-      return { success: true, message: 'Position opened successfully' };
-
-    } catch (error) {
-      console.error('Error opening position:', error);
-      return { success: false, message: 'Failed to open position' };
-    }
-  };
-
-  // Close a position with accurate PnL calculation and balance update
-  const closePosition = async (positionId: string): Promise<{ success: boolean; message: string }> => {
-    if (!user || !currentPrice) {
-      return { success: false, message: 'Invalid user or price data' };
-    }
-
-    const position = positions.find(p => p.id === positionId);
-    if (!position) {
-      return { success: false, message: 'Position not found' };
-    }
-
-    try {
-      // Calculate precise PnL
-      const { pnl } = calculatePnL(position, currentPrice);
-      const totalReturn = Number((position.margin + pnl).toFixed(8));
-
-      // Update position in database with precise exit data
+      // Update position status to closed
       const { error: updateError } = await supabase
         .from('perpetual_positions')
         .update({
           status: 'closed',
-          exit_price: currentPrice,
+          exit_price: position.current_price,
           closed_at: new Date().toISOString()
         })
         .eq('id', positionId);
 
       if (updateError) throw updateError;
 
-      // Record precise PnL in database
-      const pnlResult = await supabase.rpc('record_trade_pnl', {
+      // Record the P&L with the final amount (fixed or calculated)
+      const { error: pnlError } = await supabase.rpc('record_trade_pnl', {
         p_user_id: user.id,
         p_trade_pair: position.pair,
         p_trade_side: position.side,
         p_entry_price: position.entry_price,
-        p_exit_price: currentPrice,
+        p_exit_price: position.current_price,
         p_trade_size: position.size,
         p_currency: 'USDT'
       });
 
-      if (pnlResult.error) {
-        console.error('Error recording PnL:', pnlResult.error);
+      if (pnlError) {
+        console.error('Error recording PnL:', pnlError);
       }
 
-      // Return margin + PnL to user's balance (even if negative)
-      if (totalReturn > 0) {
-        await executeTransaction({
-          type: 'trade_buy',
-          currency: 'USDT',
-          amount: totalReturn
-        });
-      }
-
-      // Log closing activity
-      await supabase.rpc('log_user_activity', {
-        p_user_id: user.id,
-        p_activity_type: 'perpetual_position_closed',
-        p_details: {
-          pair: position.pair,
-          side: position.side,
-          size: position.size,
-          entry_price: position.entry_price,
-          exit_price: currentPrice,
-          pnl: pnl,
-          margin_returned: totalReturn
-        }
-      });
-
-      await loadPositions();
-      await refreshBalances();
+      // Return margin + final P&L to user balance
+      const totalReturn = position.margin + finalPnL;
       
-      const pnlText = pnl >= 0 ? `+$${pnl.toFixed(2)}` : `-$${Math.abs(pnl).toFixed(2)}`;
-      toast.success(`✅ Position closed! PnL: ${pnlText} USDT`);
-      return { success: true, message: 'Position closed successfully' };
+      console.log('Returning to user balance:', totalReturn, '(margin:', position.margin, '+ final P&L:', finalPnL, ')');
 
+      if (totalReturn > 0) {
+        const { error: balanceError } = await supabase.rpc('update_wallet_balance', {
+          p_user_id: user.id,
+          p_currency: 'USDT',
+          p_amount: totalReturn,
+          p_operation: 'add'
+        });
+
+        if (balanceError) {
+          console.error('Error updating balance:', balanceError);
+          throw balanceError;
+        }
+      }
+
+      // Show appropriate success message
+      const pnlText = finalPnL >= 0 ? `+$${finalPnL.toFixed(2)}` : `-$${Math.abs(finalPnL).toFixed(2)}`;
+      const fixedNote = position.fixed_pnl !== null && position.fixed_pnl !== undefined ? ' (Admin Fixed P&L Applied)' : '';
+      
+      toast.success(`Position closed successfully! P&L: ${pnlText} USDT${fixedNote}`);
+
+      // Refresh data
+      await Promise.all([
+        fetchPositions(),
+        refreshBalances()
+      ]);
+
+      return true;
     } catch (error) {
       console.error('Error closing position:', error);
-      return { success: false, message: 'Failed to close position' };
+      toast.error('Failed to close position: ' + (error as Error).message);
+      return false;
     }
   };
 
-  // Update positions with current prices and calculate real-time PnL
+  // Set up real-time updates
   useEffect(() => {
-    if (positions.length > 0 && currentPrice > 0) {
-      setPositions(prev => prev.map(position => {
-        if (position.status === 'closed') return position;
+    if (!user) return;
 
-        const { pnl, pnlPercentage } = calculatePnL(position, currentPrice);
+    const channel = supabase
+      .channel('perpetual-positions-user')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'perpetual_positions',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {
+          console.log('User perpetual position updated, refreshing...');
+          fetchPositions();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
+  // Initial fetch and price updates
+  useEffect(() => {
+    fetchPositions();
+  }, [user?.id]);
+
+  // Update positions when prices change
+  useEffect(() => {
+    if (positions.length > 0 && prices.length > 0) {
+      setPositions(prev => prev.map(position => {
+        const [baseAsset] = position.pair.split('/');
+        const currentPrice = getPriceBySymbol(prices, baseAsset)?.current_price || position.entry_price;
         
+        const priceDiff = currentPrice - position.entry_price;
+        const pnl = position.side === 'long' 
+          ? priceDiff * position.size
+          : -priceDiff * position.size;
+        const pnlPercentage = (pnl / position.margin) * 100;
+
         return {
           ...position,
           current_price: currentPrice,
@@ -303,35 +223,12 @@ export const usePerpetualTrades = (selectedPair: string) => {
         };
       }));
     }
-  }, [currentPrice]);
-
-  // Load positions on mount and when user/pair changes
-  useEffect(() => {
-    if (user) {
-      loadPositions();
-    } else {
-      setPositions([]);
-      setLoading(false);
-    }
-  }, [user, selectedPair]);
-
-  // Set up real-time price updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (positions.length > 0 && currentPrice > 0) {
-        loadPositions(); // Refresh positions to get latest data
-      }
-    }, 5000); // Update every 5 seconds
-
-    return () => clearInterval(interval);
-  }, [positions.length, currentPrice]);
+  }, [prices]);
 
   return {
-    positions: positions.filter(p => p.status === 'active'),
-    allPositions: positions,
+    positions,
     loading,
-    openPosition,
     closePosition,
-    refreshPositions: loadPositions
+    refetch: fetchPositions
   };
 };

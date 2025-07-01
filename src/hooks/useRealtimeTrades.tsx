@@ -19,6 +19,7 @@ interface RealtimeTrade {
   current_price?: number;
   pnl?: number;
   pnl_percentage?: number;
+  fixed_pnl?: number | null;
 }
 
 export const useRealtimeTrades = () => {
@@ -63,7 +64,7 @@ export const useRealtimeTrades = () => {
 
       console.log('SuperAdmin confirmed, fetching all active positions...');
 
-      // Fetch all active positions with user info using a more explicit join
+      // Fetch all active positions with user info including fixed_pnl
       const { data: positions, error: positionsError } = await supabase
         .from('perpetual_positions')
         .select(`
@@ -77,7 +78,8 @@ export const useRealtimeTrades = () => {
           margin,
           liquidation_price,
           created_at,
-          status
+          status,
+          fixed_pnl
         `)
         .eq('status', 'active')
         .order('created_at', { ascending: false });
@@ -119,10 +121,10 @@ export const useRealtimeTrades = () => {
         const currentPrice = getPriceBySymbol(prices, baseAsset)?.current_price || trade.entry_price;
         
         const priceDiff = currentPrice - trade.entry_price;
-        const pnl = trade.side === 'long' 
+        const calculatedPnl = trade.side === 'long' 
           ? priceDiff * trade.size
           : -priceDiff * trade.size;
-        const pnlPercentage = (pnl / trade.margin) * 100;
+        const pnlPercentage = (calculatedPnl / trade.margin) * 100;
 
         return {
           id: trade.id,
@@ -137,8 +139,9 @@ export const useRealtimeTrades = () => {
           created_at: trade.created_at,
           user_email: userEmailMap.get(trade.user_id) || `User ${trade.user_id.substring(0, 8)}...`,
           current_price: currentPrice,
-          pnl: pnl,
-          pnl_percentage: pnlPercentage
+          pnl: calculatedPnl,
+          pnl_percentage: pnlPercentage,
+          fixed_pnl: trade.fixed_pnl
         };
       });
 
@@ -194,15 +197,15 @@ export const useRealtimeTrades = () => {
         const currentPrice = getPriceBySymbol(prices, baseAsset)?.current_price || trade.entry_price;
         
         const priceDiff = currentPrice - trade.entry_price;
-        const pnl = trade.side === 'long' 
+        const calculatedPnl = trade.side === 'long' 
           ? priceDiff * trade.size
           : -priceDiff * trade.size;
-        const pnlPercentage = (pnl / trade.margin) * 100;
+        const pnlPercentage = (calculatedPnl / trade.margin) * 100;
 
         return {
           ...trade,
           current_price: currentPrice,
-          pnl,
+          pnl: calculatedPnl,
           pnl_percentage: pnlPercentage
         };
       }));
